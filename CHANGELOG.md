@@ -12,6 +12,7 @@
 - 2026-10-04 การ์ด stats ย่อ ~25% (font 12/15, icon 15) ให้ไม่แย่งสายตาตอนเล่น · แถว dropped frames แสดงตลอด (upstream โชว์เฉพาะ > 0 ทำให้การ์ดกระพริบ/เปลี่ยนความสูงตอนเล่น)
 - 2026-10-04 เปลี่ยนทิศทางจาก "Python wrapper รอบ chiaki.exe" เป็น "fork chiaki-ng + redesign UI" — ของเก่าย้ายไป `archive/pswrap-python/`
 ### Fixed
+- 2026-10-06 build จาก clone ใหม่บน Windows: แพตช์ curl พังเมื่อ `core.autocrlf=true` (curl เป็น CRLF แพตช์เป็น LF) → แปลงเป็น LF ก่อนแพตช์ · submodule oboe/borealis (Android/Switch) ไม่ดึงตอน clone (`update = none`) เพราะ oboe path ยาวเกิน MAX_PATH ทำ `--recurse-submodules` ล้ม
 - 2026-10-06 build: แพตช์ Schannel AIA ของ curl ถูกข้ามแบบเงียบๆ เมื่อโฟลเดอร์ build อยู่ใต้ git repo อื่น (`git apply --directory`) → `CURLSSLOPT_SCHANNEL_AIA undeclared` · ตอนนี้ apply ใน copy ของ curl ที่ `git init` เป็นรากเอง
 - 2026-10-05 **แอป crash/ค้างกลางสตรีม (ทำให้กดปุ่มไม่ติดเป็นช่วงๆ)**: (1) `QQuickRenderControl::sync()` ถูกเรียกข้าม thread แบบไม่บล็อก GUI (upstream) → แข่งกับ overlay ที่ขยับตลอด → SIGSEGV ใน Qt6Gui · ตอนนี้ sync 2 จังหวะ: render thread `beginFrame()` (รอ GPU) ก่อน แล้ว GUI บล็อกเฉพาะ sync (~0.2ms) — เวอร์ชันแรกที่บล็อกทั้ง sync ทำให้สะดุดรัวเมื่อหน้าต่างใหญ่ (GUI รอ GPU ทุกเฟรม) (2) libplacebo assert `!tex_vk->held` (dialog ค้างจอ) เมื่อ render ส่ง overlay texture ที่ Qt ยังถืออยู่ — upstream มีช่องนี้ ตอนนี้ endFrame ก่อนใช้เสมอ (3) render แทรกหลัง resize ทำให้เปิดรอบซ้อนวนไม่จบ
 - 2026-10-05 คลิกสลับ overlay ระหว่างแก้แล้วจอยไม่เข้าเกมจนตัดสตรีม (grab input ซ้อน 2 ชั้น release ชั้นเดียว)
