@@ -151,10 +151,16 @@ void QmlMainWindow::pswrapSetupTrayView(QMenu *menu)
 		}
 	});
 
-	// สถานะตามตอนเปิดเมนู: Stream menu ใช้ได้เฉพาะระหว่างสตรีม · Settings เฉพาะนอกสตรีม
-	connect(menu, &QMenu::aboutToShow, this, [this, stream_menu, settings_action]() {
+	// preview ภาพแนวตั้ง 9:16 (VerticalPreviewWindow.qml — มีเฉพาะระหว่างสตรีม)
+	auto *vertical_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/vertical.svg")), tr("9:16 preview"));
+	connect(vertical_action, &QAction::triggered, this, [this]() { setVerticalPreview(!verticalPreview()); });
+
+	// สถานะตามตอนเปิดเมนู: Stream menu / 9:16 ใช้ได้เฉพาะระหว่างสตรีม · Settings เฉพาะนอกสตรีม
+	connect(menu, &QMenu::aboutToShow, this, [this, stream_menu, settings_action, vertical_action]() {
 		stream_menu->setEnabled(session != nullptr);
 		settings_action->setEnabled(session == nullptr);
+		vertical_action->setEnabled(session != nullptr);
+		vertical_action->setText(tr("9:16 preview") + (verticalPreview() ? QStringLiteral("   ●  ON") : QStringLiteral("   ○  OFF")));
 	});
 }
 

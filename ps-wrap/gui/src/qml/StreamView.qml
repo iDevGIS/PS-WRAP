@@ -675,6 +675,9 @@ Item {
     function pushOverlayHitRects() {
         if (!Chiaki.window) return;
         Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(root.recordingToast)]);
+        // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
+        const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
+        Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
     }
     Timer { interval: 200; repeat: true; running: !!Chiaki.session; onTriggered: view.pushOverlayHitRects() }
     Component.onDestruction: { if (Chiaki.window) Chiaki.window.setOverlayHitRects([]); root.toastBottomInset = 0; }
@@ -1590,6 +1593,11 @@ Item {
         y: separateStatsY + (pswrapPrefs.overlayY < 0 ? separateStatsHeight - height - 24 : Math.round(pswrapPrefs.overlayY * separateStatsHeight))
         onVisibleChanged: if (visible) view.updateSeparateMenuGeometry()
         ControllerOverlay { anchors.fill: parent }
+    }
+
+    // PS-WRAP: preview ภาพแนวตั้ง 9:16 — หน้าต่างแยก เปิดจากปุ่ม 9:16 ในเมนูสตรีม / tray
+    VerticalPreviewWindow {
+        visible: !!Chiaki.window && Chiaki.window.verticalPreview && !!Chiaki.session
     }
 
     StreamMenuWindow {

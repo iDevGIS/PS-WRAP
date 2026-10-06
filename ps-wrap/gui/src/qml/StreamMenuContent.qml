@@ -777,8 +777,26 @@ FocusScope {
                     onClicked: content.goLive.toggle()
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: screenshotButton
+                    KeyNavigation.right: verticalButton
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: หน้าต่าง preview ภาพแนวตั้ง 9:16 (VerticalPreviewWindow.qml)
+                MenuButton {
+                    id: verticalButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/vertical.svg"
+                    text: qsTr("9:16")
+                    checkable: true
+                    checked: !!Chiaki.window && Chiaki.window.verticalPreview
+                    onToggled: Chiaki.window.verticalPreview = !Chiaki.window.verticalPreview
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: liveButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("Vertical 9:16 preview for Shorts / TikTok / Reels")
                 }
             }
         }

@@ -12,6 +12,7 @@
     <file>StatsOverlay.qml</file>
     <file>MicSpectrumOverlay.qml</file>
     <file>ClockOverlay.qml</file>
+    <file>VerticalPreviewWindow.qml</file>
     <file>StreamToast.qml</file>
     <file>MicPreviewDialog.qml</file>
     <file>CamPreviewDialog.qml</file>

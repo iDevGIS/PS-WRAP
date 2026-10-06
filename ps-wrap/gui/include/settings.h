@@ -275,6 +275,11 @@ class Settings : public QObject
 		// PS-WRAP: ความสูงภาพของคลิป/Replay/ไลฟ์ (16:9) · 0 = เท่าความละเอียดสตรีม · 1440 / 2160 = upscale
 		int GetCaptureHeight() const { const int h = settings.value("pswrap/captureHeight", 0).toInt(); return h == 1440 || h == 2160 ? h : 0; }
 		void SetCaptureHeight(int v) { settings.setValue("pswrap/captureHeight", v == 1440 || v == 2160 ? v : 0); }
+		// PS-WRAP: ภาพแนวตั้ง 9:16 — เลย์เอาต์ (0 Split · 1 Center · 2 Blur) + ตำแหน่งตัดแนวนอน 0..1
+		int GetVerticalLayout() const { return qBound(0, settings.value("pswrap/verticalLayout", 0).toInt(), 2); }
+		void SetVerticalLayout(int v) { settings.setValue("pswrap/verticalLayout", qBound(0, v, 2)); }
+		double GetVerticalCropX() const { return qBound(0.0, settings.value("pswrap/verticalCropX", 0.5).toDouble(), 1.0); }
+		void SetVerticalCropX(double v) { settings.setValue("pswrap/verticalCropX", qBound(0.0, v, 1.0)); }
 		// PS-WRAP: Instant Replay — เก็บ N วินาทีล่าสุดไว้ในแรมระหว่างสตรีม (ดู PsWrapRecorder::startReplay)
 		bool GetReplayEnabled() const { return settings.value("pswrap/replayEnabled", false).toBool(); }
 		void SetReplayEnabled(bool v) { settings.setValue("pswrap/replayEnabled", v); }

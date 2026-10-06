@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 ### Added
+- 2026-10-07 **Preview ภาพแนวตั้ง 9:16** (ปุ่ม 9:16 ในเมนูสตรีม / tray): หน้าต่างแยกโชว์ภาพแนวตั้งสดสำหรับ Shorts/TikTok/Reels เลือกได้ 3 เลย์เอาต์ — Cam + game (facecam บน เกมล่าง), Center crop (เกมเต็มจอ + facecam มุมบน, เลื่อนตำแหน่งตัดได้), Blur fill (เกมเต็มภาพกลางจอ พื้นหลังเบลอ) · facecam ตัดจาก overlay บนจอ · ยังเป็น preview (อัด/ไลฟ์แนวตั้งเป็นขั้นต่อไป)
 - 2026-10-07 tray **Record preset ▸** (Same as stream / 1440p / 4K) — ค่าเดียวกับ Output Resolution · จุด REC กระพริบบนจอมีป้าย **4K** / **1440p** ต่อท้ายเมื่ออัดแบบ upscale (บนจอเท่านั้น ไม่ติดไฟล์)
 - 2026-10-07 **เมนู tray**: Stream menu (เปิดเมนูสตรีมได้โดยไม่ต้องกด L1+R1+L3+R3 / Ctrl+O), Settings (จากหน้าแรก), Picture size ▸ (720p–1440p / Fullscreen เหมือนปุ่ม Size)
 - 2026-10-06 **Output Resolution: Same as stream / 1440p / 4K (upscaled)** (Settings › General) ใช้ร่วมกันทั้งคลิป, Instant Replay และ Go Live · ขยายด้วย upscaler ตามปุ่ม QUALITY (HQ + Spatial = FSRCNNX) · Go Live: YouTube/Custom ส่งได้ถึง 4K (bitrate สูงสุด 51 Mbps) แพลตฟอร์มอื่นย่อเป็น 1080p ให้เอง

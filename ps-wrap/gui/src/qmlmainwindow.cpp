@@ -11,6 +11,7 @@
 #include <QApplication>
 #include "qmlbackend.h"
 #include "qmlsvgprovider.h"
+#include "pswrapvertical.h"   // PS-WRAP: preview 9:16
 #include "chiaki/log.h"
 #include "chiaki/time.h"
 #include "streamsession.h"
@@ -2619,6 +2620,7 @@ QmlMainWindow::~QmlMainWindow()
     if (pl_gpu gpu = placeboGpu()) {
         pswrapDestroyCapture();   // PS-WRAP: render thread จบแล้ว + recorder หยุดแล้ว
         pswrapDestroyShot();      // PS-WRAP: ภาพหน้าจอ (รอ download ที่ค้างก่อนลบ)
+        pswrapDestroyVertical();  // PS-WRAP: preview 9:16
         pl_unmap_avframe(gpu, &direct_frame);
         if (quick_tex)
             pl_tex_destroy(gpu, &quick_tex);
@@ -5316,6 +5318,7 @@ renderer_backend_ready:
 
     qml_engine = new QQmlEngine(this);
     qml_engine->addImageProvider(QStringLiteral("svg"), new QmlSvgProvider);
+    qml_engine->addImageProvider(QStringLiteral("pswrapvertical"), pswrapCreateVerticalProvider());   // PS-WRAP: preview 9:16
     if (!qml_engine->incubationController())
         qml_engine->setIncubationController(quick_window->incubationController());
     connect(qml_engine, &QQmlEngine::quit, this, &QWindow::close);
@@ -7793,6 +7796,10 @@ void QmlMainWindow::render()
     pswrapShotCapture(bypass_frame_queue ? nullptr : &frame_mix,
                       bypass_frame_queue ? &direct_render_frame : nullptr,
                       params, target_frame, target_frame.num_overlays > 0 ? &overlay : nullptr);
+    // PS-WRAP: preview 9:16 — ทำงานเฉพาะตอนเปิดหน้าต่าง Vertical (qmlmainwindow_pswrapvertical.cpp)
+    pswrapVerticalCapture(bypass_frame_queue ? nullptr : &frame_mix,
+                          bypass_frame_queue ? &direct_render_frame : nullptr,
+                          params, target_frame, target_frame.num_overlays > 0 ? &overlay : nullptr);
     close_started_frame(true);
 
     if (startup_video_visible_refresh_pending.loadAcquire() != 0) {

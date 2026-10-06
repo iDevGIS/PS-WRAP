@@ -92,6 +92,11 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(qreal micGateThresholdDb READ micGateThresholdDb WRITE setMicGateThresholdDb NOTIFY micGateThresholdDbChanged) // -80..-20
     Q_PROPERTY(QString recordingFolder READ recordingFolder WRITE setRecordingFolder NOTIFY recordingFolderChanged)
     Q_PROPERTY(int captureHeight READ captureHeight WRITE setCaptureHeight NOTIFY captureHeightChanged)   // PS-WRAP: 0 = สตรีม · 1440 · 2160
+    // PS-WRAP: ภาพแนวตั้ง 9:16 (qmlmainwindow_pswrapvertical.cpp) — preview = image://pswrapvertical/<verticalFrame>
+    Q_PROPERTY(bool verticalPreview READ verticalPreview WRITE setVerticalPreview NOTIFY verticalPreviewChanged)
+    Q_PROPERTY(int verticalLayout READ verticalLayout WRITE setVerticalLayout NOTIFY verticalLayoutChanged)   // 0 Split · 1 Center · 2 Blur
+    Q_PROPERTY(qreal verticalCropX READ verticalCropX WRITE setVerticalCropX NOTIFY verticalCropXChanged)    // 0..1
+    Q_PROPERTY(int verticalFrame READ verticalFrame NOTIFY verticalFrameChanged)
     // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp) — เดินเองระหว่างสตรีมเมื่อเปิด · saveReplay() → recorder.replaySaved
     Q_PROPERTY(bool replayEnabled READ replayEnabled WRITE setReplayEnabled NOTIFY replayEnabledChanged)
     Q_PROPERTY(int replaySeconds READ replaySeconds WRITE setReplaySeconds NOTIFY replaySecondsChanged)   // 30..120
@@ -207,6 +212,14 @@ public:
     QString recordingFolder() const;
     void setRecordingFolder(const QString &folder);
     int captureHeight() const;              // PS-WRAP: qmlmainwindow_pswraprec.cpp
+    bool verticalPreview() const;           // PS-WRAP: qmlmainwindow_pswrapvertical.cpp
+    void setVerticalPreview(bool on);
+    int verticalLayout() const;
+    void setVerticalLayout(int mode);
+    qreal verticalCropX() const;
+    void setVerticalCropX(qreal x);
+    int verticalFrame() const { return pswrap_vertical_frame; }
+    Q_INVOKABLE void setVerticalCamRect(qreal x, qreal y, qreal w, qreal h);   // logical px ของหน้าต่าง · w<=0 = ไม่มี facecam
     void setCaptureHeight(int height);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void openRecordingsFolder();
@@ -278,6 +291,10 @@ signals:
     void micOverlayChanged();          // PS-WRAP
     void clockOverlayChanged();        // PS-WRAP
     void captureHeightChanged();       // PS-WRAP
+    void verticalPreviewChanged();     // PS-WRAP
+    void verticalLayoutChanged();
+    void verticalCropXChanged();
+    void verticalFrameChanged();
     void micGainDbChanged();
     void micGateEnabledChanged();
     void micGateThresholdDbChanged();
@@ -475,6 +492,13 @@ private:
     void pswrapShotCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
                            const struct pl_frame &screen_target, const struct pl_overlay *overlay);
     void pswrapDestroyShot();
+    // PS-WRAP: preview 9:16 (qmlmainwindow_pswrapvertical.cpp) — render thread เท่านั้น
+    void pswrapVerticalCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
+                               const struct pl_frame &screen_target, const struct pl_overlay *overlay);
+    void pswrapDestroyVertical();
+    class PsWrapVerticalPreview *pswrap_vertical = nullptr;
+    qint64 pswrap_vertical_last_us = 0;
+    int pswrap_vertical_frame = 0;   // GUI thread
     bool quit_requested = false;
     QAtomicInteger<int> dropped_frames_current = 0;
     bool going_full = false;
