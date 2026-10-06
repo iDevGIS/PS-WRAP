@@ -5,22 +5,22 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 ![หน้าหลัก](screenshots/main.png)
 
-| ระหว่างสตรีม: การ์ด network stats | Settings › Keys |
-|---|---|
-| ![สตรีมพร้อม overlay](screenshots/stream-overlay.jpg) | ![หน้า Keys](screenshots/settings-keys.png) |
+**ระหว่างสตรีม** — overlay จอย, การ์ด network stats และ mic visualizer ย้าย/ย่อขยายได้ (คลิกที่ overlay)
 
-**เมนูระหว่างสตรีม** — กด Ctrl+O หรือ L1+R1+L3+R3
+![สตรีมพร้อม overlay](screenshots/stream-overlay.jpg)
 
-![เมนูสตรีม](screenshots/stream-menu.png)
+**เมนูระหว่างสตรีม** — Ctrl+O หรือ L1+R1+L3+R3 · End Stream, อัดคลิป, เลือกไมค์, เสียง, คุณภาพภาพ, เปิด/ปิด overlay
 
-| Disconnect (ค่าเริ่มต้นไม่สั่งเครื่องหลับ) | เมนู system tray |
-|---|---|
-| ![Disconnect dialog](screenshots/disconnect.png) | ![Tray menu](screenshots/tray-menu.png) |
+![เมนูสตรีม](screenshots/stream-menu.jpg)
+
+| Settings › Keys | Disconnect (ค่าเริ่มต้นไม่สั่งเครื่องหลับ) | เมนู system tray |
+|---|---|---|
+| ![หน้า Keys](screenshots/settings-keys.png) | ![Disconnect dialog](screenshots/disconnect.png) | ![Tray menu](screenshots/tray-menu.png) |
 
 ## มีอะไรใหม่จาก chiaki-ng
 
 - **UI ใหม่ทั้งชุด** — design system (`controls/Theme.qml`), หน้าหลักแบบ console card, Settings แบบ sidebar 9 หน้า, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า
-- **เมนูระหว่างสตรีมใหม่** + toast, Disconnect dialog ที่ค่าเริ่มต้นเป็น Disconnect (ไม่สั่งเครื่องหลับโดยไม่ตั้งใจ)
+- **เมนูระหว่างสตรีมใหม่** + toast, อัดคลิประหว่างเล่น (Ctrl+Shift+R) และเปิดโฟลเดอร์คลิปจากหน้าหลัก, mic visualizer + เลือกไมโครโฟน, Disconnect dialog ที่ค่าเริ่มต้นเป็น Disconnect (ไม่สั่งเครื่องหลับโดยไม่ตั้งใจ)
 - **Overlay ระหว่างสตรีม 3 ตัว**: controller overlay, การ์ด network stats, facecam — ย่อ/ขยาย/ย้ายได้ (คลิกที่ overlay เพื่อแก้) และยึดกรอบวิดีโอ
 - **Facecam**: เลือกกล้อง (รวมกล้องเสมือน DirectShow), zoom/pan/mirror/วงกลม, ตัดพื้นหลังด้วย chroma key หรือ AI (ไม่ต้องใช้ฉากเขียว), face effects ที่เกาะหน้าด้วย MediaPipe Face Landmarker
 - **System tray** + เมนูเปิด/ปิด overlay, hide to tray, single instance, จำตำแหน่ง/ขนาดหน้าต่าง
