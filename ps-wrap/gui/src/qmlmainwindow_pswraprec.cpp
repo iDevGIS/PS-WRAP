@@ -480,9 +480,45 @@ void QmlMainWindow::addMarker()
 		pswrap_recorder->addMarker();
 }
 
+// ไฟล์ล่าสุดที่ตรง pattern ในโฟลเดอร์ที่ตั้งไว้ + โฟลเดอร์สำรอง (ไฟล์อาจไปตกโฟลเดอร์สำรองเมื่อ
+// Windows "Controlled folder access" บล็อก Videos — Defender event 1123) · ไม่เจอ = ""
+static QString newestCapture(const QString &folder, const QStringList &patterns, const QString &exclude_suffix)
+{
+	QFileInfo best;
+	for (const QString &dir : {folder, fallbackRecordingFolder()}) {
+		const QFileInfoList files = QDir(dir).entryInfoList(patterns, QDir::Files, QDir::Time);
+		for (const QFileInfo &f : files) {
+			if (!exclude_suffix.isEmpty() && f.completeBaseName().endsWith(exclude_suffix))
+				continue;
+			if (!best.exists() || f.lastModified() > best.lastModified())
+				best = f;
+			break;   // เรียงใหม่สุดก่อนแล้ว
+		}
+	}
+	return best.exists() ? best.absoluteFilePath() : QString();
+}
+
 void QmlMainWindow::openRecordingsFolder()
 {
 	const QString folder = QDir::fromNativeSeparators(recordingFolder());
+	const QString latest = newestCapture(folder, {QStringLiteral("PS-WRAP *.mp4"), QStringLiteral("PS-WRAP *.mkv")}, {});
+	if (!latest.isEmpty()) {
+		revealRecording(latest);
+		return;
+	}
+	QDir().mkpath(folder);
+	QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+}
+
+// PS-WRAP: ชิป Screenshots หน้าแรก — เปิด Explorer เลือกภาพล่าสุด (ภาพอยู่โฟลเดอร์เดียวกับคลิป, ดู qmlmainwindow_pswrapshot.cpp)
+void QmlMainWindow::openScreenshotsFolder()
+{
+	const QString folder = QDir::fromNativeSeparators(recordingFolder());
+	const QString latest = newestCapture(folder, {QStringLiteral("PS-WRAP Shot *.png")}, QStringLiteral(" HDR"));
+	if (!latest.isEmpty()) {
+		revealRecording(latest);
+		return;
+	}
 	QDir().mkpath(folder);
 	QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
 }

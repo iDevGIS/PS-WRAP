@@ -207,6 +207,7 @@ public:
     void setRecordingFolder(const QString &folder);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void openRecordingsFolder();
+    Q_INVOKABLE void openScreenshotsFolder();   // PS-WRAP: เลือกภาพล่าสุดใน Explorer (รวมโฟลเดอร์สำรอง)
     Q_INVOKABLE void revealRecording(const QString &path);
     bool replayEnabled() const;         // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp)
     void setReplayEnabled(bool on);

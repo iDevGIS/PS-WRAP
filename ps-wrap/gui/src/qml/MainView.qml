@@ -1091,6 +1091,13 @@ Pane {
                 onClicked: Chiaki.window.openRecordingsFolder()
             }
 
+            // PS-WRAP: เปิดโฟลเดอร์ภาพหน้าจอ (เลือกภาพล่าสุดให้ใน Explorer)
+            BarChip {
+                iconSource: "qrc:/icons/menu/screenshot.svg"
+                text: qsTr("Screenshots")
+                onClicked: Chiaki.window.openScreenshotsFolder()
+            }
+
             // PS-WRAP: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (เดิมเป็น flat button ไอคอนฟ้าลอยเดี่ยว)
             BarChip {
                 iconSource: "qrc:/icons/menu/discover.svg"
