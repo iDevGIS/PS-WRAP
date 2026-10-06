@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- PS-WRAP fx: หน้ากากนินจา (ผ้าคลุมหัว+ปิดจมูก เปิดช่องตา) · anchor: ช่องตากึ่งกลาง (150,120), ระยะตาอ้างอิง 120 -->
+  <defs>
+    <linearGradient id="cloth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2d33"/><stop offset="1" stop-color="#0f1114"/></linearGradient>
+    <mask id="eyeHole"><rect width="300" height="300" fill="#fff"/><path d="M40 118 Q150 92 260 118 Q150 150 40 118 Z" fill="#000"/></mask>
+  </defs>
+  <!-- ผ้าคลุมทั้งหัว (เจาะช่องตา) -->
+  <g mask="url(#eyeHole)">
+    <path d="M150 10 Q46 14 40 110 L36 190 Q40 280 150 292 Q260 280 264 190 L260 110 Q254 14 150 10 Z" fill="url(#cloth)" stroke="#07080a" stroke-width="5"/>
+  </g>
+  <!-- ขอบช่องตา -->
+  <path d="M40 118 Q150 92 260 118 Q150 150 40 118 Z" fill="none" stroke="#07080a" stroke-width="5"/>
+  <!-- รอยพับผ้าปิดจมูก -->
+  <g stroke="#3b3f47" stroke-width="4" fill="none" stroke-linecap="round">
+    <path d="M60 170 Q150 150 240 170"/><path d="M66 200 Q150 184 234 200"/><path d="M80 232 Q150 220 220 232"/>
+  </g>
+  <!-- ผ้าโพกกับหางผ้าปลิวด้านขวา -->
+  <path d="M38 96 Q150 78 262 96 L258 112 Q150 96 42 112 Z" fill="#b71c1c" stroke="#07080a" stroke-width="4"/>
+  <path d="M258 98 q40 -16 36 10 q-6 22 -40 18 z" fill="#b71c1c" stroke="#07080a" stroke-width="4"/>
+  <path d="M262 104 q28 14 20 34 q-10 14 -28 6 z" fill="#8e0f0f" stroke="#07080a" stroke-width="4"/>
+</svg>

@@ -1,0 +1,43 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Controls.Material
+
+import org.streetpea.chiaking
+
+// PS-WRAP: เพิ่ม Theme font + focus ring · logic คีย์/จอยคงของ upstream
+RadioButton {
+    id: control
+    property bool firstInFocusChain: false
+    property bool lastInFocusChain: false
+
+
+    FocusRing { target: control }
+
+    Keys.onPressed: (event) => {
+        switch (event.key) {
+        case Qt.Key_Up:
+            if (!firstInFocusChain) {
+                let item = nextItemInFocusChain(false);
+                if (item)
+                    item.forceActiveFocus(Qt.TabFocusReason);
+                event.accepted = true;
+            }
+            break;
+        case Qt.Key_Down:
+            if (!lastInFocusChain) {
+                let item = nextItemInFocusChain();
+                if (item)
+                    item.forceActiveFocus(Qt.TabFocusReason);
+                event.accepted = true;
+            }
+            break;
+        case Qt.Key_Return:
+            if (visualFocus) {
+                toggle();
+                toggled();
+            }
+            event.accepted = true;
+            break;
+        }
+    }
+}

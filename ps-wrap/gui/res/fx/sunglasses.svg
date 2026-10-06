@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 110" width="300" height="110">
+  <!-- PS-WRAP facecam effect: classic black wayfarer sunglasses · anchor: lens centers at (72,58) and (228,58) → eye distance 156 -->
+  <defs>
+    <linearGradient id="lens" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a1a1a" stop-opacity="0.96"/>
+      <stop offset="0.55" stop-color="#050505" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#101010" stop-opacity="0.94"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- temples (ขาแว่น) -->
+  <path d="M8 46 L22 40 L22 52 Z" fill="#111"/>
+  <path d="M292 46 L278 40 L278 52 Z" fill="#111"/>
+  <!-- frame -->
+  <g fill="#111" stroke="#000" stroke-width="2">
+    <path d="M20 36 h104 q10 0 12 10 l2 8 q2 10 -6 24 q-6 12 -26 16 q-30 6 -58 -4 q-24 -8 -30 -32 q-2 -10 2 -22 z"/>
+    <path d="M280 36 h-104 q-10 0 -12 10 l-2 8 q-2 10 6 24 q6 12 26 16 q30 6 58 -4 q24 -8 30 -32 q2 -10 -2 -22 z"/>
+    <path d="M136 46 q14 -8 28 0 l-2 8 q-12 -6 -24 0 z"/>
+  </g>
+  <!-- lenses -->
+  <path d="M28 44 h92 q6 0 8 7 l1 6 q1 9 -5 20 q-6 10 -22 13 q-26 5 -50 -4 q-20 -8 -25 -28 q-2 -8 1 -14 z" fill="url(#lens)"/>
+  <path d="M272 44 h-92 q-6 0 -8 7 l-1 6 q-1 9 5 20 q6 10 22 13 q26 5 50 -4 q20 -8 25 -28 q2 -8 -1 -14 z" fill="url(#lens)"/>
+  <!-- gloss -->
+  <path d="M34 48 h60 q-10 14 -30 22 q-22 6 -34 -6 q-4 -8 4 -16 z" fill="url(#gloss)"/>
+  <path d="M266 48 h-60 q10 14 30 22 q22 6 34 -6 q4 -8 -4 -16 z" fill="url(#gloss)"/>
+</svg>

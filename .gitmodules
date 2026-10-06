@@ -1,0 +1,24 @@
+[submodule "ps-wrap/test/munit"]
+	path = ps-wrap/test/munit
+	url = https://github.com/streetpea/munit.git
+[submodule "ps-wrap/third-party/nanopb"]
+	path = ps-wrap/third-party/nanopb
+	url = https://github.com/nanopb/nanopb.git
+[submodule "ps-wrap/third-party/jerasure"]
+	path = ps-wrap/third-party/jerasure
+	url = https://github.com/streetpea/jerasure.git
+[submodule "ps-wrap/third-party/gf-complete"]
+	path = ps-wrap/third-party/gf-complete
+	url = https://github.com/streetpea/gf-complete.git
+[submodule "ps-wrap/android/app/src/main/cpp/oboe"]
+	path = ps-wrap/android/app/src/main/cpp/oboe
+	url = https://github.com/google/oboe
+[submodule "ps-wrap/switch/borealis"]
+	path = ps-wrap/switch/borealis
+	url = https://github.com/streetpea/borealis.git
+[submodule "ps-wrap/third-party/curl"]
+	path = ps-wrap/third-party/curl
+	url = https://github.com/curl/curl
+[submodule "ps-wrap/third-party/cpp-steam-tools"]
+	path = ps-wrap/third-party/cpp-steam-tools
+	url = https://github.com/streetpea/cpp-steam-tools.git

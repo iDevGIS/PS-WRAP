@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220" width="300" height="220">
+  <!-- PS-WRAP fx: หน้ากากซามูไร (เมมโป) คลุมจมูกถึงคาง · anchor บน (150,30) ที่สันจมูก -->
+  <defs>
+    <linearGradient id="iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4f57"/><stop offset="0.5" stop-color="#2b2f36"/><stop offset="1" stop-color="#15181d"/></linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c62828"/><stop offset="1" stop-color="#7f0000"/></linearGradient>
+  </defs>
+  <!-- ตัวหน้ากาก -->
+  <path d="M18 30 Q150 0 282 30 L276 120 Q250 206 150 216 Q50 206 24 120 Z" fill="url(#iron)" stroke="#0a0c0f" stroke-width="5" stroke-linejoin="round"/>
+  <!-- สันจมูก -->
+  <path d="M150 30 L128 92 Q150 104 172 92 Z" fill="#1b1e24" stroke="#0a0c0f" stroke-width="4" stroke-linejoin="round"/>
+  <!-- ปากยิ้มแสยะ + ฟัน -->
+  <path d="M60 128 Q150 100 240 128 Q220 172 150 178 Q80 172 60 128 Z" fill="#0a0c0f"/>
+  <g fill="#e8e3d6" stroke="#0a0c0f" stroke-width="2">
+    <path d="M78 130 l14 -8 l8 20 l-14 6 z"/><path d="M106 118 l14 -4 l6 24 l-14 4 z"/><path d="M136 112 l14 0 l2 26 l-14 0 z"/>
+    <path d="M164 112 l14 0 l-2 26 l-14 0 z"/><path d="M194 118 l14 4 l-6 24 l-14 -4 z"/><path d="M222 130 l-14 -8 l-8 20 l14 6 z"/>
+  </g>
+  <!-- หนวดลวด -->
+  <g stroke="#2a2e35" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M118 100 q-30 -6 -58 10"/><path d="M182 100 q30 -6 58 10"/>
+    <path d="M122 108 q-34 2 -62 20"/><path d="M178 108 q34 2 62 20"/>
+  </g>
+  <!-- สายรัด + ลายแดง -->
+  <path d="M24 60 Q150 36 276 60" stroke="url(#red)" stroke-width="10" fill="none"/>
+  <circle cx="30" cy="62" r="9" fill="#c62828" stroke="#0a0c0f" stroke-width="3"/><circle cx="270" cy="62" r="9" fill="#c62828" stroke="#0a0c0f" stroke-width="3"/>
+  <!-- รูระบาย -->
+  <g fill="#0a0c0f"><circle cx="120" cy="196" r="4"/><circle cx="150" cy="200" r="4"/><circle cx="180" cy="196" r="4"/></g>
+</svg>

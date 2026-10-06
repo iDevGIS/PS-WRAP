@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <!-- PS-WRAP fx: "Ghost" samurai mask (ออกแบบเองตามสไตล์ Ghost of Tsushima: เมมโปแดง-ดำ ปิดครึ่งล่าง + หน้าผากเปิด ผ้าคลุมดำ)
+       anchor: ช่องตากึ่งกลาง (150,112) · ขอบบนหน้ากากล่าง y=150 ที่สันจมูก -->
+  <defs>
+    <linearGradient id="hood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1d22"/><stop offset="1" stop-color="#07080a"/></linearGradient>
+    <linearGradient id="lac" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3261e"/><stop offset="0.6" stop-color="#7a1410"/><stop offset="1" stop-color="#3b0806"/></linearGradient>
+    <linearGradient id="teeth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1ecdc"/><stop offset="1" stop-color="#b9b19a"/></linearGradient>
+    <mask id="eyes"><rect width="300" height="300" fill="#fff"/><path d="M34 112 Q92 84 150 100 Q208 84 266 112 Q208 142 150 128 Q92 142 34 112 Z" fill="#000"/></mask>
+  </defs>
+  <!-- ผ้าคลุมหัว (ซุมิ) เจาะช่องตา -->
+  <g mask="url(#eyes)">
+    <path d="M150 6 Q52 10 42 100 L38 150 L262 150 L258 100 Q248 10 150 6 Z" fill="url(#hood)" stroke="#000" stroke-width="5"/>
+  </g>
+  <path d="M34 112 Q92 84 150 100 Q208 84 266 112 Q208 142 150 128 Q92 142 34 112 Z" fill="none" stroke="#000" stroke-width="5"/>
+  <!-- สัญลักษณ์ Ghost ที่หน้าผาก (วงกลมขาวมีรอยแยก) -->
+  <circle cx="150" cy="50" r="22" fill="#e8e3d6" stroke="#000" stroke-width="4"/>
+  <path d="M150 28 q-14 22 0 44 q14 -22 0 -44 z" fill="#07080a"/>
+  <!-- หน้ากากล่าง (เมมโป) แดงเคลือบ -->
+  <path d="M30 150 Q150 120 270 150 L262 200 Q240 272 150 292 Q60 272 38 200 Z" fill="url(#lac)" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+  <!-- สันจมูก -->
+  <path d="M150 150 L124 198 Q150 212 176 198 Z" fill="#3b0806" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+  <!-- ปากแสยะ + เขี้ยว -->
+  <path d="M58 212 Q150 184 242 212 Q222 258 150 266 Q78 258 58 212 Z" fill="#07080a"/>
+  <g fill="url(#teeth)" stroke="#000" stroke-width="2">
+    <path d="M76 214 l16 -10 l10 30 l-16 6 z"/><path d="M108 202 l16 -4 l6 30 l-16 4 z"/><path d="M140 198 l20 0 l2 32 l-20 0 z"/>
+    <path d="M176 202 l16 4 l-6 30 l-16 -4 z"/><path d="M208 214 l16 10 l-10 26 l-16 -6 z"/>
+    <path d="M92 236 l12 -4 l-2 22 l-8 2 z"/><path d="M196 232 l12 4 l-2 20 l-8 -2 z"/>
+  </g>
+  <!-- หนวดลวดแหลม -->
+  <g stroke="#2a2d33" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M118 206 q-32 -10 -64 6"/><path d="M182 206 q32 -10 64 6"/>
+    <path d="M122 216 q-36 4 -68 26"/><path d="M178 216 q36 4 68 26"/>
+    <path d="M128 226 q-30 14 -54 44"/><path d="M172 226 q30 14 54 44"/>
+  </g>
+  <!-- สายรัดดำ + หมุด -->
+  <path d="M36 160 Q150 136 264 160" stroke="#07080a" stroke-width="9" fill="none"/>
+  <circle cx="42" cy="162" r="8" fill="#5a5f68" stroke="#000" stroke-width="3"/><circle cx="258" cy="162" r="8" fill="#5a5f68" stroke="#000" stroke-width="3"/>
+  <!-- ไฮไลต์เคลือบ -->
+  <path d="M60 164 Q150 148 240 164" stroke="#ff6b5e" stroke-width="3" fill="none" opacity="0.45"/>
+</svg>

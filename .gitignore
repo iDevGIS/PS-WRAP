@@ -1,0 +1,40 @@
+# ---- PS-WRAP repo: เอาขึ้นเฉพาะ source + scripts + README/CHANGELOG ----
+
+# เอกสาร .md ไม่ขึ้น repo ยกเว้น README และ CHANGELOG ที่ root (ตามที่ลูกพี่กำหนด 2026-10-06)
+*.md
+!/README.md
+!/CHANGELOG.md
+
+# งานภายใน / ไม่ใช่ source
+/design/
+/archive/
+/docs/
+/chiaki-ng/
+/_deps/
+/dist/
+.vscode/
+.idea/
+
+# build output
+build/
+ps-wrap/build/
+
+# ภาพจากเกม (ลิขสิทธิ์ Sony/Sucker Punch) — ใช้ส่วนตัวเท่านั้น ห้ามขึ้น repo
+**/fx/jin_*.png
+
+# binary ของ upstream ที่ไม่ได้ใช้ (Go tools ของ holepunch)
+ps-wrap/scripts/holepunch/holepunch-go/holepunch
+ps-wrap/scripts/holepunch/refresh-go/refresh-token
+
+# secrets / local config
+.env
+*.local.toml
+
+# python / logs / os
+__pycache__/
+*.pyc
+.venv/
+logs/
+*.log
+.DS_Store
+Thumbs.db

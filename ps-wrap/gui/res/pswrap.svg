@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PS-WRAP app icon · tokens: bg #0b0f14, accent #00a7ff, text #e8edf2 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="8" y="8" width="240" height="240" rx="56" ry="56" fill="#0b0f14"/>
+  <rect x="8" y="8" width="240" height="240" rx="56" ry="56" fill="none" stroke="#2a3441" stroke-width="4"/>
+  <!-- wrap ring (open arc) -->
+  <circle cx="128" cy="128" r="76" fill="none" stroke="#00a7ff" stroke-width="18" stroke-linecap="round"
+          stroke-dasharray="380 100" transform="rotate(-60 128 128)"/>
+  <!-- play -->
+  <polygon points="108,88 108,168 176,128" fill="#e8edf2"/>
+</svg>

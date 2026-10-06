@@ -1,0 +1,28 @@
+# ทุกไฟล์ข้อความเก็บเป็น LF ใน repo (ตรงกับ upstream chiaki-ng — ลด conflict ตอนตาม upstream)
+* text=auto eol=lf
+
+# ไฟล์ที่ Windows tool ต้องการ CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.iss  text eol=crlf
+
+# binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.onnx binary
+*.qsb  binary
+*.ttf  binary
+*.otf  binary
+*.wav  binary
+*.mp4  binary
+
+# ไฟล์ที่ upstream เก็บเป็น CRLF อยู่แล้ว — เก็บตามต้นฉบับ ไม่แปลง (ไม่ให้นับเป็นไฟล์ที่เราแก้)
+ps-wrap/.github/workflows/build-switch.yml -text
+ps-wrap/.github/workflows/github-prereleases-discord.yml -text
+ps-wrap/android/app/src/main/res/drawable/avd_add_to_close.xml -text
+ps-wrap/android/app/src/main/res/drawable/avd_close_to_add.xml -text
+ps-wrap/android/app/src/main/res/drawable/ic_add_close.xml -text
+ps-wrap/android/app/src/main/res/drawable/selector_add_fab.xml -text
+ps-wrap/android/gradlew.bat -text
+ps-wrap/scripts/switch/run-docker-build-chiaki.bat -text

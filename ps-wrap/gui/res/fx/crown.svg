@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 160" width="300" height="160">
+  <!-- PS-WRAP fx: มงกุฎ · anchor: ฐานล่าง (150,150) วางบนหัว -->
+  <defs><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset="0.5" stop-color="#f3b61f"/><stop offset="1" stop-color="#b8780a"/></linearGradient></defs>
+  <path d="M30 150 L18 40 L80 95 L150 14 L220 95 L282 40 L270 150 Z" fill="url(#gold)" stroke="#8a5a05" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="30" y="128" width="240" height="24" fill="#d99a16" stroke="#8a5a05" stroke-width="3"/>
+  <circle cx="18" cy="40" r="10" fill="#e53935"/><circle cx="150" cy="14" r="12" fill="#1e88e5"/><circle cx="282" cy="40" r="10" fill="#e53935"/>
+  <circle cx="80" cy="95" r="8" fill="#43a047"/><circle cx="220" cy="95" r="8" fill="#43a047"/>
+  <circle cx="150" cy="140" r="8" fill="#e53935"/><circle cx="90" cy="140" r="6" fill="#1e88e5"/><circle cx="210" cy="140" r="6" fill="#1e88e5"/>
+</svg>

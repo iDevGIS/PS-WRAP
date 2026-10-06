@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" width="300" height="100">
+  <!-- PS-WRAP fx: หนวดโจร · anchor: กึ่งกลาง (150,50) วางระหว่างจมูกกับปาก -->
+  <path d="M150 52 C130 20 80 10 40 30 C15 42 8 70 30 86 C55 102 95 92 118 74 C130 65 142 58 150 52 Z" fill="#141414"/>
+  <path d="M150 52 C170 20 220 10 260 30 C285 42 292 70 270 86 C245 102 205 92 182 74 C170 65 158 58 150 52 Z" fill="#141414"/>
+  <path d="M150 52 C130 24 86 16 48 34" stroke="#2a2a2a" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M150 52 C170 24 214 16 252 34" stroke="#2a2a2a" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>

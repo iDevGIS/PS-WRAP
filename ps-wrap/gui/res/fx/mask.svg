@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200">
+  <!-- PS-WRAP fx: หน้ากากครึ่งหน้า (สไตล์ Bane) · anchor: บน (150,20) ที่จมูก คลุมถึงคาง -->
+  <defs><linearGradient id="m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f47"/><stop offset="1" stop-color="#15181c"/></linearGradient></defs>
+  <path d="M20 20 Q150 -10 280 20 L270 110 Q230 190 150 196 Q70 190 30 110 Z" fill="url(#m)" stroke="#0a0b0d" stroke-width="4"/>
+  <g stroke="#0a0b0d" stroke-width="4" fill="#5a616b">
+    <rect x="70" y="60" width="36" height="90" rx="10"/><rect x="132" y="56" width="36" height="100" rx="10"/><rect x="194" y="60" width="36" height="90" rx="10"/>
+  </g>
+  <g stroke="#0a0b0d" stroke-width="3" fill="none">
+    <path d="M40 40 Q150 20 260 40"/><path d="M36 70 Q150 48 264 70"/><path d="M40 100 Q150 80 260 100"/>
+  </g>
+  <circle cx="34" cy="34" r="9" fill="#9aa3ad" stroke="#0a0b0d" stroke-width="3"/><circle cx="266" cy="34" r="9" fill="#9aa3ad" stroke="#0a0b0d" stroke-width="3"/>
+</svg>

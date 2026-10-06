@@ -1,0 +1,136 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-parcelize'
+    id 'com.google.devtools.ksp'
+}
+
+def rootCMakeLists = "../../CMakeLists.txt"
+def rootCMakeListsContent = file(rootCMakeLists).text
+static def grepVersionComponent(content, varname) {
+    def match = content =~ /set\($varname ([0-9]+)\)/
+    if(!match.find())
+        throw new GradleException("Failed to find $varname in CMakeLists.txt")
+    return match.group(1)
+}
+def chiakiVersionMajor = grepVersionComponent(rootCMakeListsContent, "CHIAKI_VERSION_MAJOR")
+def chiakiVersionMinor = grepVersionComponent(rootCMakeListsContent, "CHIAKI_VERSION_MINOR")
+def chiakiVersionPatch = grepVersionComponent(rootCMakeListsContent, "CHIAKI_VERSION_PATCH")
+def chiakiVersion = "$chiakiVersionMajor.$chiakiVersionMinor.$chiakiVersionPatch"
+println("Determined Chiaki Version: $chiakiVersion")
+
+android {
+    namespace "com.metallic.chiaki"
+    compileSdk 35
+    ndkVersion "28.2.13676358"
+
+    defaultConfig {
+        applicationId "com.metallic.chiaki"
+        minSdk 24
+        targetSdk 35
+        versionCode 12
+        versionName chiakiVersion
+        externalNativeBuild {
+            cmake {
+                arguments "-DCHIAKI_ENABLE_TESTS=OFF",
+                        "-DCHIAKI_ENABLE_CLI=OFF",
+                        "-DCHIAKI_ENABLE_GUI=OFF",
+                        "-DCHIAKI_ENABLE_SETSU=OFF",
+                        "-DCHIAKI_ENABLE_ANDROID=ON",
+                        "-DCHIAKI_ENABLE_FFMPEG_DECODER=OFF",
+                        "-DCHIAKI_ENABLE_PI_DECODER=OFF",
+                        "-DCHIAKI_LIB_ENABLE_OPUS=OFF",
+                        "-DCHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT=ON",
+                        "-DCHIAKI_LIB_JSONC_EXTERNAL_PROJECT=ON",
+                        "-DCHIAKI_LIB_MINIUPNPC_EXTERNAL_PROJECT=ON",
+                        "-DCHIAKI_ENABLE_STEAM_SHORTCUT=OFF",
+                        "-DCHIAKI_ENABLE_STEAMDECK_NATIVE=OFF",
+                        "-DANDROID_STL=c++_shared",
+                        "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                        "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
+            }
+        }
+    }
+
+    buildFeatures {
+        viewBinding true
+        prefab true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+        freeCompilerArgs += "-opt-in=kotlin.ExperimentalUnsignedTypes"
+    }
+
+    externalNativeBuild {
+        cmake {
+            version "3.22.1"
+            path rootCMakeLists
+        }
+    }
+
+    signingConfigs {
+        release
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    Properties properties = new Properties()
+    def propertiesFile = file("../local.properties")
+    if (propertiesFile.exists()) {
+        properties.load(propertiesFile.newDataInputStream())
+    }
+
+    if(properties.containsKey("chiakiKeystore")) {
+        println("Enabling Local Signing")
+        buildTypes.release.signingConfig = signingConfigs.release
+        buildTypes.debug.signingConfig = signingConfigs.release
+        signingConfigs.release.storeFile = file(properties.get("chiakiKeystore"))
+        signingConfigs.release.storePassword = properties.get("chiakiKeystorePW")
+        signingConfigs.release.keyAlias = properties.get("chiakiKeyAlias")
+        signingConfigs.release.keyPassword = properties.get("chiakiKeyPW")
+    } else {
+        println("Signing not enabled")
+    }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation libs.activity.ktx
+    implementation libs.appcompat
+    implementation libs.core.ktx
+    implementation libs.constraintlayout
+    implementation libs.recyclerview
+    implementation libs.preference.ktx
+    implementation libs.material
+
+    implementation libs.lifecycle.viewmodel.ktx
+    implementation libs.lifecycle.livedata.ktx
+
+    implementation libs.coroutines.android
+
+    implementation libs.room.runtime
+    ksp libs.room.compiler
+    implementation libs.room.ktx
+
+    implementation libs.moshi
+    ksp libs.moshi.kotlin.codegen
+
+    implementation libs.oboe
+
+    testImplementation 'junit:junit:4.13.2'
+}

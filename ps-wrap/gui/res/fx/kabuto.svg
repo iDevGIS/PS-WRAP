@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 420" width="400" height="420">
+  <!-- PS-WRAP fx: ชุดซามูไรเต็ม (ออกแบบเองตามสไตล์ Ghost of Tsushima): คาบูโตะเหล็กดำ + เขากวาง + ปีกหมวก + เกราะคอเกล็ด + เมมโปดำ + เชือกทอง
+       anchor: ช่องตากึ่งกลาง (200,232) · ความกว้างหน้า (ขมับ-ขมับ) อ้างอิง ≈ 150 px ของ viewBox -->
+  <defs>
+    <linearGradient id="iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3d44"/><stop offset="0.5" stop-color="#1c1e23"/><stop offset="1" stop-color="#0b0c0f"/></linearGradient>
+    <linearGradient id="scale" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfd3d9"/><stop offset="1" stop-color="#6f7480"/></linearGradient>
+    <linearGradient id="scaleD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3f47"/><stop offset="1" stop-color="#15171b"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e3c15a"/><stop offset="1" stop-color="#8d6b1c"/></linearGradient>
+    <linearGradient id="teeth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f0e4"/><stop offset="1" stop-color="#b8b2a0"/></linearGradient>
+    <mask id="eyes"><rect width="400" height="420" fill="#fff"/><path d="M118 232 Q160 206 200 220 Q240 206 282 232 Q240 254 200 244 Q160 254 118 232 Z" fill="#000"/></mask>
+  </defs>
+
+  <!-- เขากวาง (คุวางาตะ) ซ้าย/ขวา -->
+  <g fill="#15171b" stroke="#000" stroke-width="4" stroke-linejoin="round">
+    <path d="M150 96 C130 70 112 44 96 12 C92 24 98 44 104 56 C90 48 76 40 60 40 C74 50 86 62 96 76 C84 76 70 78 56 86 C74 88 92 96 108 110 C118 118 134 118 150 110 Z"/>
+    <path d="M250 96 C270 70 288 44 304 12 C308 24 302 44 296 56 C310 48 324 40 340 40 C326 50 314 62 304 76 C316 76 330 78 344 86 C326 88 308 96 292 110 C282 118 266 118 250 110 Z"/>
+  </g>
+  <!-- ยอดหมวก -->
+  <rect x="190" y="70" width="20" height="26" rx="4" fill="#2a2d33" stroke="#000" stroke-width="3"/>
+  <circle cx="200" cy="68" r="9" fill="url(#gold)" stroke="#000" stroke-width="3"/>
+  <!-- โดมหมวก (ฮาจิ) -->
+  <path d="M86 196 Q84 100 200 88 Q316 100 314 196 Z" fill="url(#iron)" stroke="#000" stroke-width="5"/>
+  <g stroke="#0b0c0f" stroke-width="3" fill="none" opacity="0.8">
+    <path d="M140 100 Q130 150 124 196"/><path d="M170 92 Q166 150 164 196"/><path d="M200 90 L200 196"/><path d="M230 92 Q234 150 236 196"/><path d="M260 100 Q270 150 276 196"/>
+  </g>
+  <!-- ปีกหมวก (ฟุคิกาเอชิ) + ลายทอง -->
+  <path d="M60 184 Q40 212 56 248 L96 236 L104 194 Z" fill="url(#iron)" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M340 184 Q360 212 344 248 L304 236 L296 194 Z" fill="url(#iron)" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M66 204 q12 -8 24 2 q-12 10 -24 -2 z" fill="url(#gold)" opacity="0.9"/><path d="M334 204 q-12 -8 -24 2 q12 10 24 -2 z" fill="url(#gold)" opacity="0.9"/>
+  <!-- กะบังหน้า (มาบิซาชิ) -->
+  <path d="M90 196 Q200 170 310 196 L306 214 Q200 196 94 214 Z" fill="#1c1e23" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M150 190 q50 -14 100 0" stroke="url(#gold)" stroke-width="3" fill="none" opacity="0.9"/>
+  <!-- เกราะคอเกล็ด (ชิโกโระ) ซ้าย/ขวา -->
+  <g stroke="#000" stroke-width="2.5">
+    <g fill="url(#scale)">
+      <path d="M74 236 l22 -6 l6 26 l-22 8 z"/><path d="M62 262 l26 -8 l6 28 l-26 10 z"/><path d="M52 292 l30 -10 l6 30 l-30 12 z"/><path d="M46 324 l32 -12 l6 30 l-32 14 z"/>
+      <path d="M326 236 l-22 -6 l-6 26 l22 8 z"/><path d="M338 262 l-26 -8 l-6 28 l26 10 z"/><path d="M348 292 l-30 -10 l-6 30 l30 12 z"/><path d="M354 324 l-32 -12 l-6 30 l32 14 z"/>
+    </g>
+    <g fill="url(#scaleD)">
+      <path d="M96 230 l20 -4 l4 24 l-20 6 z"/><path d="M88 256 l24 -6 l4 26 l-24 8 z"/><path d="M82 284 l26 -8 l4 28 l-26 10 z"/><path d="M78 314 l28 -10 l4 28 l-28 12 z"/>
+      <path d="M304 230 l-20 -4 l-4 24 l20 6 z"/><path d="M312 256 l-24 -6 l-4 26 l24 8 z"/><path d="M318 284 l-26 -8 l-4 28 l26 10 z"/><path d="M322 314 l-28 -10 l-4 28 l28 12 z"/>
+    </g>
+  </g>
+  <!-- ผ้าคลุมใต้หมวก (เจาะช่องตา) -->
+  <g mask="url(#eyes)">
+    <path d="M112 200 Q200 184 288 200 L286 262 L114 262 Z" fill="#121318" stroke="#000" stroke-width="4"/>
+  </g>
+  <path d="M118 232 Q160 206 200 220 Q240 206 282 232 Q240 254 200 244 Q160 254 118 232 Z" fill="none" stroke="#000" stroke-width="4"/>
+  <!-- เมมโปดำ -->
+  <path d="M110 262 Q200 240 290 262 L284 318 Q262 394 200 408 Q138 394 116 318 Z" fill="url(#iron)" stroke="#000" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M200 262 L176 312 Q200 326 224 312 Z" fill="#0b0c0f" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+  <!-- ปากแสยะ + ฟัน -->
+  <path d="M132 326 Q200 300 268 326 Q252 368 200 376 Q148 368 132 326 Z" fill="#050506"/>
+  <g fill="url(#teeth)" stroke="#000" stroke-width="2">
+    <path d="M146 328 l12 -8 l8 24 l-12 4 z"/><path d="M168 318 l12 -3 l5 26 l-12 3 z"/><path d="M192 314 l16 0 l2 28 l-16 0 z"/>
+    <path d="M220 318 l12 3 l-5 26 l-12 -3 z"/><path d="M242 328 l12 8 l-8 20 l-12 -4 z"/>
+    <path d="M160 350 l10 -3 l-2 18 l-7 1 z"/><path d="M230 350 l10 3 l-1 16 l-7 -1 z"/>
+  </g>
+  <!-- หนวดลวด -->
+  <g stroke="#2a2d33" stroke-width="4" fill="none" stroke-linecap="round">
+    <path d="M174 316 q-26 -8 -50 6"/><path d="M226 316 q26 -8 50 6"/><path d="M178 328 q-30 6 -54 26"/><path d="M222 328 q30 6 54 26"/>
+  </g>
+  <!-- เชือกทอง (ชิโนบิโนะโอะ) -->
+  <g stroke="url(#gold)" stroke-width="7" fill="none" stroke-linecap="round">
+    <path d="M136 372 Q168 400 200 412 Q232 400 264 372"/><path d="M186 404 q6 14 14 16 q8 -2 14 -16"/>
+  </g>
+  <circle cx="200" cy="414" r="6" fill="url(#gold)" stroke="#000" stroke-width="2"/>
+</svg>

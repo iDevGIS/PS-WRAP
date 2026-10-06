@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" width="200" height="140">
+  <defs>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b3340"/><stop offset="1" stop-color="#11161c"/>
+    </linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2029"/><stop offset="1" stop-color="#05070a"/>
+    </linearGradient>
+  </defs>
+  <!-- เงาพื้น -->
+  <ellipse cx="100" cy="118" rx="80" ry="8" fill="#000" opacity="0.35"/>
+  <!-- ด้านหน้า (เฉียง) -->
+  <path d="M20 78 L180 62 L180 96 L20 112 Z" fill="url(#side)"/>
+  <!-- ด้านบน -->
+  <path d="M20 78 L56 44 L200 30 L180 62 Z" fill="url(#top)"/>
+  <!-- ร่องแบ่งครึ่งบน -->
+  <path d="M38 61 L188 46" stroke="#3a4552" stroke-width="1.4" opacity="0.9"/>
+  <!-- ช่องใส่แผ่น -->
+  <path d="M60 86 L120 80" stroke="#3a4552" stroke-width="1.2"/>
+</svg>

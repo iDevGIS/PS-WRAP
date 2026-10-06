@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PS-WRAP: handheld (Steam Deck / ROG Ally) silhouette (สีขาว) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" width="48" height="32">
+  <rect x="2" y="5" width="44" height="22" rx="5" fill="#ffffff"/>
+  <!-- screen -->
+  <rect x="14" y="8" width="20" height="16" rx="1.5" fill="#0b0f14"/>
+  <!-- sticks -->
+  <circle cx="8" cy="12.5" r="2.6" fill="#0b0f14"/>
+  <circle cx="40" cy="12.5" r="2.6" fill="#0b0f14"/>
+  <!-- d-pad / buttons -->
+  <rect x="7.2" y="17.5" width="1.6" height="5" rx="0.5" fill="#0b0f14"/>
+  <rect x="5.5" y="19.2" width="5" height="1.6" rx="0.5" fill="#0b0f14"/>
+  <circle cx="40" cy="18" r="1" fill="#0b0f14"/>
+  <circle cx="37.8" cy="20.2" r="1" fill="#0b0f14"/>
+  <circle cx="42.2" cy="20.2" r="1" fill="#0b0f14"/>
+  <circle cx="40" cy="22.4" r="1" fill="#0b0f14"/>
+</svg>
