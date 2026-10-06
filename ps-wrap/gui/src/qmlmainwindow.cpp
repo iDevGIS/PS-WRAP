@@ -2868,7 +2868,9 @@ void QmlMainWindow::restoreFromTray()
 {
     if (windowState() & Qt::WindowMinimized)
         setWindowStates(windowStates() & ~Qt::WindowMinimized);
-    show();
+    // PS-WRAP: QWindow::show() เท่านั้น — QmlMainWindow::show() สร้าง Main.qml ใหม่ทั้งชุด (UI ซ้อน 2 ชุด,
+    // ระหว่างสตรีมได้ StreamView 2 ตัวแย่งกล้อง/overlay ซ้ำ/หน้าต่าง 9:16 ซ้ำ)
+    QWindow::show();
     raise();
     requestActivate();
     if (session) {
