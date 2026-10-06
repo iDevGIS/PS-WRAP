@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 ### Added
+- 2026-10-07 tray **Record preset ▸** (Same as stream / 1440p / 4K) — ค่าเดียวกับ Output Resolution · จุด REC กระพริบบนจอมีป้าย **4K** / **1440p** ต่อท้ายเมื่ออัดแบบ upscale (บนจอเท่านั้น ไม่ติดไฟล์)
+- 2026-10-07 **เมนู tray**: Stream menu (เปิดเมนูสตรีมได้โดยไม่ต้องกด L1+R1+L3+R3 / Ctrl+O), Settings (จากหน้าแรก), Picture size ▸ (720p–1440p / Fullscreen เหมือนปุ่ม Size)
+- 2026-10-06 **Output Resolution: Same as stream / 1440p / 4K (upscaled)** (Settings › General) ใช้ร่วมกันทั้งคลิป, Instant Replay และ Go Live · ขยายด้วย upscaler ตามปุ่ม QUALITY (HQ + Spatial = FSRCNNX) · Go Live: YouTube/Custom ส่งได้ถึง 4K (bitrate สูงสุด 51 Mbps) แพลตฟอร์มอื่นย่อเป็น 1080p ให้เอง
 - 2026-10-06 **ชิป Screenshots** แถบล่างหน้าแรก: เปิด Explorer พร้อมเลือกภาพหน้าจอล่าสุดให้
 - 2026-10-06 **ขนาดภาพ (Size ▾) ในเมนูสตรีม**: เลือก 720p / 900p / 1080p / 1440p / Fullscreen → พื้นที่ภาพเป็น 16:9 พอดีเป๊ะ (pixel จริง แม้จอ scale 150%) ไม่มีขอบดำ คลิปอัด/ภาพหน้าจอได้ขนาดตามชื่อ · ป้าย STREAM บอกขนาดที่ตรงกับความละเอียดสตรีม · ซ่อนขนาดที่ใหญ่กว่าจอ · ใช้จอยเลือกได้
 - 2026-10-06 **Instant Replay**: เก็บ 30–120 วินาทีล่าสุดในหน่วยความจำ กด Ctrl+Shift+B / ปุ่ม Save ในเมนูสตรีม / tray เพื่อเซฟย้อนหลัง · ใช้ encoder ชุดเดียวกับการอัด (อัดระหว่าง replay ได้)
@@ -53,6 +56,7 @@
 - 2026-10-04 **Phase 1 design system**: `controls/Theme.qml` tokens singleton, `FocusRing.qml`, restyle `controls/*` (focus ring ชัดสำหรับจอย/TV), root Material palette ผูก Theme → ToolBar/พื้นหลังเปลี่ยนเป็น slate เข้ม
 - 2026-10-04 clone upstream `a9a2805` (v1.9.9) เป็น `chiaki-ng/` branch `ps-wrap/ui`, เอกสารชุดใหม่, design inventory, ADR-0001..0003
 ### Changed
+- 2026-10-06 **คลิป/Replay/ไลฟ์ จับเฉพาะกรอบวิดีโอ 16:9** (เรนเดอร์จากเฟรมสตรีมตรงๆ) — ขนาดหรือสัดส่วนหน้าต่าง/จอ ultrawide ไม่มีผลอีกแล้ว ไม่มีขอบดำของหน้าต่างติดไปในไฟล์ · ความละเอียดตั้งต้น = ความละเอียดสตรีม (เดิมผูกกับความสูงหน้าต่าง)
 - 2026-10-06 **ไฟล์โปรแกรมชื่อ `PS-WRAP.exe`** (เดิม `chiaki.exe`) — ตั้ง `OUTPUT_NAME` ใน CMake เฉพาะ Windows (target ยังชื่อ chiaki) · สคริปต์ build/run/deploy/drive/snap หา process ทั้ง `PS-WRAP` และ `chiaki` · shortcut ต้องสร้างใหม่ด้วย `deploy.ps1 -Shortcut -StartMenu` · ถ้าเคยอนุญาต `chiaki.exe` ใน Firewall/Controlled folder access ต้องอนุญาต `PS-WRAP.exe` ใหม่
 - 2026-10-06 **ไอคอนปุ่มจอยชุดใหม่**: ✕ ○ □ △ เป็นแผ่นเข้มไล่เฉด ขอบบาง สัญลักษณ์สีแบบ PS (ฟ้า/แดง/ชมพู/เขียว) · L1/R1 ทรง pill, L3/R3 วงกลม (เดิมของ upstream ล้นกรอบจน L1 เป็นข้าวหลามตัด R3 เป็นครึ่งวง) · สร้างจาก `scripts/gen-glyphs.py` · ชุด Steam Deck ใช้แบบเดิม
 - 2026-10-06 แถบล่างหน้าแรก: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (ไอคอน + จุดเปิด/ปิด) แทนปุ่มไอคอนฟ้าลอยเดี่ยว · เลขเวอร์ชันย้ายไปท้ายแถบ
@@ -64,6 +68,7 @@
 - 2026-10-04 การ์ด stats ย่อ ~25% (font 12/15, icon 15) ให้ไม่แย่งสายตาตอนเล่น · แถว dropped frames แสดงตลอด (upstream โชว์เฉพาะ > 0 ทำให้การ์ดกระพริบ/เปลี่ยนความสูงตอนเล่น)
 - 2026-10-04 เปลี่ยนทิศทางจาก "Python wrapper รอบ chiaki.exe" เป็น "fork chiaki-ng + redesign UI" — ของเก่าย้ายไป `archive/pswrap-python/`
 ### Fixed
+- 2026-10-07 tray › Facecam effect / Facecam background ไม่บอกว่าเลือกตัวไหนอยู่ (stylesheet ซ่อน indicator) → มี ✓ หน้าตัวที่เลือก
 - 2026-10-06 ชิป Recordings เปิดโฟลเดอร์ที่ไม่มีคลิปล่าสุด เมื่อ Windows "Controlled folder access" บล็อก Videos จนไฟล์ไปตกโฟลเดอร์สำรอง `~\PS-WRAP Recordings` → ตอนนี้หาไฟล์ล่าสุดจากทั้งสองโฟลเดอร์แล้วเลือกให้ใน Explorer
 - 2026-10-06 ปิดกล้อง (ปิดหน้าทดสอบกล้อง / ออกจาก Settings › General) แล้ว UI ค้าง ~3 วินาที → ปิดอุปกรณ์เบื้องหลัง · หน้าทดสอบกล้องบอก "No video from camera" เมื่อไม่มีภาพ (เดิมขึ้น Live หลอก) · ออกจากแอปรอปล่อยกล้องให้เรียบร้อย
 - 2026-10-06 หน้าแรกล้นจอเล็ก: การ์ดเครื่อง (ปุ่ม Play หลุดขอบ) และแถบล่าง (ชิปเหลือไอคอนเมื่อแคบ)

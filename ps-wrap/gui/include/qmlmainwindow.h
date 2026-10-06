@@ -91,6 +91,7 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool micGateEnabled READ micGateEnabled WRITE setMicGateEnabled NOTIFY micGateEnabledChanged)
     Q_PROPERTY(qreal micGateThresholdDb READ micGateThresholdDb WRITE setMicGateThresholdDb NOTIFY micGateThresholdDbChanged) // -80..-20
     Q_PROPERTY(QString recordingFolder READ recordingFolder WRITE setRecordingFolder NOTIFY recordingFolderChanged)
+    Q_PROPERTY(int captureHeight READ captureHeight WRITE setCaptureHeight NOTIFY captureHeightChanged)   // PS-WRAP: 0 = สตรีม · 1440 · 2160
     // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp) — เดินเองระหว่างสตรีมเมื่อเปิด · saveReplay() → recorder.replaySaved
     Q_PROPERTY(bool replayEnabled READ replayEnabled WRITE setReplayEnabled NOTIFY replayEnabledChanged)
     Q_PROPERTY(int replaySeconds READ replaySeconds WRITE setReplaySeconds NOTIFY replaySecondsChanged)   // 30..120
@@ -205,6 +206,8 @@ public:
     QObject *goLiveObject();
     QString recordingFolder() const;
     void setRecordingFolder(const QString &folder);
+    int captureHeight() const;              // PS-WRAP: qmlmainwindow_pswraprec.cpp
+    void setCaptureHeight(int height);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void openRecordingsFolder();
     Q_INVOKABLE void openScreenshotsFolder();   // PS-WRAP: เลือกภาพล่าสุดใน Explorer (รวมโฟลเดอร์สำรอง)
@@ -274,6 +277,7 @@ signals:
     void statsOverlayChanged();
     void micOverlayChanged();          // PS-WRAP
     void clockOverlayChanged();        // PS-WRAP
+    void captureHeightChanged();       // PS-WRAP
     void micGainDbChanged();
     void micGateEnabledChanged();
     void micGateThresholdDbChanged();
@@ -452,13 +456,18 @@ private:
     void pswrapDestroyCapture();
     void pswrapDecorateScreen(struct pl_frame &target_frame);   // render thread: จุด REC กระพริบบนจอ (ไม่ติดไฟล์)
     pl_tex pswrap_rec_dot_tex = nullptr;
-    pl_overlay pswrap_screen_overlays[2] = {};
+    pl_tex pswrap_rec_label_tex = nullptr;     // ป้าย "4K" / "1440p" ต่อท้ายจุด REC (อัดแบบ upscale)
+    int pswrap_rec_label_height = 0;           // ความสูงไฟล์ที่ป้ายปัจจุบันวาดไว้
+    pl_overlay pswrap_screen_overlays[3] = {};
     pl_overlay_part pswrap_rec_dot_part = {};
+    pl_overlay_part pswrap_rec_label_part = {};
     void pswrapSetupTrayRecording(class QMenu *menu);
+    void pswrapSetupTrayView(class QMenu *menu);   // PS-WRAP: Stream menu / Settings / Picture size (qmlmainwindow_pswrapsize.cpp)
     bool pswrapBuildRecConfig(struct PsWrapRecConfig *cfg, QString *error);   // PS-WRAP: สเปคไฟล์อัด/replay จากหน้าต่าง + สตรีม
     void pswrapSyncReplay();            // PS-WRAP: เปิด/ปิด pipeline replay ตาม replayEnabled + สถานะสตรีม
     void pswrapRecordCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
                              const struct pl_frame &screen_target, const struct pl_overlay *overlay, const struct pl_frame *hint);
+    const struct pl_hook *pswrapCaptureUpscaler() const;   // PS-WRAP: upscaler ของไฟล์ตามปุ่ม QUALITY (qmlmainwindow_pswraprec.cpp)
     // PS-WRAP: ภาพหน้าจอ (qmlmainwindow_pswrapshot.cpp) — request id จาก GUI thread, render thread หยิบไปถ่ายเฟรมถัดไป
     QAtomicInteger<int> pswrap_shot_request = 0;
     class PsWrapShotCapture *pswrap_shot_capture = nullptr;   // render thread เท่านั้น (ลบตอน destructor หลัง render thread จบ)

@@ -450,7 +450,7 @@ FocusScope {
                     Keys.onEscapePressed: content.closeRequested()
                     ToolTip.visible: hovered && !sizePopup.visible
                     ToolTip.delay: 600
-                    ToolTip.text: qsTr("Set the picture to an exact 16:9 size — no black bars, recordings match the size")
+                    ToolTip.text: qsTr("Set the picture to an exact 16:9 size — no black bars, screenshots match the size")
                 }
             }
 

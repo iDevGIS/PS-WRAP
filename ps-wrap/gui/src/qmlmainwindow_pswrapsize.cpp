@@ -8,6 +8,11 @@
 #include <QGuiApplication>
 #include <QTimer>
 #include <QVariantMap>
+#include <QAction>
+#include <QActionGroup>
+#include <QIcon>
+#include <QMenu>
+#include <QQuickItem>
 #include <QtMath>
 #include <algorithm>
 
@@ -99,6 +104,58 @@ QVariantList QmlMainWindow::playerSizes()
 	fs[QStringLiteral("current")] = full;
 	out.append(fs);
 	return out;
+}
+
+// เมนู tray: เปิดเมนูสตรีม (แทนกด L1+R1+L3+R3 / Ctrl+O) · Settings (หน้าแรก) · ขนาดภาพ (เหมือนปุ่ม Size ในเมนูสตรีม)
+void QmlMainWindow::pswrapSetupTrayView(QMenu *menu)
+{
+	auto *stream_menu = menu->addAction(QIcon(QStringLiteral(":/icons/menu/menu.svg")), tr("Stream menu"));
+	connect(stream_menu, &QAction::triggered, this, [this]() {
+		if (!session)
+			return;
+		restoreFromTray();
+		requestActivate();
+		// หลังหน้าต่างกลับมา (คืนจาก tray/minimize) ค่อยเปิด — StreamView เปิด/ปิดสลับตาม menuRequested
+		QTimer::singleShot(150, this, [this]() { if (session) emit menuRequested(); });
+	});
+
+	auto *settings_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/settings.svg")), tr("Settings"));
+	connect(settings_action, &QAction::triggered, this, [this]() {
+		restoreFromTray();
+		requestActivate();
+		if (quick_item)
+			QMetaObject::invokeMethod(quick_item, "openSettingsFromTray");
+	});
+
+	QMenu *size_menu = menu->addMenu(QIcon(QStringLiteral(":/icons/menu/display.svg")), tr("Picture size"));
+	size_menu->setStyleSheet(menu->styleSheet());
+	connect(size_menu, &QMenu::aboutToShow, this, [this, size_menu]() {
+		size_menu->clear();
+		auto *group = new QActionGroup(size_menu);
+		for (const QVariant &v : playerSizes()) {
+			const QVariantMap m = v.toMap();
+			const int w = m.value(QStringLiteral("width")).toInt();
+			const int h = m.value(QStringLiteral("height")).toInt();
+			QString label = h < 0 ? tr("Fullscreen") : tr("%1p   %2 × %3").arg(h).arg(w).arg(h);
+			if (m.value(QStringLiteral("stream")).toBool())
+				label += tr("   · stream");
+			const bool current = m.value(QStringLiteral("current")).toBool();
+			auto *a = size_menu->addAction((current ? QStringLiteral("✓  ") : QStringLiteral("     ")) + label);
+			a->setCheckable(true);
+			a->setChecked(current);
+			group->addAction(a);
+			connect(a, &QAction::triggered, this, [this, w, h]() {
+				restoreFromTray();
+				setPlayerSize(w, h);
+			});
+		}
+	});
+
+	// สถานะตามตอนเปิดเมนู: Stream menu ใช้ได้เฉพาะระหว่างสตรีม · Settings เฉพาะนอกสตรีม
+	connect(menu, &QMenu::aboutToShow, this, [this, stream_menu, settings_action]() {
+		stream_menu->setEnabled(session != nullptr);
+		settings_action->setEnabled(session == nullptr);
+	});
 }
 
 void QmlMainWindow::setPlayerSize(int width, int height)

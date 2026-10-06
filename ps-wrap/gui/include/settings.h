@@ -272,6 +272,9 @@ class Settings : public QObject
 		void SetMicGateThresholdDb(double v) { settings.setValue("pswrap/micGateThresholdDb", v); }
 		QString GetRecordingFolder() const { return settings.value("pswrap/recordingFolder").toString(); }   // ว่าง = <Videos>/PS-WRAP
 		void SetRecordingFolder(const QString &v) { settings.setValue("pswrap/recordingFolder", v); }
+		// PS-WRAP: ความสูงภาพของคลิป/Replay/ไลฟ์ (16:9) · 0 = เท่าความละเอียดสตรีม · 1440 / 2160 = upscale
+		int GetCaptureHeight() const { const int h = settings.value("pswrap/captureHeight", 0).toInt(); return h == 1440 || h == 2160 ? h : 0; }
+		void SetCaptureHeight(int v) { settings.setValue("pswrap/captureHeight", v == 1440 || v == 2160 ? v : 0); }
 		// PS-WRAP: Instant Replay — เก็บ N วินาทีล่าสุดไว้ในแรมระหว่างสตรีม (ดู PsWrapRecorder::startReplay)
 		bool GetReplayEnabled() const { return settings.value("pswrap/replayEnabled", false).toBool(); }
 		void SetReplayEnabled(bool v) { settings.setValue("pswrap/replayEnabled", v); }

@@ -2894,6 +2894,7 @@ void QmlMainWindow::setupTray()
         "QMenu::separator { height: 1px; background: #2a3441; margin: 6px 8px; }"));
     auto *show_action = menu->addAction(QIcon(QStringLiteral(":/icons/pswrap.svg")), tr("Show PS-WRAP"));
     connect(show_action, &QAction::triggered, this, [this]() { restoreFromTray(); });
+    pswrapSetupTrayView(menu);   // PS-WRAP: Stream menu / Settings / Picture size
     menu->addSeparator();
     // PS-WRAP: toggle overlay 3 ตัว (ใช้ได้ระหว่างสตรีม) — ข้อความบอกสถานะ ON/OFF ชัดเจน + ไอคอน
     auto makeToggle = [this, menu](const QString &icon, const QString &label, bool checked, std::function<void(bool)> apply) {

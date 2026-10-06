@@ -23,6 +23,7 @@
 #include <cstring>
 #include <deque>
 #include <map>
+#include <tuple>
 #include <mutex>
 #include <thread>
 
@@ -82,16 +83,18 @@ struct PlatformDef
 	bool key_per_session;   // key ใหม่ทุกรอบไลฟ์
 	std::vector<PlatformServer> servers;
 	const char *note;
+	int max_height = 1080;  // เพดานความสูงที่ ingest รับ — ภาพจาก pipeline (Output resolution) สูงกว่านี้ถูกย่อลง
 };
 
 // codec: ตอนนี้ H.264 อย่างเดียวทุกเจ้า (YouTube HEVC/AV1/HDR = งานต่อ: เพิ่ม "hevc" ที่ YouTube + rendition HEVC)
 const std::vector<PlatformDef> &platformDefs()
 {
 	static const std::vector<PlatformDef> defs = {
-		{"youtube", "YouTube", 12000, 6000, false, false,
+		{"youtube", "YouTube", 51000, 6000, false, false,
 			{{QT_TRANSLATE_NOOP("PsWrapGoLive", "Primary (RTMPS)"), "rtmps://a.rtmps.youtube.com:443/live2"},
 			 {QT_TRANSLATE_NOOP("PsWrapGoLive", "Primary (RTMP)"), "rtmp://a.rtmp.youtube.com/live2"}},
-			QT_TRANSLATE_NOOP("PsWrapGoLive", "Stream key: YouTube Studio › Create › Go live › Stream. A new channel must verify its phone number and wait 24 hours before the first live stream.")},
+			QT_TRANSLATE_NOOP("PsWrapGoLive", "Stream key: YouTube Studio › Create › Go live › Stream. A new channel must verify its phone number and wait 24 hours before the first live stream. 4K: set Output resolution to 4K in Settings › General and use 35–45 Mbps."),
+			2160},
 		{"twitch", "Twitch", 6000, 6000, false, false,
 			{{QT_TRANSLATE_NOOP("PsWrapGoLive", "Automatic (RTMPS)"), "rtmps://ingest.global-contribute.live-video.net:443/app"}},
 			QT_TRANSLATE_NOOP("PsWrapGoLive", "Stream key: Twitch Creator Dashboard › Settings › Stream. When simulcasting, Twitch must get the same quality as your other destinations.")},
@@ -106,8 +109,9 @@ const std::vector<PlatformDef> &platformDefs()
 			QT_TRANSLATE_NOOP("PsWrapGoLive", "Create the live video in Instagram's Live Producer first, then paste its server URL and key. Sent as 16:9 for now.")},
 		{"x", "X", 9000, 6000, false, false, {},
 			QT_TRANSLATE_NOOP("PsWrapGoLive", "Copy the RTMPS URL and stream key from X Media Studio › Producer.")},
-		{"custom", QT_TRANSLATE_NOOP("PsWrapGoLive", "Custom RTMP(S)"), 20000, 6000, false, false, {},
-			QT_TRANSLATE_NOOP("PsWrapGoLive", "Any RTMP or RTMPS ingest (Restream, Castr, your own server). The stream key is added to the end of the server URL.")},
+		{"custom", QT_TRANSLATE_NOOP("PsWrapGoLive", "Custom RTMP(S)"), 51000, 6000, false, false, {},
+			QT_TRANSLATE_NOOP("PsWrapGoLive", "Any RTMP or RTMPS ingest (Restream, Castr, your own server). The stream key is added to the end of the server URL."),
+			2160},
 	};
 	return defs;
 }
@@ -1296,6 +1300,7 @@ QVariantList PsWrapGoLive::platforms() const
 		m[QStringLiteral("name")] = tr(d.name);
 		m[QStringLiteral("codecs")] = QStringList{QStringLiteral("h264")};
 		m[QStringLiteral("maxVideoKbps")] = d.max_kbps;
+		m[QStringLiteral("maxHeight")] = d.max_height;
 		m[QStringLiteral("defaultVideoKbps")] = d.default_kbps;
 		m[QStringLiteral("vertical")] = d.vertical;
 		m[QStringLiteral("keyPerSession")] = d.key_per_session;
@@ -1560,6 +1565,7 @@ bool PsWrapGoLive::start()
 		QString key;
 		int video_kbps;
 		int audio_kbps;
+		int max_height;
 	};
 	std::vector<Pick> picks;
 	for (const auto &r : model.all()) {
@@ -1581,7 +1587,8 @@ bool PsWrapGoLive::start()
 			});
 			continue;
 		}
-		picks.push_back(Pick{r.id, r.platform, r.server.trimmed(), key, r.video_kbps, r.audio_kbps});
+		const PlatformDef *pd = platformDef(r.platform);
+		picks.push_back(Pick{r.id, r.platform, r.server.trimmed(), key, r.video_kbps, r.audio_kbps, pd ? pd->max_height : 1080});
 	}
 	if (picks.empty())
 		return fail(enabledCount() == 0 ? tr("Add a destination in Settings › Go Live first.")
@@ -1598,18 +1605,19 @@ bool PsWrapGoLive::start()
 	if (hdr)
 		return fail(tr("Go Live needs an SDR stream for now, and this stream is HDR. Turn off HDR on the PS5 (Settings › Screen and Video › Video Output › HDR) and try again."));
 
-	// ปลายทางที่ bitrate/เสียงเท่ากัน = rendition เดียวกัน (encode ครั้งเดียว)
-	std::map<std::pair<int, int>, std::vector<const Pick *>> groups;
+	// ปลายทางที่ bitrate/เสียง/เพดานความสูงเท่ากัน = rendition เดียวกัน (encode ครั้งเดียว)
+	std::map<std::tuple<int, int, int>, std::vector<const Pick *>> groups;
 	for (const auto &p : picks)
-		groups[{p.video_kbps, p.audio_kbps}].push_back(&p);
+		groups[{p.video_kbps, p.audio_kbps, p.max_height}].push_back(&p);
 	if (static_cast<int>(groups.size()) > kMaxRenditions)
-		return fail(tr("Use at most %1 different video bitrates at once (each one is a separate encode).").arg(kMaxRenditions));
+		return fail(tr("Use at most %1 different bitrate and resolution combinations at once (each one is a separate encode).").arg(kMaxRenditions));
 
 	auto a = std::make_unique<Active>();
 	for (const auto &g : groups) {
 		Rendition::Spec spec;
-		spec.video_kbps = g.first.first;
-		spec.audio_kbps = g.first.second;
+		spec.video_kbps = std::get<0>(g.first);
+		spec.audio_kbps = std::get<1>(g.first);
+		spec.max_height = std::get<2>(g.first);
 		auto r = std::make_shared<Rendition>(spec);
 		if (!r->open(w, h, fps, &err))
 			return fail(err);

@@ -659,6 +659,28 @@ DialogView {
                                 }
                             }
 
+                            // PS-WRAP: ขนาดภาพของคลิป / Instant Replay / Go Live (16:9) — 1440p/4K = ขยายด้วย upscaler ของ QUALITY
+                            Label {
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                Layout.preferredWidth: dialog.labelWidth
+                                Layout.maximumWidth: dialog.labelWidth
+                                wrapMode: Text.WordWrap
+                                color: Theme.text
+                                text: qsTr("Output Resolution")
+                            }
+                            C.ComboBox {
+                                readonly property var heights: [0, 1440, 2160]
+                                Layout.preferredWidth: dialog.controlWidth
+                                model: [qsTr("Same as stream"), qsTr("1440p (upscaled)"), qsTr("4K (upscaled)")]
+                                currentIndex: Math.max(0, heights.indexOf(Chiaki.window.captureHeight))
+                                onActivated: index => Chiaki.window.captureHeight = heights[index]
+                            }
+                            Label {
+                                font.pixelSize: Theme.fontCaption
+                                color: Theme.textMuted
+                                text: qsTr("(Same as stream) · clips, replay, live")
+                            }
+
                             Item { Layout.preferredWidth: dialog.labelWidth; Layout.preferredHeight: 1 }
                             Label {
                                 Layout.columnSpan: 2
@@ -668,7 +690,7 @@ DialogView {
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: Theme.fontCaption
                                 color: Theme.textMuted
-                                text: qsTr("Recordings capture exactly what is on screen, including every visible overlay (pad, facecam, stats, mic spectrum), plus game audio and your microphone while it is unmuted. HDR streams are recorded as HDR (HEVC 10-bit). Toggle in stream: Ctrl+Shift+R or Record in the stream menu.")
+                                text: qsTr("Recordings capture the 16:9 game picture with every visible overlay (pad, facecam, stats, mic spectrum), plus game audio and your microphone while it is unmuted. The window size and black bars do not matter. 1440p and 4K are upscaled from the stream with the upscaler picked under QUALITY in the stream menu (HQ + Spatial / HQ + Adv) — YouTube gives 4K uploads a much higher bitrate. HDR streams are recorded as HDR (HEVC 10-bit). Toggle in stream: Ctrl+Shift+R or Record in the stream menu.")
                             }
 
                             Label {

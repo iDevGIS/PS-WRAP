@@ -18,6 +18,10 @@
 #include <QDesktopServices>
 #include <QElapsedTimer>
 #include <QDir>
+#include <QFont>
+#include <QFontMetrics>
+#include <QImage>
+#include <QPainter>
 #include <QFileInfo>
 #include <QIcon>
 #include <QMenu>
@@ -236,9 +240,13 @@ void QmlMainWindow::pswrapDestroyCapture()
 {
 	delete pswrap_rec_capture;
 	pswrap_rec_capture = nullptr;
-	if (pswrap_rec_dot_tex)
-		if (pl_gpu gpu = placeboGpu())
+	if (pl_gpu gpu = placeboGpu()) {
+		if (pswrap_rec_dot_tex)
 			pl_tex_destroy(gpu, &pswrap_rec_dot_tex);
+		if (pswrap_rec_label_tex)
+			pl_tex_destroy(gpu, &pswrap_rec_label_tex);
+	}
+	pswrap_rec_label_height = 0;
 }
 
 // จุดแดงกระพริบมุมซ้ายบนของวิดีโอ วาดเป็น overlay ของ "จอ" เท่านั้น — target ของไฟล์ใช้ quick_tex อย่างเดียว เลยไม่ติดคลิป
@@ -288,7 +296,8 @@ void QmlMainWindow::pswrapDecorateScreen(pl_frame &target_frame)
 	pswrap_rec_dot_part.color[3] = alpha;
 	if (target_frame.num_overlays == 1)
 		pswrap_screen_overlays[0] = target_frame.overlays[0];
-	pl_overlay &dot = pswrap_screen_overlays[target_frame.num_overlays];
+	int n = target_frame.num_overlays;
+	pl_overlay &dot = pswrap_screen_overlays[n++];
 	dot = {};
 	dot.tex = pswrap_rec_dot_tex;
 	dot.mode = PL_OVERLAY_MONOCHROME;
@@ -296,8 +305,63 @@ void QmlMainWindow::pswrapDecorateScreen(pl_frame &target_frame)
 	dot.color = pl_color_space_srgb;
 	dot.parts = &pswrap_rec_dot_part;
 	dot.num_parts = 1;
+
+	// อัดแบบ upscale → ป้าย "4K" / "1440p" ต่อท้ายจุด (ไฟล์ที่ความละเอียดสตรีมไม่มีป้าย)
+	int vw = 0, vh = 0;
+	bool vhdr = false;
+	const int label_h = rec->videoSpec(&vw, &vh, &vhdr) && vh >= 1440 ? vh : 0;
+	if (label_h != pswrap_rec_label_height) {
+		if (pswrap_rec_label_tex)
+			pl_tex_destroy(gpu, &pswrap_rec_label_tex);
+		pswrap_rec_label_height = label_h;
+		if (label_h > 0) {
+			// mask ตัวอักษร (Grayscale8 = alpha) วาดด้วย QPainter บน QImage — ใช้นอก GUI thread ได้
+			const QString text = label_h >= 2160 ? QStringLiteral("4K") : QStringLiteral("%1p").arg(label_h);
+			QFont font;
+			font.setPixelSize(48);
+			font.setBold(true);
+			const int tw = (QFontMetrics(font).horizontalAdvance(text) + 8 + 3) & ~3;   // พหุคูณของ 4 → แถวชิดกัน ใช้ initial_data ได้
+			QImage img(tw, 64, QImage::Format_Grayscale8);
+			img.fill(0);
+			{
+				QPainter p(&img);
+				p.setRenderHint(QPainter::TextAntialiasing);
+				p.setFont(font);
+				p.setPen(QColor(255, 255, 255));
+				p.drawText(QRect(0, 0, tw, 64), Qt::AlignCenter, text);
+			}
+			pl_fmt fmt = pl_find_fmt(gpu, PL_FMT_UNORM, 1, 8, 8, static_cast<pl_fmt_caps>(PL_FMT_CAP_SAMPLEABLE | PL_FMT_CAP_LINEAR));
+			if (fmt) {
+				pl_tex_params tp = {};
+				tp.w = img.width();
+				tp.h = img.height();
+				tp.format = fmt;
+				tp.sampleable = true;
+				tp.initial_data = img.constBits();
+				tp.debug_tag = PL_DEBUG_TAG;
+				pswrap_rec_label_tex = pl_tex_create(gpu, &tp);
+			}
+		}
+	}
+	if (pswrap_rec_label_tex) {
+		const float lh = size * 1.25f;                                   // สูงกว่าจุดนิดหน่อย อ่านง่าย
+		const float lw = lh * float(pswrap_rec_label_tex->params.w) / float(pswrap_rec_label_tex->params.h);
+		const float lx = x0 + margin + size + 4.0f * float(devicePixelRatio());
+		const float ly = y0 + margin + size * 0.5f - lh * 0.5f;
+		pswrap_rec_label_part = {};
+		pswrap_rec_label_part.src = {0, 0, float(pswrap_rec_label_tex->params.w), float(pswrap_rec_label_tex->params.h)};
+		pswrap_rec_label_part.dst = {lx, ly, lx + lw, ly + lh};
+		pswrap_rec_label_part.color[0] = 1.0f;
+		pswrap_rec_label_part.color[1] = 1.0f;
+		pswrap_rec_label_part.color[2] = 1.0f;
+		pswrap_rec_label_part.color[3] = 0.92f;
+		pl_overlay &label = pswrap_screen_overlays[n++];
+		label = dot;
+		label.tex = pswrap_rec_label_tex;
+		label.parts = &pswrap_rec_label_part;
+	}
 	target_frame.overlays = pswrap_screen_overlays;
-	target_frame.num_overlays += 1;
+	target_frame.num_overlays = n;
 }
 
 QObject *QmlMainWindow::recorderObject() const { return pswrap_recorder; }
@@ -332,6 +396,21 @@ void QmlMainWindow::setRecordingFolder(const QString &folder)
 		return;
 	settings->SetRecordingFolder(f);
 	emit recordingFolderChanged();
+}
+
+int QmlMainWindow::captureHeight() const { return settings->GetCaptureHeight(); }
+
+void QmlMainWindow::setCaptureHeight(int height)
+{
+	if (height == settings->GetCaptureHeight())
+		return;
+	settings->SetCaptureHeight(height);   // มีผลกับ pipeline ถัดไป (สเปคภาพคงที่ตลอดอายุ pipeline)
+	// มีแค่ Instant Replay ใช้ pipeline อยู่ → ปิดแล้วให้ replay_timer เปิดใหม่ที่ขนาดใหม่ (buffer เดิมหาย)
+	// กำลังอัด/ไลฟ์ → ไม่แตะ ขนาดใหม่มีผลรอบหน้า
+	if (pswrap_recorder && pswrap_recorder->isReplayActive() && !pswrap_recorder->isRecording() && !pswrap_recorder->isBusy()
+	    && !goLive()->isLive())
+		pswrap_recorder->stopReplay();
+	emit captureHeightChanged();
 }
 
 void QmlMainWindow::toggleRecording()
@@ -385,17 +464,11 @@ bool QmlMainWindow::pswrapBuildRecConfig(PsWrapRecConfig *cfg, QString *error)
 		return false;
 	}
 
-	// ไฟล์ = ทั้งหน้าต่างตามสัดส่วนจริง สูงไม่เกินความละเอียดสตรีม (หน้าต่าง 5K ultrawide + สตรีม 1080p → 2632x1080)
-	const qreal dpr = devicePixelRatio();
-	const int sw = qMax(2, qRound(width() * dpr));
-	const int sh = qMax(2, qRound(height() * dpr));
-	int th = qMin(sh, qMax(720, src_h > 0 ? src_h : 1080));
-	int tw = qRound(double(sw) * th / sh);
-	const int max_w = hdr ? 8192 : 4096; // H.264 NVENC กว้างได้สุด 4096
-	if (tw > max_w) {
-		th = qRound(double(th) * max_w / tw);
-		tw = max_w;
-	}
+	// ไฟล์ = กรอบวิดีโอ 16:9 (ไม่ขึ้นกับขนาด/สัดส่วนหน้าต่าง — render thread วาดจากเฟรมสตรีมตรงๆ)
+	// สูง = ความละเอียดสตรีม หรือ 1440/2160 ตาม Output resolution (ขยายด้วย upscaler ของ QUALITY)
+	const int want = settings->GetCaptureHeight();
+	const int th = qMax(360, want > 0 ? want : (src_h > 0 ? src_h : 1080));
+	const int tw = qRound(th * 16.0 / 9.0);   // 2160 → 3840 (H.264 NVENC กว้างได้ถึง 4096)
 	const double interval_ms = stream_configured_frame_interval_ms;
 
 	cfg->width = qMax(2, tw & ~1);
@@ -570,6 +643,7 @@ void QmlMainWindow::pswrapSetupTrayRecording(QMenu *menu)
 		QAction *a = tray_fx_menu->addAction(fx_names[i]);
 		a->setCheckable(true);
 		a->setData(i);
+		a->setProperty("pswrapLabel", fx_names[i]);
 		fx_group->addAction(a);
 		connect(a, &QAction::triggered, this, [this, i]() { setCamFx(i); });
 	}
@@ -580,6 +654,7 @@ void QmlMainWindow::pswrapSetupTrayRecording(QMenu *menu)
 		QAction *a = tray_bg_menu->addAction(bg_names[i]);
 		a->setCheckable(true);
 		a->setData(i);
+		a->setProperty("pswrapLabel", bg_names[i]);
 		bg_group->addAction(a);
 		connect(a, &QAction::triggered, this, [this, i]() { setCamBackground(i); });
 	}
@@ -632,6 +707,24 @@ void QmlMainWindow::pswrapSetupTrayRecording(QMenu *menu)
 
 	tray_record_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/record.svg")), tr("Start recording"));
 	connect(tray_record_action, &QAction::triggered, this, [this]() { toggleRecording(); });
+	// Record preset = Output resolution (คลิป / Instant Replay / Go Live ใช้ค่าเดียวกัน — Settings › General)
+	QMenu *res_menu = makeSubmenu(QStringLiteral(":/icons/menu/quality.svg"), tr("Record preset"));
+	auto resLabel = [this](int h) { return h == 2160 ? tr("4K (upscaled)") : h == 1440 ? tr("1440p (upscaled)") : tr("Same as stream"); };
+	auto syncResTitle = [res_menu, resLabel, this]() { res_menu->setTitle(tr("Record preset") + QStringLiteral("   ") + resLabel(captureHeight())); };
+	connect(res_menu, &QMenu::aboutToShow, this, [this, res_menu, resLabel]() {
+		res_menu->clear();
+		const int cur = captureHeight();
+		for (int h : {0, 1440, 2160}) {
+			QAction *a = res_menu->addAction((h == cur ? QStringLiteral("✓  ") : QStringLiteral("     ")) + resLabel(h));
+			connect(a, &QAction::triggered, this, [this, h]() { setCaptureHeight(h); });
+		}
+		res_menu->addSeparator();
+		QAction *note = res_menu->addAction(tr("Clips, Instant Replay and Go Live"));
+		note->setEnabled(false);
+	});
+	connect(this, &QmlMainWindow::captureHeightChanged, this, syncResTitle);
+	connect(menu, &QMenu::aboutToShow, this, syncResTitle);
+	syncResTitle();
 	// Instant Replay / Screenshot — ใช้ API เดียวกับเมนูสตรีมและ hotkey
 	tray_replay_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/replay.svg")), tr("Instant Replay"));
 	tray_replay_action->setCheckable(true);
@@ -688,13 +781,18 @@ void QmlMainWindow::pswrapRefreshTray()
 		tray_record_action->setText(pswrap_recorder->isRecording() ? tr("Stop recording") + QStringLiteral("   ●  REC") : tr("Start recording"));
 		tray_record_action->setEnabled(!pswrap_recorder->isBusy());
 	}
-	const int fx = camFx(), bg = camBackground();
-	if (tray_fx_menu)
-		for (QAction *a : tray_fx_menu->actions())
-			a->setChecked(a->data().toInt() == fx);
-	if (tray_bg_menu)
-		for (QAction *a : tray_bg_menu->actions())
-			a->setChecked(a->data().toInt() == bg);
+	// stylesheet ซ่อน indicator ของ QMenu → บอกตัวที่เลือกด้วย ✓ หน้าข้อความ (เหมือน Picture size / Record preset)
+	auto markChecked = [](QMenu *m, int value) {
+		if (!m)
+			return;
+		for (QAction *a : m->actions()) {
+			const bool on = a->data().toInt() == value;
+			a->setChecked(on);
+			a->setText((on ? QStringLiteral("✓  ") : QStringLiteral("     ")) + a->property("pswrapLabel").toString());
+		}
+	};
+	markChecked(tray_fx_menu, camFx());
+	markChecked(tray_bg_menu, camBackground());
 }
 
 int QmlMainWindow::camFx() const { return qBound(0, settings->GetCamFx(), 13); }
@@ -740,5 +838,26 @@ void QmlMainWindow::pswrapRecordCapture(const pl_frame_mix *mix, const pl_frame 
 		pswrap_rec_capture = new PsWrapRecCapture(gpu, placebo_log);
 	}
 	pswrap_rec_capture->capture(rec, mix, single, params, screen_target, overlay,
-	                            swapchain_size.width(), swapchain_size.height());
+	                            swapchain_size.width(), swapchain_size.height(), pswrapCaptureUpscaler());
+}
+
+// upscaler ตามปุ่ม QUALITY สำหรับไฟล์ (คิดแยกจากจอ: ไฟล์ 4K จากสตรีม 1080p ขยาย 2 เท่าแม้หน้าต่างเล็ก)
+// ตัวจับภาพใช้เมื่อไฟล์ใหญ่กว่า source จริงเท่านั้น · nullptr = ใช้ scaler ปกติของ render params
+const pl_hook *QmlMainWindow::pswrapCaptureUpscaler() const
+{
+	switch (video_preset) {
+	case VideoPreset::HighQualitySpatial:
+		return fsrcnnx_hook_8;
+	case VideoPreset::HighQualityAdvancedSpatial:
+		return fsrcnnx_hook_16;
+	case VideoPreset::Custom:
+		switch (settings->GetPlaceboUpscaler()) {
+		case PlaceboUpscaler::FSR: return fsr_hook;
+		case PlaceboUpscaler::FSRCNNX8: return fsrcnnx_hook_8;
+		case PlaceboUpscaler::FSRCNNX16: return fsrcnnx_hook_16;
+		default: return nullptr;
+		}
+	default:
+		return nullptr;
+	}
 }

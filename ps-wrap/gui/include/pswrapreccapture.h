@@ -26,10 +26,11 @@ public:
 	~PsWrapRecCapture();
 
 	// render thread: เรียกหลัง pl_render_image(_mix) ลงจอสำเร็จ (ก่อน submit)
-	// mix หรือ single อย่างใดอย่างหนึ่ง · screen_target = target ของจอ (ใช้ crop) · overlay = quick_tex (nullable)
+	// mix หรือ single อย่างใดอย่างหนึ่ง · screen_target = target ของจอ (crop = กรอบวิดีโอบนจอ) · overlay = quick_tex (nullable)
+	// ไฟล์ = กรอบวิดีโอ (∩ จอ) วางเต็มกรอบไฟล์ + overlay ส่วนเดียวกัน · upscaler (nullable) ใช้เมื่อไฟล์ใหญ่กว่า source
 	void capture(PsWrapRecorder *rec, const struct pl_frame_mix *mix, const struct pl_frame *single,
 	             const struct pl_render_params &params, const struct pl_frame &screen_target,
-	             const struct pl_overlay *overlay, int screen_w, int screen_h);
+	             const struct pl_overlay *overlay, int screen_w, int screen_h, const struct pl_hook *upscaler);
 
 	// ไม่มีเฟรมไหนค้างอยู่ใน encoder → ลบได้
 	bool canDestroy() const;

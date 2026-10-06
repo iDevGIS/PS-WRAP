@@ -194,6 +194,14 @@ Item {
         stack.push(settingsDialogComponent);
     }
 
+    // PS-WRAP: เมนู tray › Settings — เปิดเฉพาะตอนอยู่หน้าแรกเฉยๆ (ไม่ซ้อนบน dialog/สตรีม)
+    function openSettingsFromTray() {
+        if (Chiaki.session || stack.depth !== 1)
+            return false;
+        showSettingsDialog();
+        return true;
+    }
+
     function showDisplaySettingsDialog() {
         stack.push(displaySettingsDialogComponent);
     }
