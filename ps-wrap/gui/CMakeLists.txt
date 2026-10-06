@@ -71,6 +71,7 @@ set(SOURCE_FILES
 	src/qmlmainwindow_pswraprec.cpp
 	src/qmlmainwindow_pswrapshot.cpp
 	src/qmlmainwindow_pswrapclock.cpp
+	src/qmlmainwindow_pswrapsize.cpp
 	src/qmlmainwindow_pswrapmic.cpp
 	include/pswrapgameprofiles.h
 	src/pswrapgameprofiles.cpp

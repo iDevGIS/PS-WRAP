@@ -32,7 +32,7 @@ FocusScope {
     }
     // PS-WRAP: ไมค์ที่ใช้อยู่ ("" = Auto) — ระหว่างสตรีมอ่านจาก session (เปลี่ยนสด), นอกนั้นจาก settings
     readonly property string micDevice: Chiaki.session ? Chiaki.session.audioInDevice : Chiaki.settings.audioInDevice
-    readonly property bool popupOpen: micDevicePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้ (ให้ Esc ปิดแค่ popup)
+    readonly property bool popupOpen: micDevicePopup.visible || sizePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้ (ให้ Esc ปิดแค่ popup)
     function micDeviceLabel(name) { return name && name.length ? name : qsTr("Auto (Windows default)"); }
     onVisibleChanged: if (!visible) micDevicePopup.close()
     readonly property bool narrow: width < 760
@@ -432,9 +432,25 @@ FocusScope {
                     onToggled: Chiaki.window.videoMode = Chiaki.window.videoMode == ChiakiWindow.VideoMode.Stretch ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Stretch
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? zoomFactor : zoomButton
-                    KeyNavigation.right: defaultButton
+                    KeyNavigation.right: sizeButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: ขนาดพื้นที่ภาพ 16:9 ตาม preset (ไม่มีขอบดำ คลิปอัดได้ขนาดตามชื่อ) — ✕/Enter เปิดรายการ
+                MenuButton {
+                    id: sizeButton
+                    segmented: true
+                    caret: true
+                    text: qsTr("Size")
+                    onClicked: sizePopup.open()
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: stretchButton
+                    KeyNavigation.right: defaultButton
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEscapePressed: content.closeRequested()
+                    ToolTip.visible: hovered && !sizePopup.visible
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("Set the picture to an exact 16:9 size — no black bars, recordings match the size")
                 }
             }
 
@@ -451,7 +467,7 @@ FocusScope {
                         Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.Default
                     }
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: stretchButton
+                    KeyNavigation.left: sizeButton
                     KeyNavigation.right: highQualityButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
@@ -894,4 +910,131 @@ FocusScope {
         }
     }
 
+    // ---------- popup ขนาดพื้นที่ภาพ (PS-WRAP) ----------
+    // รายการมาจาก C++ ตอนเปิด (เฉพาะขนาดที่วางบนจอนี้ได้ + Fullscreen) — ↑↓ เลือก · ✕/Enter ยืนยัน · ◯/Esc ยกเลิก
+    Popup {
+        id: sizePopup
+        property var sizes: []
+        parent: content
+        modal: false
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: 6
+        width: Math.min(340, content.width - 2 * Theme.space6)
+        height: Math.min(sizeList.contentHeight + topPadding + bottomPadding + sizePopupTitle.height + 6, content.height - 8)
+        x: {
+            const bx = sizeButton.mapToItem(content, 0, 0).x;
+            return Math.max(Theme.space2, Math.min(bx, content.width - width - Theme.space2));
+        }
+        y: 4
+        onAboutToShow: {
+            sizes = Chiaki.window.playerSizes();
+            let cur = 0;
+            for (let i = 0; i < sizes.length; i++)
+                if (sizes[i].current) cur = i;
+            sizeList.currentIndex = cur;
+        }
+        onOpened: {
+            sizeList.forceActiveFocus(Qt.TabFocusReason);
+            sizeList.positionViewAtIndex(sizeList.currentIndex, ListView.Contain);
+        }
+        onClosed: if (content.visible) sizeButton.forceActiveFocus(Qt.TabFocusReason)
+
+        function label(s) { return s.height < 0 ? qsTr("Fullscreen") : qsTr("%1p").arg(s.height); }
+        function pick(index) {
+            const s = sizes[index];
+            close();
+            if (s)
+                Chiaki.window.setPlayerSize(s.width, s.height);
+        }
+
+        background: Rectangle {
+            radius: Theme.radiusControl
+            color: Theme.surfaceRaised
+            border.width: 1
+            border.color: Theme.accent
+        }
+
+        contentItem: Column {
+            spacing: 4
+            Label {
+                id: sizePopupTitle
+                leftPadding: 10
+                topPadding: 2
+                text: qsTr("PICTURE SIZE")
+                font.pixelSize: Theme.fontCaption
+                font.letterSpacing: 1.5
+                font.weight: Font.DemiBold
+                color: Theme.textMuted
+            }
+            ListView {
+                id: sizeList
+                width: parent.width
+                height: sizePopup.availableHeight - sizePopupTitle.height - 4
+                clip: true
+                model: sizePopup.sizes
+                keyNavigationWraps: false
+                boundsBehavior: Flickable.StopAtBounds
+                highlightMoveDuration: 0
+                ScrollBar.vertical: ScrollBar { policy: sizeList.contentHeight > sizeList.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
+                Keys.onReturnPressed: sizePopup.pick(currentIndex)
+                Keys.onEnterPressed: sizePopup.pick(currentIndex)
+                Keys.onSpacePressed: sizePopup.pick(currentIndex)
+                Keys.onEscapePressed: sizePopup.close()
+                Keys.onLeftPressed: (event) => event.accepted = true    // กันโฟกัสหลุดออกจาก popup
+                Keys.onRightPressed: (event) => event.accepted = true
+                delegate: ItemDelegate {
+                    id: sizeRow
+                    required property int index
+                    required property var modelData
+                    width: ListView.view.width - 10
+                    height: 36
+                    focusPolicy: Qt.NoFocus
+                    highlighted: ListView.isCurrentItem
+                    onClicked: sizePopup.pick(index)
+                    background: Rectangle {
+                        radius: Theme.radiusControl - 2
+                        color: sizeRow.highlighted ? Qt.rgba(0, 0.655, 1, 0.22) : sizeRow.hovered ? Theme.surfaceHover : "transparent"
+                        border.width: sizeRow.highlighted ? Theme.focusWidth - 1 : 0
+                        border.color: Theme.accent
+                    }
+                    contentItem: Row {
+                        spacing: 8
+                        leftPadding: 4
+                        Label {
+                            width: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: sizeRow.modelData.current ? "✓" : ""
+                            color: Theme.accent
+                            font.pixelSize: Theme.fontLabel
+                            font.bold: true
+                        }
+                        Label {
+                            width: 96
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: sizePopup.label(sizeRow.modelData)
+                            font.pixelSize: Theme.fontLabel
+                            font.weight: sizeRow.modelData.current ? Font.DemiBold : Font.Normal
+                            color: Theme.text
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: sizeRow.modelData.height < 0 ? "" : sizeRow.modelData.width + " × " + sizeRow.modelData.height
+                            font.pixelSize: Theme.fontCaption
+                            color: Theme.textMuted
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: !!sizeRow.modelData.stream
+                            text: qsTr("STREAM")
+                            font.pixelSize: Theme.fontCaption
+                            font.letterSpacing: 1
+                            font.weight: Font.DemiBold
+                            color: Theme.accent
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

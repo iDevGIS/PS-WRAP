@@ -216,6 +216,9 @@ public:
     Q_INVOKABLE void addMarker();       // → recorder.markerAdded(seconds) / recorder.failed(msg)
     // PS-WRAP: ภาพหน้าจอ 1 ปุ่ม (qmlmainwindow_pswrapshot.cpp) → screenshotSaved / screenshotFailed
     Q_INVOKABLE void takeScreenshot();
+    // PS-WRAP: ขนาดพื้นที่ภาพ 16:9 ตาม preset (qmlmainwindow_pswrapsize.cpp) — physical px · width/height -1 = Fullscreen
+    Q_INVOKABLE QVariantList playerSizes();   // [{width, height, stream, current}] เฉพาะที่วางบนจอได้ + Fullscreen ท้ายสุด
+    Q_INVOKABLE void setPlayerSize(int width, int height);
     // PS-WRAP: ทดสอบไมค์นอกสตรีม (หน้า preview) — เปิดอุปกรณ์ capture ส่ง PCM เข้า micMeter · "" = Auto
     Q_INVOKABLE bool startMicPreview(const QString &device);
     Q_INVOKABLE void stopMicPreview();
