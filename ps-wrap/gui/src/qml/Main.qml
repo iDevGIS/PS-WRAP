@@ -656,6 +656,16 @@ Item {
     // StreamView ดันขึ้นเหนือเมนูสตรีมด้วย toastBottomInset และส่งกรอบเป็น overlay hit rect
     property real toastBottomInset: 0
     readonly property alias recordingToast: recToast
+    // PS-WRAP: preset ต่อเกมถูกใช้ตอนเริ่มสตรีม → toast สั้นๆ (Chiaki.window.gameProfiles.activeProfileName)
+    Connections {
+        target: Chiaki.window ? Chiaki.window.gameProfiles : null
+        ignoreUnknownSignals: true
+        function onActiveProfileChanged() {
+            const n = Chiaki.window.gameProfiles.activeProfileName;
+            if (n && n.length)
+                recToast.show({ kind: "info", title: qsTr("Game preset applied"), detail: n });
+        }
+    }
     StreamToast {
         id: recToast
         z: 1000
@@ -665,6 +675,7 @@ Item {
     }
     Connections {
         target: Chiaki.window ? Chiaki.window.recorder : null
+        ignoreUnknownSignals: true
         function onSaved(path) {
             const name = String(path).replace(/^.*[\\/]/, "");
             recToast.show({
@@ -678,7 +689,7 @@ Item {
         function onFailed(message) {
             recToast.show({
                 kind: "error",
-                title: qsTr("Recording failed"),
+                title: qsTr("Capture failed"),   // failed มาจากอัด / replay / marker
                 detail: message
             });
         }
@@ -690,6 +701,46 @@ Item {
                 detail: message,
                 actionText: qsTr("Show in folder"),
                 action: function() { Chiaki.window.revealRecording(path); }
+            });
+        }
+        // PS-WRAP: Instant Replay เซฟแล้ว (Ctrl+Shift+B / ปุ่ม Save ในเมนูสตรีม)
+        function onReplaySaved(path) {
+            recToast.show({
+                kind: "success",
+                title: qsTr("Replay saved"),
+                detail: String(path).replace(/^.*[\\/]/, ""),
+                actionText: qsTr("Show in folder"),
+                action: function() { Chiaki.window.revealRecording(path); }
+            });
+        }
+    }
+    // PS-WRAP: Go Live — C++ คัดมาแล้วเฉพาะเหตุการณ์สำคัญ (ขึ้นไลฟ์ / ต่อใหม่ / ปลายทางเลิกลอง / เริ่มไม่ได้ / หยุดเอง)
+    Connections {
+        target: Chiaki.goLive !== undefined ? Chiaki.goLive : null
+        ignoreUnknownSignals: true
+        function onToast(kind, title, detail) {
+            recToast.show({ kind: kind, title: title, detail: detail, timeout: kind === "error" ? 6000 : 3500 });
+        }
+    }
+    // PS-WRAP: ภาพหน้าจอ (F12 / Ctrl+Shift+P / ปุ่ม Screenshot) — toast เดียวกับผลการอัด
+    Connections {
+        target: Chiaki.window
+        ignoreUnknownSignals: true
+        function onScreenshotSaved(path) {
+            recToast.show({
+                kind: "success",
+                title: qsTr("Screenshot saved"),
+                detail: String(path).replace(/^.*[\\/]/, ""),
+                actionText: qsTr("Show in folder"),
+                action: function() { Chiaki.window.revealRecording(path); },
+                timeout: 4000
+            });
+        }
+        function onScreenshotFailed(message) {
+            recToast.show({
+                kind: "error",
+                title: qsTr("Screenshot failed"),
+                detail: message
             });
         }
     }

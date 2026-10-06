@@ -9,6 +9,9 @@ import org.streetpea.chiaking
 // - mirror / circle (วงกลม ไม่งั้นมุมโค้ง)
 // - zoom (1–3) + panX/panY (-1..1): ครอปดิจิทัลเข้าหน้า
 // - keyEnabled + keyColor + keyTolerance + keySoftness: chroma key ตัดฉากเขียว/น้ำเงินเป็นโปร่งใส (shader qrc:/shaders/chroma.frag.qsb)
+// - status / noVideo / errorString / statusText: สถานะกล้องให้หน้าอื่นโชว์ (ไม่มีเฟรมใน ~3 s = "error" → "No video from camera")
+// 2026-10-06: กล้องที่ DirectShow เห็น (รวม USB จริง) ใช้ DshowCamera (worker thread) แทน Qt Camera — ปิดกล้องไม่บล็อก GUI
+//   (Qt Camera/WMF ปิด device บน GUI thread: กล้องไม่ตอบ = UI ค้าง ~3 s) · env PSWRAP_CAM_BACKEND=qt = กลับไปใช้ Qt Camera กับกล้องที่ Qt เห็น
 Item {
     id: root
     property bool active: false
@@ -36,7 +39,8 @@ Item {
     readonly property string aiError: segmenter.error
     // มุมโค้งเป็นสัดส่วนของกรอบ (ไม่ใช่ค่าคงที่) — กรอบเล็กลงมุมไม่กลมเกิน
     readonly property real cornerRadius: circle ? Math.min(width, height) / 2 : Math.round(Math.min(width, height) * 0.09)
-    // กล้องที่ Qt (WMF) เห็น vs กล้อง DirectShow (รวม virtual: NVIDIA Broadcast / OBS / Streamlabs) — ใช้ DshowCamera เมื่อชื่อที่เลือกไม่อยู่ในรายชื่อ Qt
+    // กล้องที่ Qt (WMF) เห็น vs กล้อง DirectShow (รวม virtual: NVIDIA Broadcast / OBS / Streamlabs) — ใช้ DshowCamera เมื่อ DirectShow เห็นชื่อนั้น
+    // (Qt Camera เหลือเป็น fallback: กล้องที่มีแต่ใน WMF หรือ env PSWRAP_CAM_BACKEND=qt)
     readonly property bool qtHasSelected: {
         if (!root.cameraId.length) return true;
         for (let i = 0; i < devices.videoInputs.length; ++i)
@@ -44,16 +48,68 @@ Item {
         return false;
     }
     readonly property bool useFake: dshowCam.fakeSource.length > 0   // ทดสอบ: ไฟล์วิดีโอแทนกล้อง (env PSWRAP_FAKE_CAM)
-    readonly property bool useDshow: !useFake && root.cameraId.length > 0 && !qtHasSelected && dshowCam.devices.indexOf(root.cameraId) >= 0
+    // ชื่อกล้องที่จะเปิด: ที่เลือกไว้ หรือกล้องเริ่มต้นของระบบ (ตาม Qt) — ชื่อ WMF/DirectShow ตรงกัน (FriendlyName)
+    readonly property string selectedName: root.cameraId.length ? root.cameraId : devices.defaultVideoInput.description
+    readonly property bool useDshow: !useFake && selectedName.length > 0 && dshowCam.devices.indexOf(selectedName) >= 0
+                                     && !(dshowCam.forceQtBackend && qtHasSelected)
     readonly property bool hasCamera: useFake || devices.videoInputs.length > 0 || dshowCam.devices.length > 0
-    readonly property string cameraName: useDshow ? root.cameraId : camera.cameraDevice.description
+    readonly property string cameraName: useDshow ? root.selectedName : camera.cameraDevice.description
     readonly property var dshowDevices: dshowCam.devices
+
+    // ---- สถานะกล้อง (อ่านจากหน้าอื่น เช่น CamPreviewDialog / Settings) ----
+    // "idle" ไม่ได้เปิด · "opening" กำลังเปิด/รอเฟรมแรก · "live" มีเฟรมเข้า · "error" เปิดไม่ได้/ไม่มีเฟรมใน ~3 s/เฟรมหยุด
+    readonly property string status: {
+        if (!root.active || !root.visible) return "idle";
+        if (!root.hasCamera) return "error";
+        if (root.useFake) return "live";
+        if (root.useDshow) return dshowCam.state;
+        if (camera.error !== Camera.NoError || root.qtStalled) return "error";
+        return root.qtGotFrame ? "live" : "opening";
+    }
+    readonly property bool noVideo: root.hasCamera && root.status === "error"
+    // เหตุผลที่รู้ (แปลแล้ว) — ว่าง = ไม่รู้
+    readonly property string errorString: root.useDshow ? dshowCam.errorString
+                                          : (camera.error !== Camera.NoError ? camera.errorString
+                                             : (root.qtStalled ? qsTr("Camera is busy or not responding — try replugging it") : ""))
+    readonly property string statusText: !root.hasCamera ? qsTr("No camera found")
+                                         : root.status === "live" ? qsTr("Live · %1").arg(root.cameraName)
+                                         : root.status === "error" ? qsTr("No video from camera")
+                                         : root.status === "opening" ? qsTr("Starting camera…") : qsTr("Camera off")
+
+    // Qt Camera path: นับเฟรมที่ถึง VideoOutput เอง (Qt ไม่มีสถานะ "ไม่มีเฟรม") — ไม่ notify ทุกเฟรม (เก็บเวลาใน object)
+    readonly property bool qtWanted: root.active && root.visible && root.hasCamera && !root.useDshow && !root.useFake
+    property bool qtGotFrame: false
+    property bool qtStalled: false
+    property var qtClock: ({ opened: Date.now(), lastFrame: 0 })
+    onQtWantedChanged: { qtGotFrame = false; qtStalled = false; qtClock.opened = Date.now(); qtClock.lastFrame = 0; }
+    Connections {
+        target: output.videoSink
+        enabled: root.qtWanted
+        function onVideoFrameChanged() {
+            root.qtClock.lastFrame = Date.now();
+            if (!root.qtGotFrame) root.qtGotFrame = true;
+            if (root.qtStalled) root.qtStalled = false;
+        }
+    }
+    Timer {
+        interval: 500
+        repeat: true
+        running: root.qtWanted
+        onTriggered: {
+            const now = Date.now();
+            const stalled = root.qtGotFrame ? now - root.qtClock.lastFrame > 3000 : now - root.qtClock.opened > 3000;
+            if (stalled !== root.qtStalled) {
+                root.qtStalled = stalled;
+                if (stalled) console.warn("PSWRAP webcam: no video from", root.cameraName, root.qtGotFrame ? "(frames stopped)" : "(no frame since open)");
+            }
+        }
+    }
 
     MediaDevices { id: devices }
 
     DshowCamera {
         id: dshowCam
-        deviceName: root.useDshow ? root.cameraId : ""
+        deviceName: root.useDshow ? root.selectedName : ""
         active: root.active && root.visible && root.useDshow
         videoSink: root.firstSink
         onErrorChanged: if (error.length) console.warn("PSWRAP dshow camera:", error)
@@ -129,7 +185,7 @@ Item {
         if (list.length < 2) return "";
         let idx = -1;
         for (let i = 0; i < list.length; ++i)
-            if (list[i].description === camera.cameraDevice.description) { idx = i; break; }
+            if (list[i].description === root.cameraName) { idx = i; break; }
         return list[(idx + 1) % list.length].description;
     }
 
@@ -192,7 +248,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             color: Theme.surface
-            visible: !root.cutout || !(root.useDshow ? dshowCam.running : camera.active)
+            visible: !root.cutout || root.status !== "live"
             Text {
                 anchors.centerIn: parent
                 width: parent.width - 16
@@ -200,8 +256,10 @@ Item {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontCaption
-                text: !root.hasCamera ? qsTr("No camera found") : (root.useDshow && dshowCam.error.length ? dshowCam.error : qsTr("Starting camera…"))
-                visible: !root.hasCamera || (root.useFake ? false : (root.useDshow ? !dshowCam.running : (camera.error !== Camera.NoError || !camera.active)))
+                text: !root.hasCamera ? qsTr("No camera found")
+                      : root.noVideo ? qsTr("No video from camera") + (root.errorString.length ? "\n" + root.errorString : "")
+                      : qsTr("Starting camera…")
+                visible: !root.hasCamera || root.status !== "live"
             }
         }
         ShaderEffect {

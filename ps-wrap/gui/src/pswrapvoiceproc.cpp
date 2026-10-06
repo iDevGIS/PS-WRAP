@@ -24,6 +24,25 @@ std::atomic<int> g_gen{0};
 std::atomic<bool> g_enabled{false};
 std::atomic<int> g_noise_db{0};
 std::atomic<int> g_echo_db{0};
+// gain/gate — อ่านทุกเฟรม (ไม่ผ่าน g_gen: ไม่ต้องสร้าง state ใหม่ และต้องทำงานแม้ build ไม่มี speex)
+std::atomic<float> g_gain_db{0.0f};
+std::atomic<bool> g_gate_on{false};
+std::atomic<float> g_gate_db{-50.0f};
+std::atomic<bool> g_gate_open{true};
+
+// ---- ค่าคงที่ของ PsWrapMicDynamics (48 kHz) ----
+constexpr float kDynRate = float(PsWrapMicDynamics::kRate);
+const float kGainCoef = 1.0f - std::exp(-1.0f / (0.015f * kDynRate));   // gain smoothing τ 15 ms
+// gate วัดแบบ RMS (τ 10 ms) — peak ของ noise สูงกว่า rms ~13 dB จะทำให้ gate เปิดค้างเพราะ noise เอง · RMS ตรงกับ level ที่ meter โชว์
+const float kEnvCoef = 1.0f - std::exp(-1.0f / (0.010f * kDynRate));
+constexpr int kGateHold = PsWrapMicDynamics::kRate * 150 / 1000;         // ค้างเปิด 150 ms หลังเสียงหาย
+constexpr float kGateAttackStep = 1.0f / (0.005f * kDynRate);            // เปิด 0→1 ใน 5 ms
+constexpr float kGateReleaseStep = 1.0f / (0.100f * kDynRate);           // ปิด 1→0 ใน 100 ms
+constexpr float kGateHysteresisDb = 4.0f;                                 // ปิดเมื่อต่ำกว่า threshold − 4 dB (กันกระพือ)
+constexpr float kLimCeil = 0.8913f;                                       // −1 dBFS
+const float kLimRelease = 1.0f - std::exp(-1.0f / (0.080f * kDynRate)); // limiter คืนตัว τ 80 ms
+
+inline float dbToLin(float db) { return std::pow(10.0f, db / 20.0f); }
 
 constexpr int kTail = PsWrapVoiceProc::kRate * 300 / 1000;    // filter AEC 300 ms (upstream 100 ms)
 constexpr int64_t kMargin = PsWrapVoiceProc::kRate * 60 / 1000;   // อ่าน ref "ล่วงหน้า" 60 ms (AEC ต้องได้ ref ก่อนเสียงย้อน = causal) → ทน error −60…+240 ms
@@ -39,6 +58,91 @@ int64_t nowNs()
 }
 
 } // namespace
+
+void PsWrapMicDynamics::reset()
+{
+	gain = 1.0f;
+	gate = 1.0f;
+	env = 0.0f;
+	hold = 0;
+	open = true;
+	lim = 1.0f;
+}
+
+void PsWrapMicDynamics::process(int16_t *pcm, int frames, int channels, float gain_db, bool gate_on, float gate_threshold_db)
+{
+	if (!pcm || frames <= 0 || channels <= 0)
+		return;
+	const float target = dbToLin(std::clamp(gain_db, -12.0f, 24.0f));
+	// ค่าเริ่มต้น (0 dB, gate ปิด) และนิ่งแล้ว = ไม่แตะ PCM เลย (bit-exact เหมือนก่อนมีฟีเจอร์นี้)
+	if (!gate_on && target == 1.0f && gain == 1.0f && gate == 1.0f && lim == 1.0f) {
+		open = true;
+		hold = 0;
+		env = 0.0f;
+		return;
+	}
+	const float open_lin = dbToLin(std::clamp(gate_threshold_db, -80.0f, -20.0f));
+	const float close_lin = open_lin * dbToLin(-kGateHysteresisDb);
+	for (int i = 0; i < frames; i++) {
+		int16_t *s = pcm + size_t(i) * size_t(channels);
+		// gain แบบ de-zipper (snap เมื่อห่างไม่ถึง 0.01 dB ไม่งั้น float ไล่ไม่ถึงเป้า)
+		gain += (target - gain) * kGainCoef;
+		if (std::fabs(target - gain) < 1e-3f * target)
+			gain = target;
+		int peak_i = 0;
+		for (int c = 0; c < channels; c++)
+			peak_i = std::max(peak_i, std::abs(int(s[c])));
+		const float peak = float(peak_i) * (gain / 32768.0f);   // ระดับหลัง gain (0..~16)
+		env += (peak * peak - env) * kEnvCoef;                   // mean-square หลัง gain
+
+		// gate: เปิดเมื่อ RMS ≥ threshold · เปิดอยู่ = ค้างตราบที่ ≥ threshold−4 dB แล้วนับ hold 150 ms ค่อยปิด
+		if (gate_on) {
+			const float lvl = open ? close_lin : open_lin;
+			if (env >= lvl * lvl) {
+				open = true;
+				hold = kGateHold;
+			} else if (hold > 0) {
+				hold--;
+			} else {
+				open = false;
+			}
+		} else {
+			open = true;
+			hold = 0;
+		}
+		const float gate_target = open ? 1.0f : 0.0f;
+		if (gate < gate_target)
+			gate = std::min(gate_target, gate + kGateAttackStep);
+		else if (gate > gate_target)
+			gate = std::max(gate_target, gate - kGateReleaseStep);
+
+		// limiter: attack ทันที (sample นี้ไม่เกินเพดานแน่นอน) · คืนตัวช้า → ไม่บิดรูปคลื่นแบบ hard-clip
+		lim += (1.0f - lim) * kLimRelease;
+		if (lim > 0.9999f)
+			lim = 1.0f;
+		const float out_peak = peak * gate;
+		if (out_peak * lim > kLimCeil)
+			lim = kLimCeil / out_peak;
+
+		const float total = gain * gate * lim;
+		for (int c = 0; c < channels; c++) {
+			const long v = std::lrint(float(s[c]) * total);
+			s[c] = int16_t(std::clamp(v, -32768L, 32767L));
+		}
+	}
+}
+
+void PsWrapVoiceProc::setDynamics(float gain_db, bool gate_on, float gate_threshold_db)
+{
+	g_gain_db.store(std::clamp(gain_db, -12.0f, 24.0f), std::memory_order_relaxed);
+	g_gate_db.store(std::clamp(gate_threshold_db, -80.0f, -20.0f), std::memory_order_relaxed);
+	g_gate_on.store(gate_on, std::memory_order_relaxed);
+}
+
+bool PsWrapVoiceProc::gateOpenNow()
+{
+	return g_gate_open.load(std::memory_order_relaxed);
+}
 
 PsWrapVoiceProc::PsWrapVoiceProc()
 	: rnn_in(kFrame, 0.0f)
@@ -228,6 +332,18 @@ void PsWrapVoiceProc::fetchReference(int16_t *out, int64_t capture_lag_frames, b
 }
 
 bool PsWrapVoiceProc::process(int16_t *mono, int64_t capture_lag_frames)
+{
+	const bool did = processSpeech(mono, capture_lag_frames);
+	// gain + gate + limiter ท้ายสุด (หลัง RNNoise) — ก่อน AEC จะเปลี่ยนสัดส่วน echo/ref ทำให้ filter ต้องเรียนใหม่ทุกครั้งที่ปรับ gain
+	if (mono) {
+		dyn.process(mono, kFrame, 1, g_gain_db.load(std::memory_order_relaxed), g_gate_on.load(std::memory_order_relaxed),
+			g_gate_db.load(std::memory_order_relaxed));
+		g_gate_open.store(dyn.gateOpen(), std::memory_order_relaxed);
+	}
+	return did;
+}
+
+bool PsWrapVoiceProc::processSpeech(int16_t *mono, int64_t capture_lag_frames)
 {
 #if CHIAKI_GUI_ENABLE_SPEEX
 	applyParamsIfChanged();

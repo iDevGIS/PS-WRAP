@@ -21,6 +21,7 @@ class PsWrapMicMeter : public QObject
 	Q_PROPERTY(qreal level READ level NOTIFY updated)
 	Q_PROPERTY(qreal peak READ peak NOTIFY updated)
 	Q_PROPERTY(bool live READ live NOTIFY liveChanged)
+	Q_PROPERTY(bool gateOpen READ gateOpen NOTIFY updated)   // noise gate ของไมค์เปิดอยู่ (มีเสียงผ่าน) — อัปเดตเฉพาะตอน enabled
 	Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
 
 public:
@@ -39,6 +40,7 @@ public:
 	qreal level() const { return level_out; }
 	qreal peak() const { return peak_out; }
 	bool live() const { return live_out; }
+	bool gateOpen() const { return gate_open_out; }
 	bool enabled() const { return enabled_flag; }
 	void setEnabled(bool on);
 
@@ -70,6 +72,7 @@ private:
 	qreal level_out = 0.0;
 	qreal peak_out = 0.0;
 	bool live_out = false;
+	bool gate_open_out = false;
 	int band_lo[kBands] = {};
 	int band_hi[kBands] = {};
 	std::vector<float> window;

@@ -57,6 +57,8 @@ class DeferredSwapThread;
 class PsWrapRecorder;    // PS-WRAP: อัดวิดีโอ
 class PsWrapRecCapture;
 class PsWrapMicMeter;   // PS-WRAP: spectrum ไมค์
+class PsWrapGameProfiles;   // PS-WRAP: preset รายเกม
+class PsWrapGoLive;        // PS-WRAP: Go Live (pswraplive.h)
 
 class QmlMainWindow : public QWindow
 {
@@ -77,11 +79,21 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool statsOverlay READ statsOverlay WRITE setStatsOverlay NOTIFY statsOverlayChanged)
     // PS-WRAP: อัดวิดีโอ + overlay spectrum ไมค์ (ดู pswraprecorder.h / pswrapmicmeter.h)
     Q_PROPERTY(bool micOverlay READ micOverlay WRITE setMicOverlay NOTIFY micOverlayChanged)
+    Q_PROPERTY(bool clockOverlay READ clockOverlay WRITE setClockOverlay NOTIFY clockOverlayChanged)   // PS-WRAP: นาฬิกา + เวลาเล่น (qmlmainwindow_pswrapclock.cpp)
     Q_PROPERTY(int camFx READ camFx WRITE setCamFx NOTIFY camFxChanged)                          // PS-WRAP: 0..13 (ดู WebcamOverlay.fx)
     Q_PROPERTY(int camBackground READ camBackground WRITE setCamBackground NOTIFY camBackgroundChanged) // 0 keep · 1 green · 2 blue · 3 AI
     Q_PROPERTY(QObject *recorder READ recorderObject CONSTANT)
     Q_PROPERTY(QObject *micMeter READ micMeterObject CONSTANT)
+    Q_PROPERTY(QObject *gameProfiles READ gameProfilesObject CONSTANT)   // PS-WRAP: preset รายเกม (qmlmainwindow_pswrapprofiles.cpp)
+    Q_PROPERTY(QObject *goLive READ goLiveObject CONSTANT)               // PS-WRAP: Go Live (qmlmainwindow_pswraplive.cpp) — Chiaki.goLive ชี้ตัวเดียวกัน
+    // PS-WRAP: ไมค์ gain/noise gate (qmlmainwindow_pswrapmic.cpp)
+    Q_PROPERTY(qreal micGainDb READ micGainDb WRITE setMicGainDb NOTIFY micGainDbChanged)                       // -12..+24
+    Q_PROPERTY(bool micGateEnabled READ micGateEnabled WRITE setMicGateEnabled NOTIFY micGateEnabledChanged)
+    Q_PROPERTY(qreal micGateThresholdDb READ micGateThresholdDb WRITE setMicGateThresholdDb NOTIFY micGateThresholdDbChanged) // -80..-20
     Q_PROPERTY(QString recordingFolder READ recordingFolder WRITE setRecordingFolder NOTIFY recordingFolderChanged)
+    // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp) — เดินเองระหว่างสตรีมเมื่อเปิด · saveReplay() → recorder.replaySaved
+    Q_PROPERTY(bool replayEnabled READ replayEnabled WRITE setReplayEnabled NOTIFY replayEnabledChanged)
+    Q_PROPERTY(int replaySeconds READ replaySeconds WRITE setReplaySeconds NOTIFY replaySecondsChanged)   // 30..120
     Q_PROPERTY(bool alwaysOnTop READ alwaysOnTop WRITE setAlwaysOnTop NOTIFY alwaysOnTopChanged)
     Q_PROPERTY(double queueDepthAverage READ queueDepthAverage NOTIFY queueDepthAverageChanged)
     Q_PROPERTY(double pendingFrameAge READ pendingFrameAge NOTIFY pendingFrameAgeChanged)
@@ -183,16 +195,36 @@ public:
     int camBackground() const;
     void setCamBackground(int mode);
     void setMicOverlay(bool v);
+    bool clockOverlay() const;          // PS-WRAP: qmlmainwindow_pswrapclock.cpp
+    void setClockOverlay(bool v);
     QObject *recorderObject() const;
     QObject *micMeterObject() const;
+    PsWrapGameProfiles *gameProfiles();   // PS-WRAP: สร้างครั้งแรกที่เรียก (ลูกของ window) — qmlmainwindow_pswrapprofiles.cpp
+    QObject *gameProfilesObject();
+    PsWrapGoLive *goLive();               // PS-WRAP: สร้างครั้งแรกที่เรียก (ลูกของ window) — qmlmainwindow_pswraplive.cpp
+    QObject *goLiveObject();
     QString recordingFolder() const;
     void setRecordingFolder(const QString &folder);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void openRecordingsFolder();
     Q_INVOKABLE void revealRecording(const QString &path);
+    bool replayEnabled() const;         // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp)
+    void setReplayEnabled(bool on);
+    int replaySeconds() const;
+    void setReplaySeconds(int seconds);
+    Q_INVOKABLE void saveReplay();      // → recorder.replaySaved(path) / recorder.failed(msg)
+    Q_INVOKABLE void addMarker();       // → recorder.markerAdded(seconds) / recorder.failed(msg)
+    // PS-WRAP: ภาพหน้าจอ 1 ปุ่ม (qmlmainwindow_pswrapshot.cpp) → screenshotSaved / screenshotFailed
+    Q_INVOKABLE void takeScreenshot();
     // PS-WRAP: ทดสอบไมค์นอกสตรีม (หน้า preview) — เปิดอุปกรณ์ capture ส่ง PCM เข้า micMeter · "" = Auto
     Q_INVOKABLE bool startMicPreview(const QString &device);
     Q_INVOKABLE void stopMicPreview();
+    qreal micGainDb() const;            // PS-WRAP: qmlmainwindow_pswrapmic.cpp
+    void setMicGainDb(qreal db);
+    bool micGateEnabled() const;
+    void setMicGateEnabled(bool on);
+    qreal micGateThresholdDb() const;
+    void setMicGateThresholdDb(qreal db);
     Q_INVOKABLE void quitApp();
     void saveMainGeometryDeferred();   // PS-WRAP: เซฟหลังหยุดขยับ 400ms (กัน Resize ที่มาก่อน WindowStateChange ตอน maximize)
     void saveMainGeometryNow();
@@ -230,14 +262,22 @@ public slots:
     AVBufferRef *vulkanHwDeviceCtx();
 
 signals:
+    void screenshotSaved(QString path);      // PS-WRAP: GUI thread · path = ภาพ SDR (.png)
+    void screenshotFailed(QString message);
     void hideToTrayChanged();
     void padOverlayChanged();
     void camOverlayChanged();
     void statsOverlayChanged();
     void micOverlayChanged();          // PS-WRAP
+    void clockOverlayChanged();        // PS-WRAP
+    void micGainDbChanged();
+    void micGateEnabledChanged();
+    void micGateThresholdDbChanged();
     void camFxChanged();
     void camBackgroundChanged();
     void recordingFolderChanged();
+    void replayEnabledChanged();       // PS-WRAP
+    void replaySecondsChanged();
     void alwaysOnTopChanged();
     void hasVideoChanged();
     void droppedFramesChanged();
@@ -389,6 +429,10 @@ private:
     class QAction *tray_stats_action = nullptr;
     class QAction *tray_mic_action = nullptr;      // PS-WRAP
     class QAction *tray_record_action = nullptr;
+    class QAction *tray_replay_action = nullptr;       // PS-WRAP: Instant Replay ON/OFF
+    class QAction *tray_save_replay_action = nullptr;
+    class QAction *tray_shot_action = nullptr;
+    class QAction *tray_live_action = nullptr;         // PS-WRAP: Go Live เริ่ม/หยุด
     class QAction *tray_mute_action = nullptr;
     class QMenu *tray_mic_menu = nullptr;
     class QMenu *tray_fx_menu = nullptr;
@@ -399,6 +443,7 @@ private:
     PsWrapMicMeter *pswrap_mic_meter = nullptr;
     PsWrapRecCapture *pswrap_rec_capture = nullptr; // render thread เท่านั้น (ลบตอน destructor หลัง render thread จบ)
     void pswrapInitRecording();
+    void pswrapInitMic();              // PS-WRAP: ส่งค่า gain/gate ที่จำไว้เข้า PsWrapVoiceProc (qmlmainwindow_pswrapmic.cpp)
     void pswrapStopRecordingForTeardown();
     void pswrapDestroyCapture();
     void pswrapDecorateScreen(struct pl_frame &target_frame);   // render thread: จุด REC กระพริบบนจอ (ไม่ติดไฟล์)
@@ -406,8 +451,17 @@ private:
     pl_overlay pswrap_screen_overlays[2] = {};
     pl_overlay_part pswrap_rec_dot_part = {};
     void pswrapSetupTrayRecording(class QMenu *menu);
+    bool pswrapBuildRecConfig(struct PsWrapRecConfig *cfg, QString *error);   // PS-WRAP: สเปคไฟล์อัด/replay จากหน้าต่าง + สตรีม
+    void pswrapSyncReplay();            // PS-WRAP: เปิด/ปิด pipeline replay ตาม replayEnabled + สถานะสตรีม
     void pswrapRecordCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
                              const struct pl_frame &screen_target, const struct pl_overlay *overlay, const struct pl_frame *hint);
+    // PS-WRAP: ภาพหน้าจอ (qmlmainwindow_pswrapshot.cpp) — request id จาก GUI thread, render thread หยิบไปถ่ายเฟรมถัดไป
+    QAtomicInteger<int> pswrap_shot_request = 0;
+    class PsWrapShotCapture *pswrap_shot_capture = nullptr;   // render thread เท่านั้น (ลบตอน destructor หลัง render thread จบ)
+    qint64 pswrap_shot_last_us = 0;                            // render thread: ปล่อย GPU resource เมื่อว่างนาน
+    void pswrapShotCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
+                           const struct pl_frame &screen_target, const struct pl_overlay *overlay);
+    void pswrapDestroyShot();
     bool quit_requested = false;
     QAtomicInteger<int> dropped_frames_current = 0;
     bool going_full = false;

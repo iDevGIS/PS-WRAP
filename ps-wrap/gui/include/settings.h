@@ -261,8 +261,28 @@ class Settings : public QObject
 		void SetCamKey(int v) { settings.setValue("pswrap/camKey", v); }
 		bool GetMicOverlay() const { return settings.value("pswrap/micOverlay", false).toBool(); }   // PS-WRAP: spectrum ไมค์
 		void SetMicOverlay(bool v) { settings.setValue("pswrap/micOverlay", v); }
+		bool GetClockOverlay() const { return settings.value("pswrap/clockOverlay", false).toBool(); }   // PS-WRAP: นาฬิกา + เวลาเล่น
+		void SetClockOverlay(bool v) { settings.setValue("pswrap/clockOverlay", v); }
+		// PS-WRAP: ไมค์ — เพิ่มเสียง (dB) + noise gate (ดู PsWrapVoiceProc::setDynamics)
+		double GetMicGainDb() const { return settings.value("pswrap/micGainDb", 0.0).toDouble(); }
+		void SetMicGainDb(double v) { settings.setValue("pswrap/micGainDb", v); }
+		bool GetMicGateEnabled() const { return settings.value("pswrap/micGateEnabled", false).toBool(); }
+		void SetMicGateEnabled(bool v) { settings.setValue("pswrap/micGateEnabled", v); }
+		double GetMicGateThresholdDb() const { return settings.value("pswrap/micGateThresholdDb", -50.0).toDouble(); }
+		void SetMicGateThresholdDb(double v) { settings.setValue("pswrap/micGateThresholdDb", v); }
 		QString GetRecordingFolder() const { return settings.value("pswrap/recordingFolder").toString(); }   // ว่าง = <Videos>/PS-WRAP
 		void SetRecordingFolder(const QString &v) { settings.setValue("pswrap/recordingFolder", v); }
+		// PS-WRAP: Instant Replay — เก็บ N วินาทีล่าสุดไว้ในแรมระหว่างสตรีม (ดู PsWrapRecorder::startReplay)
+		bool GetReplayEnabled() const { return settings.value("pswrap/replayEnabled", false).toBool(); }
+		void SetReplayEnabled(bool v) { settings.setValue("pswrap/replayEnabled", v); }
+		int GetReplaySeconds() const { return qBound(30, settings.value("pswrap/replaySeconds", 60).toInt(), 120); }
+		void SetReplaySeconds(int v) { settings.setValue("pswrap/replaySeconds", qBound(30, v, 120)); }
+		// PS-WRAP: preset รายเกม (JSON — ดู PsWrapGameProfiles)
+		QString GetPsWrapGameProfiles() const { return settings.value("pswrap/gameProfiles").toString(); }
+		void SetPsWrapGameProfiles(const QString &json) { settings.setValue("pswrap/gameProfiles", json); }
+		// PS-WRAP: Go Live — ปลายทาง (JSON array, ไม่มี stream key — key อยู่ Credential Manager · ดู PsWrapGoLive)
+		QString GetPsWrapLiveDestinations() const { return settings.value("pswrap_live/destinations").toString(); }
+		void SetPsWrapLiveDestinations(const QString &json) { settings.setValue("pswrap_live/destinations", json); }
 		bool GetAlwaysOnTop() const { return settings.value("settings/pswrap_always_on_top", false).toBool(); }
 		void SetAlwaysOnTop(bool v) { settings.setValue("settings/pswrap_always_on_top", v); }
 		bool GetWindowMaximized() const { return settings.value("settings/window_maximized", false).toBool(); }

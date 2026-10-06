@@ -12,6 +12,8 @@ import "controls" as C
 // คีย์/จอย: keyTrap กลืนทุกปุ่ม (กันบั๊ก ✕ = Return หลุดไปสั่ง Play ที่ MainView) — ↑↓ เลือกแถว, ✕/Enter ใช้อุปกรณ์นั้น, ◯/Esc ปิด
 // แถวเสียง (ใต้รายการอุปกรณ์ — ↓ ต่อลงมา): ลดเสียงรบกวน / ตัดเสียงลำโพง · ←→ หรือ ✕ เปลี่ยนระดับ · มีผลทันทีทั้งที่นี่และสตรีมที่เล่นอยู่
 // ใช้ key เดิมของ upstream (speechProcessing + noise/echoSuppressLevel) — 0 dB = ปิดขั้นนั้น
+// แถวระดับไมค์ (ต่อจากแถวเสียง): เพิ่มเสียง −12…+24 dB / noise gate (✕ เปิด-ปิด, ←→ threshold) — Chiaki.window.micGainDb / micGate*
+// ทำงานท้ายสุดหลังลดเสียงรบกวน มีผลทั้ง PS5 voice chat, ไฟล์อัด และ spectrum · จุดเขียว/เทา = gate เปิด/ปิดตอนนี้ (micMeter.gateOpen)
 Dialog {
     id: dlg
 
@@ -36,6 +38,32 @@ Dialog {
     readonly property var stepNames: [qsTr("Off"), qsTr("Low"), qsTr("Medium"), qsTr("High")]
     readonly property int noiseIndex: voiceAvailable ? stepIndex(noiseSteps, Chiaki.settings.noiseSuppressLevel) : 0
     readonly property int echoIndex: voiceAvailable ? stepIndex(echoSteps, Chiaki.settings.echoSuppressLevel) : 0
+
+    // ---- เพิ่มเสียง / noise gate (PsWrapVoiceProc — ไม่ต้องมี speex) ----
+    readonly property bool levelAvailable: Chiaki.window && typeof Chiaki.window.micGainDb !== "undefined"
+    readonly property int levelRows: levelAvailable ? 2 : 0
+    readonly property int gainRow: devices.length + voiceRows
+    readonly property int gateRow: devices.length + voiceRows + 1
+    readonly property int extraRows: voiceRows + levelRows
+    readonly property bool compact: root.height < 900     // จอ 1280x800: แถวเตี้ยลง + spectrum เล็กลง ให้ dialog ยังพอดีจอ
+    readonly property bool tiny: root.height < 800        // 1024x768: ขอบใน + spectrum เล็กลงอีก (QA: เดิมชนขอบบน/ล่าง)
+    readonly property real gainDb: levelAvailable ? Chiaki.window.micGainDb : 0
+    readonly property bool gateOn: levelAvailable && Chiaki.window.micGateEnabled
+    readonly property real gateDb: levelAvailable ? Chiaki.window.micGateThresholdDb : -50
+
+    function dbText(db, signed) {
+        const r = Math.round(db);
+        return (signed && r > 0 ? "+" : "") + (r < 0 ? "−" + (-r) : r) + " dB";
+    }
+    // ←→ บนแถวระดับ: gain ทีละ 1 dB, threshold ทีละ 1 dB (C++ clamp ให้)
+    function adjustRow(row, delta, wrap) {
+        if (row === gainRow)
+            Chiaki.window.micGainDb = Math.round(gainDb) + delta;
+        else if (row === gateRow)
+            Chiaki.window.micGateThresholdDb = Math.round(gateDb) + delta;
+        else
+            stepVoice(row, delta, wrap);
+    }
 
     function stepIndex(steps, db) {
         if (!Chiaki.settings.speechProcessing || db <= 0)
@@ -72,6 +100,8 @@ Dialog {
         if (index >= devices.length) {
             if (index < devices.length + voiceRows)
                 stepVoice(index, 1, true);
+            else if (index === gateRow && levelAvailable)
+                Chiaki.window.micGateEnabled = !gateOn;
             return;
         }
         if (index < 0)
@@ -82,7 +112,7 @@ Dialog {
         restartTest(name);
     }
     function move(delta) {
-        highlighted = Math.max(0, Math.min(devices.length - 1 + voiceRows, highlighted + delta));
+        highlighted = Math.max(0, Math.min(devices.length - 1 + extraRows, highlighted + delta));
         if (highlighted < devices.length)
             deviceList.positionViewAtIndex(highlighted, ListView.Contain);
     }
@@ -94,7 +124,7 @@ Dialog {
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    padding: Theme.space6
+    padding: dlg.tiny ? Theme.space4 : Theme.space6
 
     onAboutToShow: {
         Chiaki.settings.refreshAudioDevices();
@@ -147,7 +177,7 @@ Dialog {
                 case Qt.Key_Down: dlg.move(1); break;
                 case Qt.Key_Left: case Qt.Key_Right:
                     if (dlg.highlighted >= dlg.devices.length)
-                        dlg.stepVoice(dlg.highlighted, event.key === Qt.Key_Left ? -1 : 1, false);
+                        dlg.adjustRow(dlg.highlighted, event.key === Qt.Key_Left ? -1 : 1, false);
                     break;
                 case Qt.Key_Return: case Qt.Key_Enter: case Qt.Key_Space:
                     if (!event.isAutoRepeat) dlg.pick(dlg.highlighted);
@@ -209,7 +239,8 @@ Dialog {
             ListView {
                 id: deviceList
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.space2 }
-                readonly property int rows: !dlg.voiceAvailable ? 5 : (root.height < 900 ? 3 : 4)   // มีแถวเสียง → ลดแถวให้จอ 800 ยังพอ
+                // มีแถวเสียง/ระดับ → ลดแถวให้จอ 800 ยังพอ
+                readonly property int rows: dlg.extraRows === 0 ? 5 : dlg.extraRows <= 2 ? (dlg.compact ? 3 : 4) : (dlg.compact ? 2 : 3)
                 height: 42 * rows + 2 * (rows - 1)   // คงที่ — สูงตาม contentHeight ทำ layout วน
                 clip: true
                 spacing: 2
@@ -281,9 +312,9 @@ Dialog {
             text: qsTr("\"%1\" is not connected — testing the Windows default microphone instead.").arg(dlg.current)
         }
 
-        // ---- ลดเสียงรบกวน / ตัดเสียงลำโพง ----
+        // ---- ลดเสียงรบกวน / ตัดเสียงลำโพง / เพิ่มเสียง / noise gate ----
         Rectangle {
-            visible: dlg.voiceAvailable
+            visible: dlg.extraRows > 0
             Layout.fillWidth: true
             implicitHeight: voiceCol.implicitHeight + Theme.space2 * 2
             radius: Theme.radiusControl
@@ -296,6 +327,7 @@ Dialog {
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.space2 }
                 spacing: 2
                 VoiceRow {
+                    visible: dlg.voiceAvailable
                     row: dlg.noiseRow
                     title: qsTr("Noise reduction")
                     hint: qsTr("Fans, keyboard, room hiss")
@@ -303,12 +335,92 @@ Dialog {
                     onPicked: (index) => dlg.setVoice(true, index)
                 }
                 VoiceRow {
+                    visible: dlg.voiceAvailable
                     row: dlg.echoRow
                     title: qsTr("Speaker echo")
                     hint: Chiaki.session ? qsTr("Stops game sound from your speakers reaching the mic")
                                          : qsTr("Works on game sound during a stream — not testable here")
                     value: dlg.echoIndex
                     onPicked: (index) => dlg.setVoice(false, index)
+                }
+                LevelRow {
+                    visible: dlg.levelAvailable
+                    row: dlg.gainRow
+                    title: qsTr("Mic boost")
+                    hint: qsTr("Makes a quiet mic louder — never clips")
+                    LevelSlider {
+                        from: -12
+                        to: 24
+                        value: dlg.gainDb
+                        onMoved: Chiaki.window.micGainDb = Math.round(value)
+                    }
+                    Label {
+                        Layout.preferredWidth: 58
+                        horizontalAlignment: Text.AlignRight
+                        text: dlg.dbText(dlg.gainDb, true)
+                        font.pixelSize: Theme.fontCaption
+                        font.weight: Font.DemiBold
+                        color: Math.round(dlg.gainDb) === 0 ? Theme.textMuted : Theme.accent
+                    }
+                }
+                LevelRow {
+                    visible: dlg.levelAvailable
+                    row: dlg.gateRow
+                    title: qsTr("Noise gate")
+                    hint: dlg.gateOn ? qsTr("Silences the mic below the threshold")
+                                     : qsTr("Off — ✕ turns it on, ←→ sets the threshold")
+                    // จุดสถานะ: เขียว = เสียงผ่าน · เทา = ปิดอยู่ (ตัดเงียบ)
+                    Rectangle {
+                        visible: dlg.gateOn && dlg.started && !dlg.testMuted
+                        readonly property bool openNow: dlg.meter ? dlg.meter.gateOpen : false
+                        implicitWidth: 10
+                        implicitHeight: 10
+                        radius: 5
+                        color: openNow ? Theme.success : Theme.textMuted
+                        ToolTip.visible: gateDotMouse.containsMouse
+                        ToolTip.text: openNow ? qsTr("Gate open") : qsTr("Gate closed")
+                        MouseArea { id: gateDotMouse; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                    }
+                    // สวิตช์เปิด/ปิด (วาดเอง — Material Switch สูงเกินแถว)
+                    Rectangle {
+                        implicitWidth: 40
+                        implicitHeight: 22
+                        radius: 11
+                        color: dlg.gateOn ? Theme.accent : Theme.bg
+                        border.width: 1
+                        border.color: dlg.gateOn ? Theme.accent : Theme.border
+                        Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                        Rectangle {
+                            width: 16; height: 16; radius: 8
+                            y: 3
+                            x: dlg.gateOn ? parent.width - width - 3 : 3
+                            color: dlg.gateOn ? Theme.accentText : Theme.textMuted
+                            Behavior on x { NumberAnimation { duration: Theme.durFast } }
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                dlg.highlighted = dlg.gateRow;
+                                Chiaki.window.micGateEnabled = !dlg.gateOn;
+                            }
+                        }
+                    }
+                    LevelSlider {
+                        from: -80
+                        to: -20
+                        value: dlg.gateDb
+                        opacity: dlg.gateOn ? 1 : 0.4
+                        onMoved: Chiaki.window.micGateThresholdDb = Math.round(value)
+                    }
+                    Label {
+                        Layout.preferredWidth: 58
+                        horizontalAlignment: Text.AlignRight
+                        text: dlg.dbText(dlg.gateDb, false)
+                        font.pixelSize: Theme.fontCaption
+                        font.weight: Font.DemiBold
+                        color: dlg.gateOn ? Theme.accent : Theme.textMuted
+                    }
                 }
             }
         }
@@ -325,7 +437,7 @@ Dialog {
             Item {
                 id: spectrumBox
                 anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: Theme.space4 + 18 }
-                width: Math.min(parent.width - Theme.space4 * 2, 640)
+                width: Math.min(parent.width - Theme.space4 * 2, dlg.tiny ? 380 : dlg.compact && dlg.levelAvailable ? 520 : 640)
                 height: Math.round(width * 110 / 320)
                 MicSpectrumOverlay {
                     active: dlg.testing
@@ -387,7 +499,7 @@ Dialog {
         signal picked(int index)
 
         Layout.fillWidth: true
-        implicitHeight: 52
+        implicitHeight: dlg.compact ? 46 : 52
         radius: 9
         color: hot ? Theme.surfaceHover : "transparent"
         border.width: dlg.highlighted === row ? 2 : 0
@@ -460,5 +572,68 @@ Dialog {
                 }
             }
         }
+    }
+
+    // แถวปรับระดับ: ชื่อ + คำอธิบาย ซ้าย · ของที่ใส่ไว้ใน row (slider/สวิตช์/ค่า) เรียงขวา · กรอบฟ้า = แถวที่จอยเลือกอยู่
+    component LevelRow: Rectangle {
+        id: lr
+        property int row: -1
+        property string title
+        property string hint
+        default property alias content: slot.data
+        readonly property bool hot: lrMouse.containsMouse || dlg.highlighted === row
+
+        Layout.fillWidth: true
+        implicitHeight: dlg.compact ? 46 : 52
+        radius: 9
+        color: hot ? Theme.surfaceHover : "transparent"
+        border.width: dlg.highlighted === row ? 2 : 0
+        border.color: Theme.accent
+        Behavior on color { ColorAnimation { duration: Theme.durFast } }
+
+        MouseArea {
+            id: lrMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
+            onPressed: (mouse) => { dlg.highlighted = lr.row; mouse.accepted = false; }   // คลิกตรงไหนก็ได้ = เลือกแถวนี้ แล้วปล่อยให้ slider รับต่อ
+        }
+        RowLayout {
+            anchors { fill: parent; leftMargin: Theme.space3; rightMargin: Theme.space3 }
+            spacing: Theme.space3
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+                Label {
+                    Layout.fillWidth: true
+                    text: lr.title
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.fontLabel
+                    font.weight: Font.DemiBold
+                    color: Theme.text
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: lr.hint
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.fontCaption
+                    color: Theme.textMuted
+                }
+            }
+            RowLayout {
+                id: slot
+                spacing: Theme.space2
+            }
+        }
+    }
+
+    // slider ในแถว — ไม่รับ focus (keyTrap คุมคีย์/จอยทั้งหมด: ←→ ผ่าน adjustRow)
+    component LevelSlider: Slider {
+        Layout.preferredWidth: 220
+        stepSize: 1
+        snapMode: Slider.SnapAlways
+        focusPolicy: Qt.NoFocus
+        padding: 0
+        implicitHeight: 28
     }
 }

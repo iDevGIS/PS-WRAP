@@ -3,42 +3,17 @@
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) · อิงเวอร์ชัน upstream + suffix ของเรา (เช่น `1.9.9-pswrap.1`)
 
 ## [Unreleased]
-### Changed
-- 2026-10-06 **ไฟล์โปรแกรมชื่อ `PS-WRAP.exe`** (เดิม `chiaki.exe`) — ตั้ง `OUTPUT_NAME` ใน CMake เฉพาะ Windows (target ยังชื่อ chiaki) · สคริปต์ build/run/deploy/drive/snap หา process ทั้ง `PS-WRAP` และ `chiaki` · shortcut ต้องสร้างใหม่ด้วย `deploy.ps1 -Shortcut -StartMenu` · ถ้าเคยอนุญาต `chiaki.exe` ใน Firewall/Controlled folder access ต้องอนุญาต `PS-WRAP.exe` ใหม่
-- 2026-10-06 **ไอคอนปุ่มจอยชุดใหม่**: ✕ ○ □ △ เป็นแผ่นเข้มไล่เฉด ขอบบาง สัญลักษณ์สีแบบ PS (ฟ้า/แดง/ชมพู/เขียว) · L1/R1 ทรง pill, L3/R3 วงกลม (เดิมของ upstream ล้นกรอบจน L1 เป็นข้าวหลามตัด R3 เป็นครึ่งวง) · สร้างจาก `scripts/gen-glyphs.py` · ชุด Steam Deck ใช้แบบเดิม
-- 2026-10-06 แถบล่างหน้าแรก: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (ไอคอน + จุดเปิด/ปิด) แทนปุ่มไอคอนฟ้าลอยเดี่ยว · เลขเวอร์ชันย้ายไปท้ายแถบ
-- 2026-10-06 **ที่เก็บข้อมูลของแอปเป็นของ PS-WRAP เอง**: registry `HKCU\Software\PS-WRAP\PS-WRAP`, log/cache `%APPDATA%\PS-WRAP\PS-WRAP` (เดิมใช้ร่วมกับ chiaki-ng ใน `Chiaki\Chiaki`) · เปิดครั้งแรกย้าย settings, เครื่องที่ลงทะเบียน, placebo และทุก profile มาให้อัตโนมัติ ไม่ลบของเดิม · โฟลเดอร์ source เปลี่ยนจาก `chiaki-ng/` เป็น `ps-wrap/`
-- 2026-10-04 facecam effect: ขนาดแว่นอิงความกว้างหน้า + ยึดเทียบจมูก (เงย/ก้มไม่ลอยขึ้นหน้าผาก) · tracking ตามเร็วขึ้นตอนขยับไว (smoothing ปรับตามความเร็ว), คาดการณ์ตำแหน่งตอนหน้าหายชั่วคราว, แว่นจางเข้า/ออกแทนหายวับ, ย่อภาพก่อนป้อนโมเดลเร็วขึ้น
-- 2026-10-04 **หน้าต่างตอนสตรีม = หน้าต่างหน้าแรก** (ขนาด/ตำแหน่ง/maximize ชุดเดียว) — ไม่ resize ตามความละเอียดสตรีมอีก ปรับขนาดระหว่างเล่นจำให้ทั้งสองหน้า
-- 2026-10-04 facecam มุมโค้งเป็นสัดส่วนของกรอบ (9% ของด้านสั้น) — ย่อแล้วมุมไม่กลมเกิน
-- 2026-10-04 overlay จอย/กล้อง/stats ย่อ-ขยายและ**ยึดกรอบวิดีโอจริง** (กรอบ 16:9 กลางจอ ไม่ลอยบนแถบดำ) — หน้าต่างแคบ-สูงไม่ทำให้ overlay ใหญ่เกิน · stats การ์ด scale 0.45–1.5×
-- 2026-10-04 การ์ด stats ย่อ ~25% (font 12/15, icon 15) ให้ไม่แย่งสายตาตอนเล่น · แถว dropped frames แสดงตลอด (upstream โชว์เฉพาะ > 0 ทำให้การ์ดกระพริบ/เปลี่ยนความสูงตอนเล่น)
-- 2026-10-04 เปลี่ยนทิศทางจาก "Python wrapper รอบ chiaki.exe" เป็น "fork chiaki-ng + redesign UI" — ของเก่าย้ายไป `archive/pswrap-python/`
-### Fixed
-- 2026-10-06 **ตัดเสียงลำโพงย้อนเข้าไมค์ (echo cancellation) ใช้ไม่ได้เมื่อลำโพงหน่วงเกิน ~100 ms** (upstream: เก็บเสียงอ้างอิงตอน decode ก่อนเข้าคิวเสียง + filter ยาว 100 ms) → เก็บเสียงอ้างอิงตอนส่งเข้าการ์ดเสียงจริง คำนวณว่า sample ไหนกำลังออกลำโพงเทียบกับเวลาที่ไมค์อัดแต่ละเฟรม + filter 300 ms (ทนความหน่วงที่คาดผิด −60…+240 ms เช่นลำโพง Bluetooth) · ตั้ง sample rate 48 kHz ให้ speex echo (upstream ไม่ได้ตั้ง ค่าเริ่มต้น 8 kHz)
-- 2026-10-06 `scripts/snap.ps1` คืน profile ปกติไม่ได้จริง (pwsh ทิ้ง `--profile ""`, script error ออกก่อนคืนค่า, คืนค่าก่อน process ปิด) → ตัว dist เปิดเป็น profile `pswrap-test` · ตอนนี้ใช้ `"--profile="` ใน try/finally + รอ process ปิด + ตรวจซ้ำ
-- 2026-10-06 build จาก clone ใหม่บน Windows: แพตช์ curl พังเมื่อ `core.autocrlf=true` (curl เป็น CRLF แพตช์เป็น LF) → แปลงเป็น LF ก่อนแพตช์ · submodule oboe/borealis (Android/Switch) ไม่ดึงตอน clone (`update = none`) เพราะ oboe path ยาวเกิน MAX_PATH ทำ `--recurse-submodules` ล้ม
-- 2026-10-06 build: แพตช์ Schannel AIA ของ curl ถูกข้ามแบบเงียบๆ เมื่อโฟลเดอร์ build อยู่ใต้ git repo อื่น (`git apply --directory`) → `CURLSSLOPT_SCHANNEL_AIA undeclared` · ตอนนี้ apply ใน copy ของ curl ที่ `git init` เป็นรากเอง
-- 2026-10-05 **แอป crash/ค้างกลางสตรีม (ทำให้กดปุ่มไม่ติดเป็นช่วงๆ)**: (1) `QQuickRenderControl::sync()` ถูกเรียกข้าม thread แบบไม่บล็อก GUI (upstream) → แข่งกับ overlay ที่ขยับตลอด → SIGSEGV ใน Qt6Gui · ตอนนี้ sync 2 จังหวะ: render thread `beginFrame()` (รอ GPU) ก่อน แล้ว GUI บล็อกเฉพาะ sync (~0.2ms) — เวอร์ชันแรกที่บล็อกทั้ง sync ทำให้สะดุดรัวเมื่อหน้าต่างใหญ่ (GUI รอ GPU ทุกเฟรม) (2) libplacebo assert `!tex_vk->held` (dialog ค้างจอ) เมื่อ render ส่ง overlay texture ที่ Qt ยังถืออยู่ — upstream มีช่องนี้ ตอนนี้ endFrame ก่อนใช้เสมอ (3) render แทรกหลัง resize ทำให้เปิดรอบซ้อนวนไม่จบ
-- 2026-10-05 คลิกสลับ overlay ระหว่างแก้แล้วจอยไม่เข้าเกมจนตัดสตรีม (grab input ซ้อน 2 ชั้น release ชั้นเดียว)
-- 2026-10-05 คลิกที่แค่ปลุกหน้าต่างไม่เข้าโหมดแก้ overlay · สลับไปแอปอื่นระหว่างแก้ = จบโหมดแก้ · แถบบนจอบอกว่าจอยหยุดส่งเข้าเกมระหว่างแก้
-- 2026-10-05 ปิดเมนู/dialog ระหว่างสตรีมแล้วปุ่มไม่ติดจนกว่าจะปล่อยทุกปุ่ม (upstream) → กันเฉพาะปุ่ม/ไกที่ค้างอยู่ตอนปิด ปุ่มอื่นใช้ได้ทันที
-- 2026-10-04 facecam ไม่ขึ้นภาพหลังเพิ่มโหมดทดสอบไฟล์ (MediaPlayer ยึด video sink) — ผูก sink เฉพาะเมื่อใช้ไฟล์
-- 2026-10-04 Settings: เปิดหน้าที่เนื้อหายาวกว่าจอแล้วเลื่อนลงเอง (ensureVisible เล็งทั้ง GridLayout) — เปิดหน้า General เห็น preview บนสุด
-- 2026-10-04 Vulkan overlay texture สร้างด้วย blit_dst — ก่อนหน้า `pl_tex_clear` ยิง validation error ทุกเฟรม (log บวม/ช้า) หลังแก้ ghost
-- 2026-10-04 facecam ภาพดำหลังเพิ่ม chroma key (ShaderEffect ต้องใช้ property ชื่อ `source`) — กล้องกลับมาติด
-- 2026-10-04 **overlay/dialog ซ้อนเป็นเงาหลังย่อ-ขยายหน้าต่างบน Vulkan** (PIN dialog 2 อัน, stats/จอย 2 ชุด): upstream ไม่ล้าง texture ของชั้น QML ฝั่ง Vulkan (OpenGL มี) → `pl_tex_clear` หลังสร้าง texture และก่อน Qt วาดทุกเฟรม
-- 2026-10-04 tray: คลิกเดียว = สลับซ่อน/โชว์ (รอ double-click interval), double-click = โชว์เสมอ — เดิมยิงซ้อนกัน
-- 2026-10-04 หลัง Console PIN dialog ปิด คีย์ลัด/เมนูสตรีมไม่ตอบ (focus หาย) → คืน focus ให้ StreamView
-- 2026-10-04 stats overlay บน Vulkan วาด inline ใน QML (`StatsOverlay.qml`) แทนหน้าต่างแยกของ upstream ที่ลอยทะลุหน้าต่างอื่น · widget แยกเหลือเฉพาะ OpenGL
-- 2026-10-04 tray ระหว่างสตรีม: ซ่อน = minimize (ไม่ hide) + เรียกกลับบังคับ sync overlay — แก้ overlay ซ้อนค้างหลาย ชุดหลัง double-click tray
-- 2026-10-04 dialog Disconnect Session ใหม่ (`DisconnectDialogContent.qml`): ปุ่มหลัก/ค่าเริ่มต้น = **Disconnect** (เครื่องยังเปิด) · Sleep console เป็นปุ่มรอง · ธีมเดียวกับแอป — เดิม upstream focus ที่ Sleep กดจอยพลาดเครื่องหลับ
-- 2026-10-04 ไอคอน system tray ขึ้นเสมอ (เดิมขึ้นเฉพาะเมื่อเปิด Hide To Tray ทำให้ผู้ใช้เห็นว่า "tray หาย")
-- 2026-10-04 `scripts/deploy.ps1`: เขียน `qt.conf` ลง dist (Qt หา plugins/qml ข้าง exe ไม่ fallback ไป C:\msys64) + ฆ่า dist exe ที่ค้างก่อน deploy ทับ
-- 2026-10-04 หน้าต่างหลักจำสถานะ maximize และไม่เอาขนาดตอน maximize ไปทับขนาดปกติ (เซฟหลังหยุดขยับ 400ms, key ใหม่ `settings/window_maximized`)
-- 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
-- 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)
 ### Added
+- 2026-10-06 **Instant Replay**: เก็บ 30–120 วินาทีล่าสุดในหน่วยความจำ กด Ctrl+Shift+B / ปุ่ม Save ในเมนูสตรีม / tray เพื่อเซฟย้อนหลัง · ใช้ encoder ชุดเดียวกับการอัด (อัดระหว่าง replay ได้)
+- 2026-10-06 **Marker ระหว่างอัด** (Ctrl+Shift+K) → ใส่เป็น chapter ในไฟล์ (VLC กระโดดไปจุดที่ปักได้) · คลิปที่ไม่มี marker ยังเป็น MP4 แบบกันแอปตายเหมือนเดิม
+- 2026-10-06 **Screenshot ปุ่มเดียว** (F12 / Ctrl+Shift+P / เมนูสตรีม / tray): ภาพเต็มความละเอียดหน้าต่าง ติด overlay ทั้งหมด · สตรีม HDR ได้ PNG SDR + `HDR.png` (PQ/BT.2020)
+- 2026-10-06 **Mic boost (−12…+24 dB) + noise gate** ต่อท้ายตัวลดเสียงรบกวน มีผลทั้งเสียงเข้า PS5 แทร็ก Mic ในคลิป และ spectrum · ปรับในหน้าทดสอบไมค์
+- 2026-10-06 **overlay นาฬิกา / เวลาเล่น** (Ctrl+Shift+T) ลาก/ย่อขยาย/จำตำแหน่งได้เหมือน overlay อื่น
+- 2026-10-06 **Game presets**: Settings › Game presets ตั้ง preset ต่อเกม (ความละเอียด/fps/bitrate, overlay, เอฟเฟกต์กล้อง, Instant Replay) ใช้อัตโนมัติตอนเริ่มสตรีม คืนค่าเดิมตอนจบ
+- 2026-10-06 **Go Live** (Settings › Go Live, Ctrl+Shift+L, เมนูสตรีม, tray): ไลฟ์ H.264 1080p60 ไป YouTube / Twitch / Facebook / Kick / Custom RTMP(S) พร้อมกัน · ต่อใหม่เองเมื่อหลุด, ปลายทางช้าไม่ถ่วงที่อื่น · stream key เก็บใน Windows Credential Manager · ยังไม่มี 9:16 (TikTok) และ YouTube HDR
+- 2026-10-06 **อัดคลิป** (Ctrl+Shift+R / เมนูสตรีม / tray): ภาพบนจอ + overlay ทุกตัว (NVENC, SDR H.264 / HDR HEVC 10-bit) + เสียง 3 แทร็ก Game+Mic / Game / Mic · ถ้า Windows บล็อกโฟลเดอร์ Videos จะเซฟไป `%USERPROFILE%\PS-WRAP Recordings` แทนพร้อมแจ้ง
+- 2026-10-06 mic visualizer overlay (คลิกวงไมค์ = mute/unmute), หน้าทดสอบไมค์/กล้อง (คลิกชิปหน้าแรก), เลือกไมค์ได้ทั้ง Settings / เมนูสตรีม / tray, เมนู tray: mute, เลือกไมค์, เอฟเฟกต์/พื้นหลังกล้อง
+- 2026-10-06 `scripts/smoke.ps1` smoke test อัตโนมัติก่อน deploy
 - 2026-10-06 **ลดเสียงรบกวน + ตัดเสียงลำโพงในหน้าทดสอบไมค์**: แถว Noise reduction / Speaker echo เลือก Off/Low/Medium/High (จอย: ↓ ลงมาจากรายการไมค์ แล้ว ←→) · มีผลทันทีทั้งในหน้าทดสอบและกลางสตรีม ไม่ต้องเริ่มสตรีมใหม่ (ใช้ค่า Speech Processing เดิมใน Settings) · ลดเสียงรบกวนด้วย **RNNoise** (dependency ใหม่ `rnnoise` ใน MSYS2 — ไม่มีก็ build ได้ ใช้ speex แทน) · โค้ดอยู่ `pswrapvoiceproc.{h,cpp}`
 - 2026-10-06 ชิป **Recordings** ที่แถบล่างหน้าแรก กดแล้วเปิดโฟลเดอร์คลิปที่อัด
 - 2026-10-05 `scripts/deploy.ps1 -StartMenu` สร้าง shortcut PS-WRAP ใน Start Menu (ระดับ user ไม่ต้อง admin)
@@ -75,3 +50,40 @@
 - 2026-10-04 **Phase 2 หน้าหลัก**: `MainView.qml` ใหม่ — console card พร้อม status chip (ready/standby/remote), ปุ่ม Play/Register, hint bar ปุ่มจอย, empty state, setup banner แบบไม่ modal แทน dialog Steam/PSN ที่เด้งซ้อนกัน, responsive สำหรับ Steam Deck
 - 2026-10-04 **Phase 1 design system**: `controls/Theme.qml` tokens singleton, `FocusRing.qml`, restyle `controls/*` (focus ring ชัดสำหรับจอย/TV), root Material palette ผูก Theme → ToolBar/พื้นหลังเปลี่ยนเป็น slate เข้ม
 - 2026-10-04 clone upstream `a9a2805` (v1.9.9) เป็น `chiaki-ng/` branch `ps-wrap/ui`, เอกสารชุดใหม่, design inventory, ADR-0001..0003
+### Changed
+- 2026-10-06 **ไฟล์โปรแกรมชื่อ `PS-WRAP.exe`** (เดิม `chiaki.exe`) — ตั้ง `OUTPUT_NAME` ใน CMake เฉพาะ Windows (target ยังชื่อ chiaki) · สคริปต์ build/run/deploy/drive/snap หา process ทั้ง `PS-WRAP` และ `chiaki` · shortcut ต้องสร้างใหม่ด้วย `deploy.ps1 -Shortcut -StartMenu` · ถ้าเคยอนุญาต `chiaki.exe` ใน Firewall/Controlled folder access ต้องอนุญาต `PS-WRAP.exe` ใหม่
+- 2026-10-06 **ไอคอนปุ่มจอยชุดใหม่**: ✕ ○ □ △ เป็นแผ่นเข้มไล่เฉด ขอบบาง สัญลักษณ์สีแบบ PS (ฟ้า/แดง/ชมพู/เขียว) · L1/R1 ทรง pill, L3/R3 วงกลม (เดิมของ upstream ล้นกรอบจน L1 เป็นข้าวหลามตัด R3 เป็นครึ่งวง) · สร้างจาก `scripts/gen-glyphs.py` · ชุด Steam Deck ใช้แบบเดิม
+- 2026-10-06 แถบล่างหน้าแรก: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (ไอคอน + จุดเปิด/ปิด) แทนปุ่มไอคอนฟ้าลอยเดี่ยว · เลขเวอร์ชันย้ายไปท้ายแถบ
+- 2026-10-06 **ที่เก็บข้อมูลของแอปเป็นของ PS-WRAP เอง**: registry `HKCU\Software\PS-WRAP\PS-WRAP`, log/cache `%APPDATA%\PS-WRAP\PS-WRAP` (เดิมใช้ร่วมกับ chiaki-ng ใน `Chiaki\Chiaki`) · เปิดครั้งแรกย้าย settings, เครื่องที่ลงทะเบียน, placebo และทุก profile มาให้อัตโนมัติ ไม่ลบของเดิม · โฟลเดอร์ source เปลี่ยนจาก `chiaki-ng/` เป็น `ps-wrap/`
+- 2026-10-04 facecam effect: ขนาดแว่นอิงความกว้างหน้า + ยึดเทียบจมูก (เงย/ก้มไม่ลอยขึ้นหน้าผาก) · tracking ตามเร็วขึ้นตอนขยับไว (smoothing ปรับตามความเร็ว), คาดการณ์ตำแหน่งตอนหน้าหายชั่วคราว, แว่นจางเข้า/ออกแทนหายวับ, ย่อภาพก่อนป้อนโมเดลเร็วขึ้น
+- 2026-10-04 **หน้าต่างตอนสตรีม = หน้าต่างหน้าแรก** (ขนาด/ตำแหน่ง/maximize ชุดเดียว) — ไม่ resize ตามความละเอียดสตรีมอีก ปรับขนาดระหว่างเล่นจำให้ทั้งสองหน้า
+- 2026-10-04 facecam มุมโค้งเป็นสัดส่วนของกรอบ (9% ของด้านสั้น) — ย่อแล้วมุมไม่กลมเกิน
+- 2026-10-04 overlay จอย/กล้อง/stats ย่อ-ขยายและ**ยึดกรอบวิดีโอจริง** (กรอบ 16:9 กลางจอ ไม่ลอยบนแถบดำ) — หน้าต่างแคบ-สูงไม่ทำให้ overlay ใหญ่เกิน · stats การ์ด scale 0.45–1.5×
+- 2026-10-04 การ์ด stats ย่อ ~25% (font 12/15, icon 15) ให้ไม่แย่งสายตาตอนเล่น · แถว dropped frames แสดงตลอด (upstream โชว์เฉพาะ > 0 ทำให้การ์ดกระพริบ/เปลี่ยนความสูงตอนเล่น)
+- 2026-10-04 เปลี่ยนทิศทางจาก "Python wrapper รอบ chiaki.exe" เป็น "fork chiaki-ng + redesign UI" — ของเก่าย้ายไป `archive/pswrap-python/`
+### Fixed
+- 2026-10-06 ปิดกล้อง (ปิดหน้าทดสอบกล้อง / ออกจาก Settings › General) แล้ว UI ค้าง ~3 วินาที → ปิดอุปกรณ์เบื้องหลัง · หน้าทดสอบกล้องบอก "No video from camera" เมื่อไม่มีภาพ (เดิมขึ้น Live หลอก) · ออกจากแอปรอปล่อยกล้องให้เรียบร้อย
+- 2026-10-06 หน้าแรกล้นจอเล็ก: การ์ดเครื่อง (ปุ่ม Play หลุดขอบ) และแถบล่าง (ชิปเหลือไอคอนเมื่อแคบ)
+- 2026-10-06 **ตัดเสียงลำโพงย้อนเข้าไมค์ (echo cancellation) ใช้ไม่ได้เมื่อลำโพงหน่วงเกิน ~100 ms** (upstream: เก็บเสียงอ้างอิงตอน decode ก่อนเข้าคิวเสียง + filter ยาว 100 ms) → เก็บเสียงอ้างอิงตอนส่งเข้าการ์ดเสียงจริง คำนวณว่า sample ไหนกำลังออกลำโพงเทียบกับเวลาที่ไมค์อัดแต่ละเฟรม + filter 300 ms (ทนความหน่วงที่คาดผิด −60…+240 ms เช่นลำโพง Bluetooth) · ตั้ง sample rate 48 kHz ให้ speex echo (upstream ไม่ได้ตั้ง ค่าเริ่มต้น 8 kHz)
+- 2026-10-06 `scripts/snap.ps1` คืน profile ปกติไม่ได้จริง (pwsh ทิ้ง `--profile ""`, script error ออกก่อนคืนค่า, คืนค่าก่อน process ปิด) → ตัว dist เปิดเป็น profile `pswrap-test` · ตอนนี้ใช้ `"--profile="` ใน try/finally + รอ process ปิด + ตรวจซ้ำ
+- 2026-10-06 build จาก clone ใหม่บน Windows: แพตช์ curl พังเมื่อ `core.autocrlf=true` (curl เป็น CRLF แพตช์เป็น LF) → แปลงเป็น LF ก่อนแพตช์ · submodule oboe/borealis (Android/Switch) ไม่ดึงตอน clone (`update = none`) เพราะ oboe path ยาวเกิน MAX_PATH ทำ `--recurse-submodules` ล้ม
+- 2026-10-06 build: แพตช์ Schannel AIA ของ curl ถูกข้ามแบบเงียบๆ เมื่อโฟลเดอร์ build อยู่ใต้ git repo อื่น (`git apply --directory`) → `CURLSSLOPT_SCHANNEL_AIA undeclared` · ตอนนี้ apply ใน copy ของ curl ที่ `git init` เป็นรากเอง
+- 2026-10-05 **แอป crash/ค้างกลางสตรีม (ทำให้กดปุ่มไม่ติดเป็นช่วงๆ)**: (1) `QQuickRenderControl::sync()` ถูกเรียกข้าม thread แบบไม่บล็อก GUI (upstream) → แข่งกับ overlay ที่ขยับตลอด → SIGSEGV ใน Qt6Gui · ตอนนี้ sync 2 จังหวะ: render thread `beginFrame()` (รอ GPU) ก่อน แล้ว GUI บล็อกเฉพาะ sync (~0.2ms) — เวอร์ชันแรกที่บล็อกทั้ง sync ทำให้สะดุดรัวเมื่อหน้าต่างใหญ่ (GUI รอ GPU ทุกเฟรม) (2) libplacebo assert `!tex_vk->held` (dialog ค้างจอ) เมื่อ render ส่ง overlay texture ที่ Qt ยังถืออยู่ — upstream มีช่องนี้ ตอนนี้ endFrame ก่อนใช้เสมอ (3) render แทรกหลัง resize ทำให้เปิดรอบซ้อนวนไม่จบ
+- 2026-10-05 คลิกสลับ overlay ระหว่างแก้แล้วจอยไม่เข้าเกมจนตัดสตรีม (grab input ซ้อน 2 ชั้น release ชั้นเดียว)
+- 2026-10-05 คลิกที่แค่ปลุกหน้าต่างไม่เข้าโหมดแก้ overlay · สลับไปแอปอื่นระหว่างแก้ = จบโหมดแก้ · แถบบนจอบอกว่าจอยหยุดส่งเข้าเกมระหว่างแก้
+- 2026-10-05 ปิดเมนู/dialog ระหว่างสตรีมแล้วปุ่มไม่ติดจนกว่าจะปล่อยทุกปุ่ม (upstream) → กันเฉพาะปุ่ม/ไกที่ค้างอยู่ตอนปิด ปุ่มอื่นใช้ได้ทันที
+- 2026-10-04 facecam ไม่ขึ้นภาพหลังเพิ่มโหมดทดสอบไฟล์ (MediaPlayer ยึด video sink) — ผูก sink เฉพาะเมื่อใช้ไฟล์
+- 2026-10-04 Settings: เปิดหน้าที่เนื้อหายาวกว่าจอแล้วเลื่อนลงเอง (ensureVisible เล็งทั้ง GridLayout) — เปิดหน้า General เห็น preview บนสุด
+- 2026-10-04 Vulkan overlay texture สร้างด้วย blit_dst — ก่อนหน้า `pl_tex_clear` ยิง validation error ทุกเฟรม (log บวม/ช้า) หลังแก้ ghost
+- 2026-10-04 facecam ภาพดำหลังเพิ่ม chroma key (ShaderEffect ต้องใช้ property ชื่อ `source`) — กล้องกลับมาติด
+- 2026-10-04 **overlay/dialog ซ้อนเป็นเงาหลังย่อ-ขยายหน้าต่างบน Vulkan** (PIN dialog 2 อัน, stats/จอย 2 ชุด): upstream ไม่ล้าง texture ของชั้น QML ฝั่ง Vulkan (OpenGL มี) → `pl_tex_clear` หลังสร้าง texture และก่อน Qt วาดทุกเฟรม
+- 2026-10-04 tray: คลิกเดียว = สลับซ่อน/โชว์ (รอ double-click interval), double-click = โชว์เสมอ — เดิมยิงซ้อนกัน
+- 2026-10-04 หลัง Console PIN dialog ปิด คีย์ลัด/เมนูสตรีมไม่ตอบ (focus หาย) → คืน focus ให้ StreamView
+- 2026-10-04 stats overlay บน Vulkan วาด inline ใน QML (`StatsOverlay.qml`) แทนหน้าต่างแยกของ upstream ที่ลอยทะลุหน้าต่างอื่น · widget แยกเหลือเฉพาะ OpenGL
+- 2026-10-04 tray ระหว่างสตรีม: ซ่อน = minimize (ไม่ hide) + เรียกกลับบังคับ sync overlay — แก้ overlay ซ้อนค้างหลาย ชุดหลัง double-click tray
+- 2026-10-04 dialog Disconnect Session ใหม่ (`DisconnectDialogContent.qml`): ปุ่มหลัก/ค่าเริ่มต้น = **Disconnect** (เครื่องยังเปิด) · Sleep console เป็นปุ่มรอง · ธีมเดียวกับแอป — เดิม upstream focus ที่ Sleep กดจอยพลาดเครื่องหลับ
+- 2026-10-04 ไอคอน system tray ขึ้นเสมอ (เดิมขึ้นเฉพาะเมื่อเปิด Hide To Tray ทำให้ผู้ใช้เห็นว่า "tray หาย")
+- 2026-10-04 `scripts/deploy.ps1`: เขียน `qt.conf` ลง dist (Qt หา plugins/qml ข้าง exe ไม่ fallback ไป C:\msys64) + ฆ่า dist exe ที่ค้างก่อน deploy ทับ
+- 2026-10-04 หน้าต่างหลักจำสถานะ maximize และไม่เอาขนาดตอน maximize ไปทับขนาดปกติ (เซฟหลังหยุดขยับ 400ms, key ใหม่ `settings/window_maximized`)
+- 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
+- 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)

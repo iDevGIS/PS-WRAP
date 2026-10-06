@@ -7,7 +7,7 @@ import org.streetpea.chiaking
 
 // PS-WRAP: เนื้อหาเมนูระหว่างสตรีม (v3 "control deck") ใช้ร่วมกันทั้ง inline (Vulkan) และ StreamMenuWindow (OpenGL)
 //  แถว 1: [⏻ End Stream] [● Record] [🎤 Mic] 🔊 ━━━ 100%                       3.2 Mbps · 0.0% loss · 3 dropped · host
-//  แถว 2 (Flow — ห่อบรรทัดเมื่อแคบ ไม่เลื่อนแนวนอน): FIT (Zoom|Stretch) · QUALITY (Default|HQ|HQ+S|HQ+A|Custom) · Display · Renderer · OVERLAY (Pad|Cam|Spectrum|Move…|Stats)
+//  แถว 2 (Flow — ห่อบรรทัดเมื่อแคบ ไม่เลื่อนแนวนอน): FIT (Zoom|Stretch) · QUALITY (Default|HQ|HQ+S|HQ+A|Custom) · Display · Renderer · OVERLAY (Pad|Cam|Spectrum|Clock|Move…|Stats) · CAPTURE (Replay|60s|Save|Screenshot)
 //  แถว 3: hotkey hint (ซ่อนเมื่อแคบ)
 //  ความสูงเมนู = implicitHeight (StreamView/StreamMenuWindow ผูกตามนี้) · คง id/signals/KeyNavigation ของ upstream
 FocusScope {
@@ -19,6 +19,17 @@ FocusScope {
     readonly property QtObject recorder: Chiaki.window ? Chiaki.window.recorder : null
     readonly property bool recording: !!recorder && recorder.recording
     readonly property bool micOverlayEnabled: !!Chiaki.window && Chiaki.window.micOverlay
+    readonly property bool clockOverlayEnabled: !!Chiaki.window && !!Chiaki.window.clockOverlay
+    // PS-WRAP: Instant Replay (Chiaki.window.replayEnabled/replaySeconds/saveReplay + recorder.replayActive)
+    readonly property bool replayEnabled: !!Chiaki.window && !!Chiaki.window.replayEnabled
+    readonly property bool replayActive: !!recorder && !!recorder.replayActive
+    readonly property int replaySeconds: Chiaki.window && Chiaki.window.replaySeconds > 0 ? Chiaki.window.replaySeconds : 60
+    // PS-WRAP: Go Live (Chiaki.goLive — pswraplive.h) · state: off/connecting/live/reconnecting/error
+    readonly property var goLive: Chiaki.goLive !== undefined ? Chiaki.goLive : null
+    readonly property bool liveOn: !!goLive && goLive.live
+    function liveDotColor(state) {
+        return state === "live" ? Theme.success : state === "error" ? Theme.danger : Theme.warning;
+    }
     // PS-WRAP: ไมค์ที่ใช้อยู่ ("" = Auto) — ระหว่างสตรีมอ่านจาก session (เปลี่ยนสด), นอกนั้นจาก settings
     readonly property string micDevice: Chiaki.session ? Chiaki.session.audioInDevice : Chiaki.settings.audioInDevice
     readonly property bool popupOpen: micDevicePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้ (ให้ Esc ปิดแค่ popup)
@@ -41,6 +52,14 @@ FocusScope {
     signal webcamToggled()
     signal webcamEditRequested()
     signal micEditRequested()
+    signal clockEditRequested()
+
+    // ภาพหน้าจอรวม overlay QML ด้วย → รอเมนูเลื่อนลงจบ (250ms) ก่อนถ่าย
+    Timer {
+        id: screenshotDelay
+        interval: 320
+        onTriggered: if (Chiaki.session) Chiaki.window.takeScreenshot()
+    }
 
     Keys.onMenuPressed: content.closeRequested()
     Keys.onEscapePressed: content.closeRequested()
@@ -54,6 +73,7 @@ FocusScope {
         property int glyph: 0           // PS-WRAP: 0 = ไม่มี · 1 = จุดอัด (แดง) · 2 = สี่เหลี่ยมหยุด — ใช้แทน icon (ไม่ต้องเพิ่ม svg)
         property int maxTextWidth: -1   // PS-WRAP: >0 = ตัดข้อความยาวด้วย … (ชื่ออุปกรณ์)
         property bool caret: false      // PS-WRAP: ▾ ท้ายปุ่ม = เปิดรายการ
+        property color statusDot: "transparent"   // PS-WRAP: จุดสถานะเล็กหลัง icon (Go Live) — transparent = ไม่แสดง
         flat: true
         padding: segmented ? 6 : 8
         leftPadding: iconSource != "" || glyph > 0 ? 12 : (segmented ? 14 : 18)
@@ -106,6 +126,15 @@ FocusScope {
                     border.color: Qt.rgba(1, 1, 1, 0.85)
                     opacity: mb.enabled ? 1.0 : 0.5
                 }
+            }
+            Rectangle {
+                visible: mb.statusDot.a > 0
+                Layout.preferredWidth: 10
+                Layout.preferredHeight: 10
+                radius: 5
+                color: mb.statusDot
+                border.width: 1
+                border.color: Qt.rgba(0, 0, 0, 0.35)
             }
             Label {
                 text: mb.text
@@ -563,6 +592,21 @@ FocusScope {
                     onToggled: Chiaki.window.micOverlay = !Chiaki.window.micOverlay
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: camButton
+                    KeyNavigation.right: clockButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: นาฬิกา + เวลาเล่น (ClockOverlay.qml)
+                MenuButton {
+                    id: clockButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/clock.svg"
+                    text: qsTr("Clock")
+                    checkable: true
+                    checked: content.clockOverlayEnabled
+                    onToggled: Chiaki.window.clockOverlay = !Chiaki.window.clockOverlay
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: micVizButton
                     KeyNavigation.right: editOverlayButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
@@ -575,8 +619,8 @@ FocusScope {
                     enabled: Chiaki.session
                     onClicked: content.overlayEditRequested()
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: micVizButton
-                    KeyNavigation.right: content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : statsButton)
+                    KeyNavigation.left: clockButton
+                    KeyNavigation.right: content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : statsButton))
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
@@ -590,7 +634,7 @@ FocusScope {
                     onClicked: content.webcamEditRequested()
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: editOverlayButton
-                    KeyNavigation.right: content.micOverlayEnabled ? micEditButton : statsButton
+                    KeyNavigation.right: content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : statsButton)
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
@@ -604,6 +648,20 @@ FocusScope {
                     onClicked: content.micEditRequested()
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: content.webcamEnabled ? camEditButton : editOverlayButton
+                    KeyNavigation.right: content.clockOverlayEnabled ? clockEditButton : statsButton
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                MenuButton {
+                    id: clockEditButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/move.svg"
+                    text: qsTr("Move clock")
+                    visible: content.clockOverlayEnabled
+                    enabled: Chiaki.session
+                    onClicked: content.clockEditRequested()
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton)
                     KeyNavigation.right: statsButton
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
@@ -617,20 +675,108 @@ FocusScope {
                     checked: Chiaki.settings.showStreamStats
                     onToggled: Chiaki.settings.showStreamStats = !Chiaki.settings.showStreamStats
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton)
+                    KeyNavigation.left: content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton))
+                    KeyNavigation.right: replayButton
                     Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+            }
+
+            // PS-WRAP: CAPTURE — Instant Replay (เปิด/ปิด · ความยาว 30/60/90/120 วิ กดวน · เซฟ) + ภาพหน้าจอ
+            Segment {
+                label: qsTr("CAPTURE")
+                MenuButton {
+                    id: replayButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/replay.svg"
+                    text: qsTr("Replay")
+                    checkable: true
+                    checked: content.replayEnabled
+                    onToggled: Chiaki.window.replayEnabled = !content.replayEnabled
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: statsButton
+                    KeyNavigation.right: replayLengthButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // ✕/Enter = วนความยาว 30 → 60 → 90 → 120 → 30 (ซ้าย/ขวาไว้ย้าย focus เหมือนปุ่มอื่น)
+                MenuButton {
+                    id: replayLengthButton
+                    segmented: true
+                    text: qsTr("%1s").arg(content.replaySeconds)
+                    font.features: { "tnum": 1 }
+                    onClicked: {
+                        const steps = [30, 60, 90, 120];
+                        const i = steps.indexOf(content.replaySeconds);
+                        Chiaki.window.replaySeconds = steps[(i + 1) % steps.length];
+                    }
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: replayButton
+                    KeyNavigation.right: saveReplayButton
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                MenuButton {
+                    id: saveReplayButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/save.svg"
+                    text: qsTr("Save")
+                    enabled: content.replayActive
+                    onClicked: Chiaki.window.saveReplay()
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: replayLengthButton
+                    KeyNavigation.right: screenshotButton
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                MenuButton {
+                    id: screenshotButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/screenshot.svg"
+                    text: qsTr("Screenshot")
+                    enabled: !!Chiaki.session && Chiaki.session.connected
+                    // เมนูปิดก่อน แล้วค่อยถ่าย (ไม่ให้แถบเมนูติดไปในภาพ)
+                    onClicked: {
+                        content.closeRequested();
+                        screenshotDelay.restart();
+                    }
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: saveReplayButton
+                    KeyNavigation.right: liveButton
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: Go Live — เริ่ม/หยุดไลฟ์ไปทุกปลายทางที่เปิดใน Settings › Go Live (Ctrl+Shift+L)
+                // จุดสี = สถานะรวม (เขียว live · เหลือง กำลังต่อ/ต่อใหม่ · แดง error) · ไม่มีปลายทาง → C++ แจ้ง toast เอง
+                MenuButton {
+                    id: liveButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/live.svg"
+                    text: content.liveOn ? content.formatElapsed(content.goLive.seconds) : qsTr("Live")
+                    font.features: { "tnum": 1 }
+                    // ไม่ checkable: กดแล้ว start() อาจไม่สำเร็จ (ไม่มีปลายทาง/HDR) — สีตาม goLive.live เท่านั้น ไม่ให้ปุ่มสลับเอง
+                    checked: content.liveOn
+                    statusDot: content.liveOn ? content.liveDotColor(content.goLive.state) : "transparent"
+                    enabled: !!content.goLive && (content.liveOn || (!!Chiaki.session && Chiaki.session.connected))
+                    onClicked: content.goLive.toggle()
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: screenshotButton
+                    Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
             }
         }
 
         // ---------- แถว 3: hotkey hint ----------
+        // แบบย่อ: "Ctrl+Shift +" ครั้งเดียวแล้วตามด้วยตัวอักษร (ห่อได้ 2 บรรทัดเมื่อแคบ ไม่ล้นแนวนอน)
         Caption {
             Layout.fillWidth: true
             visible: !content.narrow
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
             elide: Text.ElideRight
             opacity: 0.8
-            text: qsTr("Ctrl+O menu · Ctrl+Shift+S stats · Ctrl+Shift+O pad · Ctrl+Shift+E move pad · Ctrl+Shift+C cam · Ctrl+Shift+V move cam · Ctrl+Shift+M spectrum · Ctrl+Shift+R record · Esc = PS")
+            text: qsTr("Ctrl+O menu · F12 screenshot · Ctrl+Shift + R record · B save replay · K marker · S stats · O pad · E move pad · C cam · V move cam · M spectrum · T clock · L live · Esc = PS")
         }
     }
 
@@ -747,4 +893,5 @@ FocusScope {
             }
         }
     }
+
 }

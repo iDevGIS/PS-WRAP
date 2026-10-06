@@ -153,6 +153,8 @@ DialogView {
         case 6: item = controllerMappingChange; break;
         case 7: item = firstRemoteFocusableItem(); break;
         case 8: item = profile; break;
+        case 9: item = gamePresetsPage.firstItem; break;   // PS-WRAP: Game presets
+        case 10: item = goLivePage.firstControl; break;     // PS-WRAP: Go Live
         }
         if (item)
             item.forceActiveFocus(Qt.TabFocusReason);
@@ -168,6 +170,8 @@ DialogView {
         case 6: return controllersFlick;
         case 7: return remoteFlick;
         case 8: return configFlick;
+        case 9: return gamePresetsPage.flick;
+        case 10: return goLivePage.flick;
         default: return null;
         }
     }
@@ -220,7 +224,7 @@ DialogView {
 
     Item {
         // PS-WRAP Phase 3: sidebar แทน TabBar แนวนอน — คง id `bar` + currentIndex/incrementCurrentIndex/decrementCurrentIndex (ListView มี API เดียวกับ TabBar)
-        // index ต้องตรงกับ StackLayout ด้านล่าง: 0 General, 1 Video, 2 Stream, 3 Audio/Wifi, 4 Consoles, 5 Keys, 6 Controllers, 7 Remote, 8 Config
+        // index ต้องตรงกับ StackLayout ด้านล่าง: 0 General, 1 Video, 2 Stream, 3 Audio/Wifi, 4 Consoles, 5 Keys, 6 Controllers, 7 Remote, 8 Config, 9 Game presets, 10 Go Live
         Rectangle {
             id: sidebar
             width: dialog.width < 1500 ? 220 : 280
@@ -254,7 +258,9 @@ DialogView {
                     { name: qsTr("Keys"),        group: qsTr("Advanced") },
                     { name: qsTr("Controllers"), group: qsTr("Advanced") },
                     { name: qsTr("Remote"),      group: qsTr("Advanced") },
-                    { name: qsTr("Config"),      group: qsTr("Advanced") }
+                    { name: qsTr("Config"),      group: qsTr("Advanced") },
+                    { name: qsTr("Game presets"), group: qsTr("Games") },    // PS-WRAP: preset รายเกม (index 9)
+                    { name: qsTr("Go Live"), group: qsTr("Broadcast") }      // PS-WRAP: ไลฟ์หลายแพลตฟอร์ม (index 10 — GoLiveSettingsPage.qml)
                 ]
                 section.property: "group"
                 section.delegate: Label {
@@ -446,10 +452,10 @@ DialogView {
                                 Layout.alignment: Qt.AlignLeft | Qt.AlignTop
                                 Layout.topMargin: Theme.space1
                                 font.pixelSize: Theme.fontCaption
-                                color: Theme.textMuted
+                                color: camPreview.noVideo ? Theme.danger : Theme.textMuted
                                 wrapMode: Text.WordWrap
                                 Layout.maximumWidth: 260
-                                text: camPreview.hasCamera ? qsTr("live · %1").arg(camPreview.cameraName) : qsTr("no camera connected")
+                                text: camPreview.statusText
                             }
 
                             Label {
@@ -3290,6 +3296,27 @@ DialogView {
                             onToggled: Chiaki.settings.logVerbose = checked
                         }
                     }
+                }
+            }
+
+            Item {
+                // Game presets — PS-WRAP: preset รายเกม แยกไฟล์ (SettingsGamePresetsPage.qml)
+                SettingsGamePresetsPage {
+                    id: gamePresetsPage
+                    anchors.fill: parent
+                    uiScale: dialog.uiScale
+                    labelWidth: dialog.labelWidth
+                    controlWidth: dialog.controlWidth
+                    confirm: (title, text, callback) => root.showConfirmDialog(title, text, callback)
+                }
+            }
+
+            Item {
+                // Go Live — PS-WRAP: ปลายทางไลฟ์ + stream key แยกไฟล์ (GoLiveSettingsPage.qml · C++ Chiaki.goLive)
+                GoLiveSettingsPage {
+                    id: goLivePage
+                    anchors.fill: parent
+                    uiScale: dialog.uiScale
                 }
             }
         }

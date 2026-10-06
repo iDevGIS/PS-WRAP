@@ -5,6 +5,7 @@
 #include "qmlsettings.h"
 
 #include <pswraprecorder.h>
+#include <pswraplive.h>
 #include <pswrapreccapture.h>
 #include <pswrapmicmeter.h>
 #include <pswrapvoiceproc.h>
@@ -49,12 +50,24 @@ QString defaultRecordingFolder()
 	return QDir(base).filePath(QStringLiteral("PS-WRAP"));
 }
 
+// โฟลเดอร์สำรองเมื่อเขียนโฟลเดอร์ที่ตั้งไว้ไม่ได้ (Windows Security "Controlled folder access" บล็อก exe ที่ไม่รู้จักไม่ให้เขียน Videos)
+QString fallbackRecordingFolder()
+{
+	return QDir(QDir::homePath()).filePath(QStringLiteral("PS-WRAP Recordings"));
+}
+
+// Instant Replay: ภาพต้องนิ่งก่อนเริ่ม pipeline (ขนาดหน้าต่าง/HDR ของสตรีมตั้งตัวแล้ว)
+QElapsedTimer g_replay_video_since;
+constexpr qint64 kReplayStartDelayMs = 3000;
+int g_test_replay_s = -1;   // PSWRAP_TEST_REPLAY (อ่านครั้งเดียว)
+
 } // namespace
 
 void QmlMainWindow::pswrapInitRecording()
 {
 	pswrap_recorder = new PsWrapRecorder(this);
 	pswrap_mic_meter = new PsWrapMicMeter(this);
+	pswrapInitMic();   // gain/noise gate ที่จำไว้ → PsWrapVoiceProc (qmlmainwindow_pswrapmic.cpp) · ไม่ขึ้นกับ speex
 	connect(pswrap_recorder, &PsWrapRecorder::recordingChanged, this, [this]() { pswrapRefreshTray(); });
 #if CHIAKI_GUI_ENABLE_SPEEX
 	// ลดเสียงรบกวน/ตัด echo: ค่าใน Settings → ของกลางของ PsWrapVoiceProc ทันที (สตรีมที่เล่นอยู่ + หน้าทดสอบไมค์รับไปเฟรมถัดไป)
@@ -70,12 +83,51 @@ void QmlMainWindow::pswrapInitRecording()
 #endif
 	// สตรีมจบ = ปิดไฟล์ให้เรียบร้อยทันที (ก่อน render หยุด) · tray ตามสถานะ mute ของ session
 	connect(backend, &QmlBackend::sessionChanged, this, [this](StreamSession *s) {
-		if (!s && pswrap_recorder->isRecording())
+		if (!s) {
 			pswrap_recorder->stop();
+			pswrap_recorder->stopReplay(); // pipeline ปิดเองเมื่อไม่มีผู้รับเหลือ
+		}
+		pswrap_recorder->clearReplayFault(); // สตรีมใหม่ = ให้ replay ลองเริ่มใหม่ได้
+		g_replay_video_since.invalidate();
 		if (s)
 			connect(s, &StreamSession::MutedChanged, this, [this]() { pswrapRefreshTray(); });
-		QMetaObject::invokeMethod(this, [this]() { pswrapRefreshTray(); }, Qt::QueuedConnection); // หลัง lambda ใน init ตั้ง session แล้ว
+		QMetaObject::invokeMethod(this, [this]() { pswrapRefreshTray(); pswrapSyncReplay(); }, Qt::QueuedConnection); // หลัง lambda ใน init ตั้ง session แล้ว
 	});
+
+	// Instant Replay: เริ่ม/หยุด pipeline เองตามสตรีม — เช็คทุก 1 วิ (ภาพขึ้น/สตรีมจบ/เปิดปิดใน Settings)
+	g_test_replay_s = qEnvironmentVariableIntValue("PSWRAP_TEST_REPLAY");
+	pswrap_recorder->setReplaySeconds(settings->GetReplaySeconds());
+	connect(this, &QmlMainWindow::hasVideoChanged, this, [this]() { pswrapSyncReplay(); });
+	auto *replay_timer = new QTimer(this);
+	replay_timer->setInterval(1000);
+	connect(replay_timer, &QTimer::timeout, this, [this]() { pswrapSyncReplay(); });
+	replay_timer->start();
+	if (g_test_replay_s > 0) {
+		// ทดสอบอัตโนมัติ: PSWRAP_TEST_REPLAY=<วินาที> → เปิด replay (ไม่เซฟค่าลง Settings) · marker ที่ครึ่งทาง · เซฟ replay เมื่อครบ
+		auto *t = new QTimer(this);
+		t->setInterval(250);
+		auto since = std::make_shared<QElapsedTimer>();
+		auto marked = std::make_shared<bool>(false);
+		connect(t, &QTimer::timeout, this, [this, t, since, marked]() {
+			if (!pswrap_recorder->isReplayActive()) {
+				since->invalidate();
+				return;
+			}
+			if (!since->isValid())
+				since->start();
+			if (!*marked && since->elapsed() >= g_test_replay_s * 500LL) {
+				*marked = true;
+				qCInfo(chiakiGui) << "PSWRAP test replay: marker";
+				addMarker();
+			}
+			if (since->elapsed() >= g_test_replay_s * 1000LL) {
+				qCInfo(chiakiGui) << "PSWRAP test replay: save";
+				saveReplay();
+				t->stop();
+			}
+		});
+		t->start();
+	}
 
 	// ทดสอบอัตโนมัติ: PSWRAP_TEST_AUTOREC=<วินาที> → ภาพขึ้นแล้ว 3 วิ เริ่มอัดเอง ครบแล้วหยุดเอง (ไม่มีผลถ้าไม่ตั้ง env)
 	const int autorec_s = qEnvironmentVariableIntValue("PSWRAP_TEST_AUTOREC");
@@ -84,7 +136,13 @@ void QmlMainWindow::pswrapInitRecording()
 		timer->setInterval(250);
 		auto video_since = std::make_shared<QElapsedTimer>();
 		auto rec_since = std::make_shared<QElapsedTimer>();
-		connect(timer, &QTimer::timeout, this, [this, timer, autorec_s, video_since, rec_since]() {
+		// PSWRAP_TEST_MARKERS=1 → ใส่ marker ที่ 1/3 และ 2/3 ของคลิป (ทดสอบ chapter)
+		auto markers_left = std::make_shared<int>(qEnvironmentVariableIntValue("PSWRAP_TEST_MARKERS") > 0 ? 2 : 0);
+		connect(timer, &QTimer::timeout, this, [this, timer, autorec_s, video_since, rec_since, markers_left]() {
+			if (rec_since->isValid() && *markers_left > 0 && rec_since->elapsed() >= autorec_s * 1000LL * (3 - *markers_left) / 3) {
+				(*markers_left)--;
+				addMarker();
+			}
 			if (!rec_since->isValid()) {
 				if (!session || !has_video) {
 					video_since->invalidate();
@@ -106,6 +164,7 @@ void QmlMainWindow::pswrapInitRecording()
 		});
 		timer->start();
 	}
+	goLive();   // PS-WRAP: สร้าง Go Live พร้อม hook สตรีมจบ/สลับ profile (qmlmainwindow_pswraplive.cpp)
 }
 
 static void pswrapMicPreviewCb(void *userdata, Uint8 *stream, int len)
@@ -165,8 +224,10 @@ void QmlMainWindow::stopMicPreview()
 void QmlMainWindow::pswrapStopRecordingForTeardown()
 {
 	stopMicPreview();
+	if (auto *g = findChild<PsWrapGoLive *>(QString(), Qt::FindDirectChildrenOnly))
+		g->stop();   // PS-WRAP: ปิด socket ไลฟ์ + ถอด tap ก่อน recorder ปิด pipeline
 	if (pswrap_recorder)
-		pswrap_recorder->stop();
+		pswrap_recorder->shutdown(); // ไฟล์อัด + replay + job เซฟ/remux ที่ค้าง (ยกเลิก — ไฟล์เดิมยังอยู่)
 	if (pswrap_mic_meter)
 		pswrap_mic_meter->setEnabled(false);
 }
@@ -281,16 +342,47 @@ void QmlMainWindow::toggleRecording()
 		pswrap_recorder->stop();
 		return;
 	}
-	if (!session || stream_session_active.loadAcquire() == 0) {
-		emit pswrap_recorder->failed(tr("Start a stream before recording."));
+	PsWrapRecConfig cfg;
+	QString err;
+	if (!pswrapBuildRecConfig(&cfg, &err)) {
+		emit pswrap_recorder->failed(err);
 		return;
+	}
+	const QString folder = QDir::fromNativeSeparators(recordingFolder());
+	cfg.path = QDir(folder).filePath(QStringLiteral("PS-WRAP %1.mp4")
+		.arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH-mm-ss"))));
+	if (pswrap_recorder->start(cfg, &err))
+		return;
+	// เขียนโฟลเดอร์ที่ตั้งไว้ไม่ได้ (เครื่องลูกพี่: Windows Security "Controlled folder access" บล็อก exe ที่ไม่รู้จักไม่ให้เขียน Videos)
+	// → ย้ายไปโฟลเดอร์สำรองใน home ที่ระบบไม่คุ้มครอง แล้วแจ้งผู้ใช้ แทนที่จะอัดไม่ได้เลย
+	const QString fallback = fallbackRecordingFolder();
+	if (pswrap_recorder->lastStartFileError() && QDir::cleanPath(folder) != QDir::cleanPath(fallback)) {
+		const QString blocked = QDir::toNativeSeparators(folder);
+		cfg.path = QDir(fallback).filePath(QFileInfo(cfg.path).fileName());
+		QString err2;
+		if (pswrap_recorder->start(cfg, &err2)) {
+			qCInfo(chiakiGui) << "PSWRAP recording: fallback folder" << fallback << "because" << err;
+			emit pswrap_recorder->notice(tr("Windows blocked saving to %1, so this recording is saved to %2. To keep using your folder, allow PS-WRAP in Windows Security → Ransomware protection → Allow an app, or pick another folder in Settings.")
+				.arg(blocked, QDir::toNativeSeparators(fallback)), cfg.path);
+			return;
+		}
+	}
+	emit pswrap_recorder->failed(err);
+}
+
+// สเปคของ pipeline (ใช้ร่วมกันทั้งไฟล์อัดและ Instant Replay — ต้องเหมือนกันทุกจุด)
+bool QmlMainWindow::pswrapBuildRecConfig(PsWrapRecConfig *cfg, QString *error)
+{
+	if (!session || stream_session_active.loadAcquire() == 0) {
+		*error = tr("Start a stream before recording.");
+		return false;
 	}
 	bool hdr = false;
 	PsWrapRecHdrInfo hdr_info;
 	int src_h = 0;
 	if (!PsWrapRecCapture::sourceInfo(&hdr, &hdr_info, &src_h)) {
-		emit pswrap_recorder->failed(tr("No video yet — wait for the stream to start."));
-		return;
+		*error = tr("No video yet — wait for the stream to start.");
+		return false;
 	}
 
 	// ไฟล์ = ทั้งหน้าต่างตามสัดส่วนจริง สูงไม่เกินความละเอียดสตรีม (หน้าต่าง 5K ultrawide + สตรีม 1080p → 2632x1080)
@@ -306,33 +398,86 @@ void QmlMainWindow::toggleRecording()
 	}
 	const double interval_ms = stream_configured_frame_interval_ms;
 
-	PsWrapRecConfig cfg;
-	cfg.width = qMax(2, tw & ~1);
-	cfg.height = qMax(2, th & ~1);
-	cfg.fps = interval_ms > 0.0 ? qBound(24, qRound(1000.0 / interval_ms), 120) : 60;
-	cfg.hdr = hdr;
-	cfg.hdr_info = hdr_info;
-	const QString folder = QDir::fromNativeSeparators(recordingFolder());
-	cfg.path = QDir(folder).filePath(QStringLiteral("PS-WRAP %1.mp4")
-		.arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH-mm-ss"))));
-	QString err;
-	if (pswrap_recorder->start(cfg, &err))
+	cfg->width = qMax(2, tw & ~1);
+	cfg->height = qMax(2, th & ~1);
+	cfg->fps = interval_ms > 0.0 ? qBound(24, qRound(1000.0 / interval_ms), 120) : 60;
+	cfg->hdr = hdr;
+	cfg->hdr_info = hdr_info;
+	return true;
+}
+
+bool QmlMainWindow::replayEnabled() const { return settings->GetReplayEnabled(); }
+void QmlMainWindow::setReplayEnabled(bool on)
+{
+	if (on == settings->GetReplayEnabled())
 		return;
-	// เขียนโฟลเดอร์ที่ตั้งไว้ไม่ได้ (เครื่องลูกพี่: Windows Security "Controlled folder access" บล็อก exe ที่ไม่รู้จักไม่ให้เขียน Videos)
-	// → ย้ายไปโฟลเดอร์สำรองใน home ที่ระบบไม่คุ้มครอง แล้วแจ้งผู้ใช้ แทนที่จะอัดไม่ได้เลย
-	const QString fallback = QDir(QDir::homePath()).filePath(QStringLiteral("PS-WRAP Recordings"));
-	if (pswrap_recorder->lastStartFileError() && QDir::cleanPath(folder) != QDir::cleanPath(fallback)) {
-		const QString blocked = QDir::toNativeSeparators(folder);
-		cfg.path = QDir(fallback).filePath(QFileInfo(cfg.path).fileName());
-		QString err2;
-		if (pswrap_recorder->start(cfg, &err2)) {
-			qCInfo(chiakiGui) << "PSWRAP recording: fallback folder" << fallback << "because" << err;
-			emit pswrap_recorder->notice(tr("Windows blocked saving to %1, so this recording is saved to %2. To keep using your folder, allow PS-WRAP in Windows Security → Ransomware protection → Allow an app, or pick another folder in Settings.")
-				.arg(blocked, QDir::toNativeSeparators(fallback)), cfg.path);
-			return;
-		}
+	settings->SetReplayEnabled(on);
+	if (pswrap_recorder)
+		pswrap_recorder->clearReplayFault();
+	emit replayEnabledChanged();
+	pswrapSyncReplay();
+}
+
+int QmlMainWindow::replaySeconds() const { return settings->GetReplaySeconds(); }
+void QmlMainWindow::setReplaySeconds(int seconds)
+{
+	seconds = qBound(30, seconds, 120);
+	if (seconds == settings->GetReplaySeconds())
+		return;
+	settings->SetReplaySeconds(seconds);
+	if (pswrap_recorder)
+		pswrap_recorder->setReplaySeconds(seconds);
+	emit replaySecondsChanged();
+}
+
+void QmlMainWindow::pswrapSyncReplay()
+{
+	if (!pswrap_recorder || pswrap_recorder->isBusy())
+		return;
+	const bool enabled = settings->GetReplayEnabled() || g_test_replay_s > 0;
+	const bool streaming = session && stream_session_active.loadAcquire() != 0 && has_video;
+	if (!enabled || !streaming) {
+		g_replay_video_since.invalidate();
+		if (pswrap_recorder->isReplayActive())
+			pswrap_recorder->stopReplay();
+		return;
 	}
-	emit pswrap_recorder->failed(err);
+	if (pswrap_recorder->isReplayActive() || pswrap_recorder->replayFaulted())
+		return;
+	if (!g_replay_video_since.isValid())
+		g_replay_video_since.start();
+	if (g_replay_video_since.elapsed() < kReplayStartDelayMs)
+		return;
+	PsWrapRecConfig cfg;
+	QString err;
+	if (!pswrapBuildRecConfig(&cfg, &err))
+		return; // ยังไม่มีภาพ — รอบหน้าลองใหม่
+	if (!pswrap_recorder->startReplay(cfg, settings->GetReplaySeconds(), &err)) {
+		// replayFaulted() กันไม่ให้ลองซ้ำทุกวินาที จนกว่าสตรีมใหม่/เปิดปิด Instant Replay ใหม่
+		qCWarning(chiakiGui) << "PSWRAP replay: start failed" << err;
+		emit pswrap_recorder->failed(tr("Instant Replay couldn't start: %1").arg(err));
+	}
+}
+
+void QmlMainWindow::saveReplay()
+{
+	if (!pswrap_recorder)
+		return;
+	if (!pswrap_recorder->isReplayActive()) {
+		emit pswrap_recorder->failed(settings->GetReplayEnabled() ? tr("Instant Replay starts a few seconds after the stream shows video.")
+		                                                          : tr("Turn on Instant Replay in Settings first."));
+		return;
+	}
+	const QString name = QStringLiteral("PS-WRAP Replay %1.mp4")
+		.arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH-mm-ss")));
+	const QString folder = QDir::fromNativeSeparators(recordingFolder());
+	pswrap_recorder->saveReplay(QDir(folder).filePath(name), QDir(fallbackRecordingFolder()).filePath(name));
+}
+
+void QmlMainWindow::addMarker()
+{
+	if (pswrap_recorder)
+		pswrap_recorder->addMarker();
 }
 
 void QmlMainWindow::openRecordingsFolder()
@@ -451,12 +596,48 @@ void QmlMainWindow::pswrapSetupTrayRecording(QMenu *menu)
 
 	tray_record_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/record.svg")), tr("Start recording"));
 	connect(tray_record_action, &QAction::triggered, this, [this]() { toggleRecording(); });
+	// Instant Replay / Screenshot — ใช้ API เดียวกับเมนูสตรีมและ hotkey
+	tray_replay_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/replay.svg")), tr("Instant Replay"));
+	tray_replay_action->setCheckable(true);
+	connect(tray_replay_action, &QAction::triggered, this, [this](bool on) { setReplayEnabled(on); pswrapRefreshTray(); });
+	tray_save_replay_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/save.svg")), tr("Save replay"));
+	connect(tray_save_replay_action, &QAction::triggered, this, [this]() { saveReplay(); });
+	tray_shot_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/screenshot.svg")), tr("Screenshot"));
+	connect(tray_shot_action, &QAction::triggered, this, [this]() { takeScreenshot(); });
+	// Go Live — เริ่ม/หยุดไลฟ์ไปทุกปลายทางที่เปิดไว้ใน Settings › Go Live (ข้อความสถานะต่อท้าย)
+	tray_live_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/live.svg")), tr("Go Live"));
+	connect(tray_live_action, &QAction::triggered, this, [this]() { goLive()->toggle(); pswrapRefreshTray(); });
+	if (pswrap_recorder)
+		connect(pswrap_recorder, &PsWrapRecorder::replayActiveChanged, this, [this]() { pswrapRefreshTray(); });
+	connect(this, &QmlMainWindow::replayEnabledChanged, this, [this]() { pswrapRefreshTray(); });
 	connect(menu, &QMenu::aboutToShow, this, [this]() { pswrapRefreshTray(); });
 	pswrapRefreshTray();
 }
 
 void QmlMainWindow::pswrapRefreshTray()
 {
+	{
+		const bool streaming = session && stream_session_active.loadAcquire() != 0;
+		if (tray_replay_action) {
+			const bool on = replayEnabled();
+			tray_replay_action->setChecked(on);
+			tray_replay_action->setText(tr("Instant Replay") + (on ? QStringLiteral("   ●  ON") : QStringLiteral("   ○  OFF")));
+		}
+		if (tray_save_replay_action)
+			tray_save_replay_action->setEnabled(pswrap_recorder && pswrap_recorder->isReplayActive());
+		if (tray_shot_action)
+			tray_shot_action->setEnabled(streaming);
+		if (tray_live_action) {
+			PsWrapGoLive *g = goLive();
+			if (g->isLive()) {
+				tray_live_action->setEnabled(true);
+				tray_live_action->setText(tr("Stop live") + QStringLiteral("   ●  ") + (g->summary().isEmpty() ? tr("LIVE") : g->summary()));
+			} else {
+				tray_live_action->setEnabled(streaming && g->enabledCount() > 0);
+				tray_live_action->setText(g->enabledCount() > 0 ? tr("Go Live") : tr("Go Live") + QStringLiteral("   ") + tr("(add a destination in Settings)"));
+			}
+		}
+	}
 	if (tray_mute_action) {
 		const bool live = session && stream_session_active.loadAcquire() != 0;
 		tray_mute_action->setEnabled(live);
@@ -509,7 +690,7 @@ void QmlMainWindow::pswrapRecordCapture(const pl_frame_mix *mix, const pl_frame 
 	if (hint)
 		PsWrapRecCapture::noteSource(hint);
 	PsWrapRecorder *rec = PsWrapRecorder::instance();
-	if (!rec || !rec->isRecording()) {
+	if (!rec || !rec->isCapturing()) {   // อัดไฟล์ หรือ Instant Replay (pipeline เดียวกัน)
 		if (pswrap_rec_capture && pswrap_rec_capture->canDestroy()) {
 			delete pswrap_rec_capture;
 			pswrap_rec_capture = nullptr;

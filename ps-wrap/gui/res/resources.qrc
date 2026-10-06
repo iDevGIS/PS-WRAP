@@ -54,6 +54,11 @@
     <file>menu/pin.svg</file>
     <file>menu/pin-accent.svg</file>
     <file>menu/tray.svg</file>
+    <file>menu/clock.svg</file>
+    <file>menu/replay.svg</file>
+    <file>menu/save.svg</file>
+    <file>menu/screenshot.svg</file>
+    <file>menu/live.svg</file>
     <file>overlay/ds-base.svg</file>
     <file>overlay/ds-axis-l.svg</file>
     <file>overlay/ds-axis-r.svg</file>

@@ -12,10 +12,12 @@
 
 #include <libplacebo/renderer.h>
 
+#include <QImage>
 #include <QtGlobal>
 
 #include <atomic>
 #include <deque>
+#include <functional>
 
 class PsWrapRecCapture
 {
@@ -63,6 +65,43 @@ private:
 	void releaseResources();
 	void collect(PsWrapRecorder *rec);
 	static void releaseSlot(void *opaque, uint8_t *data);
+};
+
+// PS-WRAP: ถ่ายภาพหน้าจอ 1 ภาพ — render thread เท่านั้น (แยกจาก PsWrapRecCapture → ใช้ได้ขณะอัด/replay)
+// วาดเฟรมเดียวกัน + quick_tex ลง texture RGBA ขนาดเท่า swapchain (ภาพเดียวกับที่เห็นบนจอทุก pixel)
+// SDR: RGBA8 sRGB (สตรีม HDR → libplacebo tone-map ให้) · สตรีม HDR: เพิ่ม RGBA16 PQ/BT.2020 ไม่ tone-map
+// download แบบ async (callback) ลง QImage ตรงๆ → done() ถูกเรียกจาก thread ของ GPU (ห้ามทำงานหนักใน done)
+class PsWrapShotCapture
+{
+public:
+	// sdr ไม่ว่างเสมอเมื่อสำเร็จ · pq ว่างถ้าสตรีม SDR หรือทำ 16-bit ไม่ได้ · ทั้งคู่ว่าง = download พัง
+	using DoneFn = std::function<void(QImage sdr, QImage pq)>;
+
+	PsWrapShotCapture(pl_gpu gpu, pl_log log);
+	~PsWrapShotCapture();   // ถ้ายังมี download ค้าง → pl_gpu_finish (callback ยิงก่อนลบ)
+
+	// คืน false = เริ่มไม่ได้ (done จะไม่ถูกเรียก) · พารามิเตอร์เหมือน PsWrapRecCapture::capture
+	bool capture(const struct pl_frame_mix *mix, const struct pl_frame *single,
+	             const struct pl_render_params &params, const struct pl_frame &screen_target,
+	             const struct pl_overlay *overlay, int screen_w, int screen_h, DoneFn done);
+
+	bool idle() const { return inflight.load(std::memory_order_acquire) == 0; }
+
+private:
+	struct Job;
+	pl_gpu gpu;
+	pl_log log;
+	pl_renderer renderer = nullptr;
+	pl_tex tex_sdr = nullptr;
+	pl_tex tex_pq = nullptr;
+	std::atomic<int> inflight{0};
+
+	pl_tex ensureTex(pl_tex *tex, int w, int h, int bits);
+	bool renderTo(pl_tex tex, bool pq, const struct pl_frame *src_hint, const struct pl_frame_mix *mix,
+	              const struct pl_frame *single, const struct pl_render_params &params,
+	              const struct pl_frame &screen_target, const struct pl_overlay *overlay,
+	              int screen_w, int screen_h);
+	static void onDownloaded(void *priv);
 };
 
 #endif // PSWRAP_RECCAPTURE_H

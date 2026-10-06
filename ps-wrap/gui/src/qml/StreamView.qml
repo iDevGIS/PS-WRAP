@@ -37,6 +37,15 @@ Item {
     readonly property bool controllerOverlayVisible: Chiaki.window.padOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing) && Chiaki.controllers.length > 0
     // PS-WRAP: mic spectrum overlay (MicSpectrumOverlay.qml) — เงื่อนไขเดียวกับ facecam
     readonly property bool micOverlayVisible: Chiaki.window.micOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
+    // PS-WRAP: นาฬิกา + เวลาเล่น (ClockOverlay.qml) — เงื่อนไขเดียวกับ mic · เวลาเล่นนับจากตอน session connected (sessionStartMs)
+    readonly property bool clockOverlayVisible: !!Chiaki.window.clockOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
+    property double sessionStartMs: 0
+    function noteSessionStart() {
+        if (!Chiaki.session || !Chiaki.session.connected)
+            sessionStartMs = 0;
+        else if (sessionStartMs <= 0)
+            sessionStartMs = Date.now();
+    }
     // PS-WRAP: อัดคลิป (Chiaki.window.recorder) — REC pill + toast อยู่ท้ายไฟล์
     readonly property QtObject recorder: Chiaki.window ? Chiaki.window.recorder : null
     property int separateMenuX: 0
@@ -93,6 +102,7 @@ Item {
             camEditMode ||
             statsEditMode ||
             micEditMode ||
+            clockEditMode ||
             menuController.open ||
             menuController.closing ||
             sessionStopDialogActive ||
@@ -109,9 +119,10 @@ Item {
         errorTextLabel.text = "";
         sessionLoading = !(Chiaki.window.loadingTransitionComplete || (Chiaki.settings.audioVideoDisabled & 0x02));
     }
-    StackView.onDeactivated: { Chiaki.window.keepVideo = false; if (overlayEditMode) view.stopOverlayEdit(); if (camEditMode) view.stopCamEdit(); if (statsEditMode) view.stopStatsEdit(); if (micEditMode) view.stopMicEdit(); }
+    StackView.onDeactivated: { Chiaki.window.keepVideo = false; if (overlayEditMode) view.stopOverlayEdit(); if (camEditMode) view.stopCamEdit(); if (statsEditMode) view.stopStatsEdit(); if (micEditMode) view.stopMicEdit(); if (clockEditMode) view.stopClockEdit(); }
 
     Component.onCompleted: {
+        noteSessionStart();
         updateSeparateMenuGeometry();
         updateOverlayInteractionActive();
         Chiaki.window.setStatsOverlayActive(streamStatsVisible && useSeparateMenuWindow);   // PS-WRAP: widget แยกเฉพาะ OpenGL — Vulkan วาด StatsOverlay inline
@@ -491,6 +502,7 @@ Item {
             onWebcamToggled: Chiaki.window.camOverlay = !Chiaki.window.camOverlay
             onWebcamEditRequested: { menuController.close(); view.startCamEdit(); }
             onMicEditRequested: { menuController.close(); view.startMicEdit(); }
+            onClockEditRequested: { menuController.close(); view.startClockEdit(); }
         }
     }
 
@@ -555,6 +567,10 @@ Item {
         property real micX: -1          // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น กลางล่าง)
         property real micY: -1
         property real micW: 0.17        // ความกว้างเป็นสัดส่วนของ overlayBaseW (≈320px ที่ 1920)
+        // clock overlay (นาฬิกา + เวลาเล่น)
+        property real clockX: -1        // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น ขวาบน)
+        property real clockY: -1
+        property real clockW: 0.13      // ความกว้างเป็นสัดส่วนของ overlayBaseW (≈250px ที่ 1920)
     }
 
     // ---- edit mode ของ overlay: ขอ input คืนจากเกมชั่วคราว ลากด้วยเมาส์/ลูกศร/จอย, มุมขวาล่างย่อขยาย, L1/R1 หรือ +/- ย่อขยาย, Esc/◯ หรือ Enter/✕ เสร็จ ----
@@ -604,6 +620,7 @@ Item {
         if (overlayEditMode) view.stopOverlayEdit();
         if (camEditMode) view.stopCamEdit();
         if (micEditMode) view.stopMicEdit();
+        if (clockEditMode) view.stopClockEdit();
         Chiaki.window.statsOverlay = true;
         statsEditMode = true;
         updateOverlayInteractionActive();
@@ -618,16 +635,18 @@ Item {
     }
     onStatsEditModeChanged: if (statsEditMode) statsFrame.forceActiveFocus(Qt.TabFocusReason)
     // คลิกที่ overlay = เข้าโหมดแก้ตัวนั้น (สลับจากตัวอื่นได้ทันที) · คลิกที่ว่าง = จบโหมดแก้
-    readonly property bool anyOverlayEdit: overlayEditMode || camEditMode || statsEditMode || micEditMode
+    readonly property bool anyOverlayEdit: overlayEditMode || camEditMode || statsEditMode || micEditMode || clockEditMode
     function editOverlay(which) {
         if (which !== "pad" && overlayEditMode) { overlayEditMode = false; }
         if (which !== "cam" && camEditMode) { camEditMode = false; camFrame.save(); }
         if (which !== "stats" && statsEditMode) { statsEditMode = false; statsFrame.save(); }
         if (which !== "mic" && micEditMode) { micEditMode = false; micFrame.save(); }
+        if (which !== "clock" && clockEditMode) { clockEditMode = false; clockFrame.save(); }
         if (which === "pad") { if (!overlayEditMode) { overlayEditMode = true; Chiaki.window.padOverlay = true; } view.grabInputOnce(overlayFrame); }
         else if (which === "cam") { if (!camEditMode) { camEditMode = true; Chiaki.window.camOverlay = true; } view.grabInputOnce(camFrame); }
         else if (which === "stats") { if (!statsEditMode) { statsEditMode = true; Chiaki.window.statsOverlay = true; } view.grabInputOnce(statsFrame); }
         else if (which === "mic") { if (!micEditMode) { micEditMode = true; Chiaki.window.micOverlay = true; } view.grabInputOnce(micFrame); }
+        else if (which === "clock") { if (!clockEditMode) { clockEditMode = true; Chiaki.window.clockOverlay = true; } view.grabInputOnce(clockFrame); }
         updateOverlayInteractionActive();
     }
     function stopAllOverlayEdit() {
@@ -635,6 +654,7 @@ Item {
         if (camEditMode) view.stopCamEdit();
         if (statsEditMode) view.stopStatsEdit();
         if (micEditMode) view.stopMicEdit();
+        if (clockEditMode) view.stopClockEdit();
     }
     // grab input ครั้งเดียวต่อช่วงแก้ (สลับตัวที่แก้ไม่ grab ซ้อน) แล้วโฟกัสตัวใหม่
     property bool editInputGrabbed: false
@@ -654,7 +674,7 @@ Item {
     function rectOf(item) { return item.visible ? Qt.rect(item.x, item.y, item.width, item.height) : Qt.rect(0, 0, 0, 0) }
     function pushOverlayHitRects() {
         if (!Chiaki.window) return;
-        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(root.recordingToast)]);
+        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(root.recordingToast)]);
     }
     Timer { interval: 200; repeat: true; running: !!Chiaki.session; onTriggered: view.pushOverlayHitRects() }
     Component.onDestruction: { if (Chiaki.window) Chiaki.window.setOverlayHitRects([]); root.toastBottomInset = 0; }
@@ -701,6 +721,7 @@ Item {
             return;
         if (overlayEditMode) view.stopOverlayEdit();
         if (micEditMode) view.stopMicEdit();
+        if (clockEditMode) view.stopClockEdit();
         Chiaki.window.camOverlay = true;
         camEditMode = true;
         view.updateOverlayInteractionActive();
@@ -737,6 +758,7 @@ Item {
         if (overlayEditMode) view.stopOverlayEdit();
         if (camEditMode) view.stopCamEdit();
         if (statsEditMode) view.stopStatsEdit();
+        if (clockEditMode) view.stopClockEdit();
         Chiaki.window.micOverlay = true;
         micEditMode = true;
         view.updateOverlayInteractionActive();
@@ -763,6 +785,102 @@ Item {
             console.log("PSWRAP shortcut record");
             if (view.recorder && !view.recorder.busy)
                 Chiaki.window.toggleRecording();
+        }
+    }
+    // ---- clock overlay: Ctrl+Shift+T เปิด/ปิด · edit mode (ลาก/ย่อขยาย) เหมือน mic ----
+    property bool clockEditMode: false
+    function startClockEdit() {
+        if (useSeparateMenuWindow || !Chiaki.session || clockEditMode)
+            return;
+        if (overlayEditMode) view.stopOverlayEdit();
+        if (camEditMode) view.stopCamEdit();
+        if (statsEditMode) view.stopStatsEdit();
+        if (micEditMode) view.stopMicEdit();
+        Chiaki.window.clockOverlay = true;
+        clockEditMode = true;
+        view.updateOverlayInteractionActive();
+        view.grabInputOnce(clockFrame);
+    }
+    function stopClockEdit() {
+        if (!clockEditMode)
+            return;
+        clockEditMode = false;
+        clockFrame.save();
+        releaseAfterEdit.restart();
+    }
+    onClockEditModeChanged: if (clockEditMode) clockFrame.forceActiveFocus(Qt.TabFocusReason)
+    Shortcut {
+        sequence: "Ctrl+Shift+T"
+        autoRepeat: false
+        onActivated: { console.log("PSWRAP shortcut clock"); Chiaki.window.clockOverlay = !Chiaki.window.clockOverlay; }
+    }
+    // ---- Instant Replay / marker / screenshot (C++: Chiaki.window.saveReplay/addMarker/takeScreenshot) ----
+    //      ผลลัพธ์ (replaySaved / screenshotSaved / failed) แสดงเป็น toast ที่ Main.qml · marker แสดง pill เล็กๆ ด้านล่างนี้
+    readonly property bool replayActive: !!view.recorder && !!view.recorder.replayActive
+    Shortcut {
+        sequence: "Ctrl+Shift+B"
+        autoRepeat: false
+        onActivated: {
+            console.log("PSWRAP shortcut save replay");
+            if (view.replayActive)
+                Chiaki.window.saveReplay();
+            else if (Chiaki.window.replayEnabled)
+                root.recordingToast.show({ kind: "info", title: qsTr("Instant Replay is not ready yet"), timeout: 3000 });
+            else
+                root.recordingToast.show({
+                    kind: "info",
+                    title: qsTr("Instant Replay is off"),
+                    detail: qsTr("Turn on Replay in the stream menu to keep the last %1 seconds.").arg(Chiaki.window.replaySeconds || 60),
+                    timeout: 4000
+                });
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+Shift+K"
+        autoRepeat: false
+        onActivated: {
+            console.log("PSWRAP shortcut marker");
+            if ((view.recorder && view.recorder.recording) || view.replayActive)
+                Chiaki.window.addMarker();
+            else
+                markerPill.flash(qsTr("Markers need Record or Replay"));
+        }
+    }
+    Shortcut {
+        sequences: ["F12", "Ctrl+Shift+P"]
+        autoRepeat: false
+        onActivated: {
+            console.log("PSWRAP shortcut screenshot");
+            if (Chiaki.session)
+                Chiaki.window.takeScreenshot();
+        }
+    }
+    // ---- Go Live: Ctrl+Shift+L เริ่ม/หยุด (Chiaki.goLive — ผล/สถานะแสดงเป็น toast ที่ Main.qml + จุดสีในเมนูสตรีม) ----
+    Shortcut {
+        sequence: "Ctrl+Shift+L"
+        autoRepeat: false
+        onActivated: {
+            console.log("PSWRAP shortcut go live");
+            if (Chiaki.goLive)
+                Chiaki.goLive.toggle();
+        }
+    }
+    // นับ marker ต่อคลิป: เริ่มอัดใหม่ = เริ่มนับ 1 ใหม่
+    property int markerCount: 0
+    property bool markerWasRecording: false
+    Connections {
+        target: view.recorder
+        ignoreUnknownSignals: true
+        // recordingChanged ยิงตอน busy/description เปลี่ยนด้วย → reset เฉพาะขอบขาขึ้นของ recording
+        function onRecordingChanged() {
+            const r = view.recorder.recording;
+            if (r && !view.markerWasRecording)
+                view.markerCount = 0;
+            view.markerWasRecording = r;
+        }
+        function onMarkerAdded(seconds) {
+            view.markerCount += 1;
+            markerPill.flash(qsTr("Marker %1 · %2").arg(view.markerCount).arg(view.formatElapsed(seconds)));
         }
     }
 
@@ -1234,6 +1352,170 @@ Item {
         }
     }
 
+    // clock inline (Vulkan) — วาดที่ 248×72 แล้ว scale ตามกรอบ · จำตำแหน่งเป็นสัดส่วนของกรอบวิดีโอ · ค่าเริ่มต้นขวาบน
+    FocusScope {
+        id: clockFrame
+        z: 60
+        readonly property real aspect: clockCard.implicitWidth / clockCard.implicitHeight
+        visible: !useSeparateMenuWindow && Chiaki.session && (clockOverlayVisible || clockEditMode)
+        onVisibleChanged: if (visible) layout()
+        width: Math.max(140, Math.round(overlayBaseW * pswrapPrefs.clockW))
+        height: Math.round(width / aspect)
+
+        function layout() {
+            const maxX = Math.max(0, videoW - width);
+            const maxY = Math.max(0, videoH - height);
+            x = videoX + (pswrapPrefs.clockX < 0 ? maxX - 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.clockX * videoW))));
+            y = videoY + (pswrapPrefs.clockY < 0 ? 24 : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.clockY * videoH))));
+        }
+        function save() {
+            pswrapPrefs.clockX = videoW > 0 ? (x - videoX) / videoW : -1;
+            pswrapPrefs.clockY = videoH > 0 ? (y - videoY) / videoH : -1;
+        }
+        function nudge(dx, dy) {
+            x = Math.min(Math.max(videoX, x + dx), videoX + Math.max(0, videoW - width));
+            y = Math.min(Math.max(videoY, y + dy), videoY + Math.max(0, videoH - height));
+            save();
+        }
+        function resizeBy(delta) {
+            pswrapPrefs.clockW = Math.min(0.4, Math.max(0.07, pswrapPrefs.clockW + delta));
+            Qt.callLater(function() { layout(); save(); });
+        }
+        Component.onCompleted: layout()
+        Connections {
+            target: view
+            function onWidthChanged() { clockFrame.layout() }
+            function onHeightChanged() { clockFrame.layout() }
+            function onVideoXChanged() { clockFrame.layout() }
+            function onVideoYChanged() { clockFrame.layout() }
+        }
+        onWidthChanged: layout()
+
+        Keys.onPressed: (event) => {
+            if (!clockEditMode) return;
+            switch (event.key) {
+            case Qt.Key_Left:  nudge(-10, 0); break;
+            case Qt.Key_Right: nudge(10, 0); break;
+            case Qt.Key_Up:    nudge(0, -10); break;
+            case Qt.Key_Down:  nudge(0, 10); break;
+            case Qt.Key_PageUp: case Qt.Key_Minus: resizeBy(-0.01); break;
+            case Qt.Key_PageDown: case Qt.Key_Plus: case Qt.Key_Equal: resizeBy(0.01); break;
+            case Qt.Key_Escape: case Qt.Key_Return: case Qt.Key_Enter: case Qt.Key_Backspace: view.stopClockEdit(); break;
+            default: return;
+            }
+            event.accepted = true;
+        }
+
+        ClockOverlay {
+            id: clockCard
+            active: clockFrame.visible
+            startMs: view.sessionStartMs
+            overlayOpacity: clockEditMode ? 1.0 : 0.92
+            scale: clockFrame.width / implicitWidth
+            transformOrigin: Item.TopLeft
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -6
+            visible: clockEditMode
+            color: Qt.rgba(0, 0.655, 1, 0.08)
+            radius: 16 * clockCard.scale + 6
+            border.width: 2
+            border.color: Theme.accent
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: !clockEditMode
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onPressed: view.notePress()
+            onClicked: view.overlayClicked("clock")
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: clockEditMode
+            cursorShape: clockEditMode ? Qt.SizeAllCursor : Qt.ArrowCursor
+            drag.target: clockFrame
+            drag.minimumX: videoX
+            drag.minimumY: videoY
+            drag.maximumX: videoX + Math.max(0, videoW - clockFrame.width)
+            drag.maximumY: videoY + Math.max(0, videoH - clockFrame.height)
+            onReleased: clockFrame.save()
+            drag.onActiveChanged: if (!drag.active) clockFrame.save()
+        }
+        Rectangle {
+            visible: clockEditMode
+            anchors { right: parent.right; bottom: parent.bottom; margins: -10 }
+            width: 28; height: 28; radius: 14
+            color: Theme.accent
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.SizeFDiagCursor
+                property real startX: 0
+                property real startW: 0
+                onPressed: (mouse) => { startX = mapToItem(view, mouse.x, 0).x; startW = clockFrame.width; }
+                onPositionChanged: (mouse) => {
+                    if (!pressed) return;
+                    const nowX = mapToItem(view, mouse.x, 0).x;
+                    const w = Math.max(140, startW + (nowX - startX));
+                    pswrapPrefs.clockW = Math.min(0.4, Math.max(0.07, w / overlayBaseW));
+                }
+                onReleased: clockFrame.save()
+            }
+        }
+    }
+
+    // ---- marker: pill เล็กๆ โผล่ ~1.6 วิ (มุมซ้ายบนของกรอบวิดีโอ ใต้ pill "Saving…") — ไม่รับ input, ไม่อยู่ใน hit rect ----
+    Rectangle {
+        id: markerPill
+        property string text: ""
+        function flash(t) {
+            text = t;
+            shown = true;
+            markerHideTimer.restart();
+        }
+        property bool shown: false
+        z: 65
+        x: videoX + 16
+        y: videoY + 16 + (recPill.visible ? recPill.height + 8 : 0)
+        opacity: shown && !sessionError ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: 180 } }
+        enabled: false
+        implicitHeight: 28
+        implicitWidth: markerRow.implicitWidth + 22
+        radius: height / 2
+        color: Qt.rgba(0, 0, 0, 0.55)
+        border.width: 1
+        border.color: Qt.rgba(1, 0.71, 0.28, 0.55)
+        Row {
+            id: markerRow
+            anchors.centerIn: parent
+            spacing: 8
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 8
+                height: 8
+                rotation: 45
+                color: Theme.warning
+            }
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                text: markerPill.text
+                font.pixelSize: Theme.fontCaption
+                font.weight: Font.DemiBold
+                font.features: { "tnum": 1 }
+                color: Theme.text
+            }
+        }
+        Timer {
+            id: markerHideTimer
+            interval: 1600
+            onTriggered: markerPill.shown = false
+        }
+    }
+
     // ---- อัดคลิป: pill "Saving…" ตอนปิดไฟล์ (มุมซ้ายบนของกรอบวิดีโอ) — ไม่รับ input, ไม่อยู่ใน hit rect ----
     //      ระหว่างอัด ใช้จุดแดงที่ C++ วาดลงจอโดยตรง (pswrapDecorateScreen) แทน — ทุกอย่างใน QML ติดไปในคลิป แต่จุดนั้นไม่ติด
     function formatElapsed(sec) {
@@ -1616,6 +1898,9 @@ Item {
         function onSessionChanged() {
             if (!Chiaki.session)
                 menuController.close();
+            view.sessionStartMs = 0;   // session ใหม่ = เริ่มนับเวลาเล่นใหม่
+            view.markerCount = 0;
+            view.noteSessionStart();
         }
     }
     Connections {
@@ -1624,6 +1909,7 @@ Item {
         function onConnectedChanged() {
             if (Chiaki.settings.audioVideoDisabled & 0x02)
                 sessionLoading = false;
+            view.noteSessionStart();
         }
     }
 }

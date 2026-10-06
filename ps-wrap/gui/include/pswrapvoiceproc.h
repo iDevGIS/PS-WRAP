@@ -19,6 +19,30 @@
 #include <cstdint>
 #include <vector>
 
+// เพิ่มเสียง + noise gate + limiter — ขั้นสุดท้ายของ PsWrapVoiceProc (หลัง AEC/denoise ก่อน Opus/อัด/meter)
+// ทำงานแม้ปิด speex/RNNoise · ไม่ขึ้นกับ speex (ทดสอบเดี่ยวได้) · ใช้จาก thread เดียว (thread ไมค์)
+// gain: ปรับแบบ one-pole ~15 ms (ไม่ zipper) · gate: วัด RMS (τ 10 ms) หลัง gain (ตรงกับที่ meter เห็น) เปิดเมื่อเกิน threshold
+//   ปิดเมื่อต่ำกว่า threshold−4 dB ต่อเนื่อง 150 ms · ramp เปิด 5 ms / ปิด 100 ms (ไม่มีคลิก)
+// limiter: peak limiter เพดาน −1 dBFS attack ทันที release 80 ms → +24 dB ก็ไม่ hard-clip
+class PsWrapMicDynamics
+{
+public:
+	static constexpr int kRate = 48000;
+	// pcm interleaved · ตรวจระดับจากค่าสูงสุดของทุก channel แต่คูณ gain เท่ากันทุก channel
+	void process(int16_t *pcm, int frames, int channels, float gain_db, bool gate_on, float gate_threshold_db);
+	bool gateOpen() const { return open; }
+	float limiterGain() const { return lim; }
+	void reset();
+
+private:
+	float gain = 1.0f;      // gain ที่ smooth แล้ว (linear)
+	float gate = 1.0f;      // gain ของ gate 0..1
+	float env = 0.0f;       // mean-square envelope หลัง gain (τ 10 ms)
+	int hold = 0;           // sample ที่เหลือก่อนเริ่มปิด
+	bool open = true;
+	float lim = 1.0f;       // gain ของ limiter
+};
+
 #if CHIAKI_GUI_ENABLE_SPEEX
 struct SpeexEchoState_;
 struct SpeexPreprocessState_;
@@ -45,6 +69,10 @@ public:
 	// thread ใดก็ได้ · noise/echo = dB ที่ลด (0 = ปิดขั้นนั้น, echo 0 = ไม่ทำ AEC)
 	static void setParams(bool enabled, int noise_db, int echo_db);
 	static bool enabled();
+	// thread ใดก็ได้ · gain −12..+24 dB · gate threshold −80..−20 dB(FS) — มีผลเฟรมถัดไป ไม่ขึ้นกับ setParams/enabled
+	static void setDynamics(float gain_db, bool gate_on, float gate_threshold_db);
+	// gate เปิดอยู่ไหม (ของ instance ที่ process ล่าสุด · gate ปิดใช้งาน = true เสมอ) — สำหรับไฟใน MicPreviewDialog
+	static bool gateOpenNow();
 
 	// thread เสียงออก: PCM s16 interleaved 48 kHz ที่เพิ่งส่งเข้าอุปกรณ์ (หลังปรับ volume)
 	// pending_frames = จำนวน sample ที่ยังไม่ออกลำโพง "หลัง" ส่งชุดนี้แล้ว (คิว SDL + บัฟเฟอร์อุปกรณ์)
@@ -54,12 +82,15 @@ public:
 
 	// thread ไมค์: ประมวลผลในที่ · mono kFrame sample
 	// capture_lag_frames = sample สุดท้ายของเฟรมนี้ถูกอัดไปแล้วกี่ sample ก่อน "ตอนนี้"
-	// คืน false ถ้าไม่ได้ทำอะไร (ปิดอยู่)
+	// AEC/denoise (ถ้าเปิด) แล้วตามด้วย gain/gate/limiter เสมอ · คืน false ถ้า AEC/denoise ปิดอยู่
 	bool process(int16_t *mono, int64_t capture_lag_frames);
 
 private:
 	void applyParamsIfChanged();
 	void fetchReference(int16_t *out, int64_t capture_lag_frames, bool *have_ref);
+	bool processSpeech(int16_t *mono, int64_t capture_lag_frames);
+
+	PsWrapMicDynamics dyn;
 
 #if CHIAKI_GUI_ENABLE_SPEEX
 	SpeexEchoState_ *echo = nullptr;

@@ -241,7 +241,10 @@ Dialog {
             Item { Layout.fillWidth: true }
             Rectangle {
                 id: camStatusPill
-                readonly property color c: !camPreview.hasCamera ? Theme.danger : (Chiaki.window.camOverlay ? Theme.success : Theme.textMuted)
+                // "Live" เฉพาะตอนมีเฟรมเข้าจริง (camPreview.status) — เปิดไม่ได้/ไม่มีเฟรมใน ~3 s = แดง "No video from camera"
+                readonly property color c: !camPreview.hasCamera || camPreview.noVideo ? Theme.danger
+                                           : camPreview.status !== "live" ? Theme.warning
+                                           : (Chiaki.window.camOverlay ? Theme.success : Theme.textMuted)
                 radius: Theme.radiusChip
                 color: Qt.rgba(c.r, c.g, c.b, 0.15)
                 implicitHeight: 28
@@ -256,7 +259,10 @@ Dialog {
                     Label {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
-                        text: !camPreview.hasCamera ? qsTr("No camera") : (Chiaki.window.camOverlay ? qsTr("Live · %1").arg(camPreview.cameraName) : qsTr("Live · hidden in stream"))
+                        text: !camPreview.hasCamera ? qsTr("No camera")
+                              : camPreview.noVideo ? qsTr("No video from camera")
+                              : camPreview.status !== "live" ? qsTr("Starting camera…")
+                              : (Chiaki.window.camOverlay ? qsTr("Live · %1").arg(camPreview.cameraName) : qsTr("Live · hidden in stream"))
                         font.pixelSize: Theme.fontCaption
                         font.weight: Font.DemiBold
                         color: camStatusPill.c

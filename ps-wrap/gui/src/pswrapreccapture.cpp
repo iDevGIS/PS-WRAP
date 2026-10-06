@@ -361,3 +361,236 @@ bool PsWrapRecCapture::sourceInfo(bool *is_hdr, PsWrapRecHdrInfo *info, int *src
 	*info = out;
 	return true;
 }
+
+// ---------------------------------------------------------------- ภาพหน้าจอ (PsWrapShotCapture)
+
+// งาน download 1 ครั้ง (SDR + PQ ถ้ามี) — ถือ QImage ที่ GPU เขียนลงตรงๆ · ลบตัวเองเมื่อ callback ครบ
+struct PsWrapShotCapture::Job
+{
+	PsWrapShotCapture *owner = nullptr;
+	int pending = 0;           // callback ของ libplacebo ไม่รันซ้อนกัน → int ธรรมดาพอ
+	bool sdr_ok = false, pq_ok = false;
+	QImage sdr, pq;
+	DoneFn done;
+};
+
+PsWrapShotCapture::PsWrapShotCapture(pl_gpu gpu, pl_log log)
+	: gpu(gpu), log(log)
+{
+}
+
+PsWrapShotCapture::~PsWrapShotCapture()
+{
+	if (inflight.load(std::memory_order_acquire) > 0)
+		pl_gpu_finish(gpu); // ให้ callback ที่ค้างยิงให้ครบก่อน (Job ชี้กลับมาที่ this)
+	if (tex_sdr)
+		pl_tex_destroy(gpu, &tex_sdr);
+	if (tex_pq)
+		pl_tex_destroy(gpu, &tex_pq);
+	if (renderer)
+		pl_renderer_destroy(&renderer);
+}
+
+pl_tex PsWrapShotCapture::ensureTex(pl_tex *tex, int w, int h, int bits)
+{
+	if (*tex && (*tex)->params.w == w && (*tex)->params.h == h)
+		return *tex;
+	if (*tex)
+		pl_tex_destroy(gpu, tex);
+	// ต้องเป็น rgba ตามลำดับ byte ของ QImage RGBX8888/RGBX64 (pl_find_fmt อาจคืน bgra)
+	pl_fmt fmt = pl_find_named_fmt(gpu, bits == 16 ? "rgba16" : "rgba8");
+	const auto need = static_cast<pl_fmt_caps>(PL_FMT_CAP_RENDERABLE | PL_FMT_CAP_HOST_READABLE);
+	if (!fmt || (fmt->caps & need) != need || fmt->type != PL_FMT_UNORM) {
+		qCWarning(pswrapRec) << "shot: no renderable+readable rgba" << bits << "format";
+		return nullptr;
+	}
+	pl_tex_params p = {};
+	p.w = w;
+	p.h = h;
+	p.format = fmt;
+	p.renderable = true;
+	p.host_readable = true;
+	p.blit_dst = (fmt->caps & PL_FMT_CAP_BLITTABLE) != 0;
+	p.storable = (fmt->caps & PL_FMT_CAP_STORABLE) != 0;
+	p.debug_tag = PL_DEBUG_TAG;
+	*tex = pl_tex_create(gpu, &p);
+	if (!*tex)
+		qCWarning(pswrapRec) << "shot: texture creation failed" << w << h << bits;
+	return *tex;
+}
+
+bool PsWrapShotCapture::renderTo(pl_tex tex, bool pq, const pl_frame *src_hint, const pl_frame_mix *mix,
+                                 const pl_frame *single, const pl_render_params &params,
+                                 const pl_frame &screen_target, const pl_overlay *overlay,
+                                 int screen_w, int screen_h)
+{
+	const int w = tex->params.w, h = tex->params.h;
+	pl_frame t = {};
+	t.num_planes = 1;
+	t.planes[0].texture = tex;
+	t.planes[0].components = 4;
+	t.planes[0].component_mapping[0] = PL_CHANNEL_R;
+	t.planes[0].component_mapping[1] = PL_CHANNEL_G;
+	t.planes[0].component_mapping[2] = PL_CHANNEL_B;
+	t.planes[0].component_mapping[3] = PL_CHANNEL_A;
+	t.repr = pl_color_repr_rgb;
+	t.repr.alpha = PL_ALPHA_INDEPENDENT; // background_transparency = 0 → alpha = 1 ทั้งภาพ (ตรงกับ RGBX ของ QImage)
+	t.repr.bits.sample_depth = pq ? 16 : 8;
+	t.repr.bits.color_depth = pq ? 16 : 8;
+	if (pq) {
+		t.color = pl_color_space_hdr10; // BT.2020 + PQ
+		if (src_hint && pl_color_space_is_hdr(&src_hint->color))
+			t.color.hdr = src_hint->color.hdr; // peak เท่า source → ไม่ tone-map
+	} else {
+		t.color = pl_color_space_srgb; // สตรีม HDR → libplacebo tone-map ลง SDR ตาม params ของจอ
+	}
+
+	// วาง "ทั้งจอ" ลงภาพแบบคงสัดส่วน (ปกติ s = 1 = ขนาด swapchain พอดี)
+	const float s = std::min(float(w) / float(screen_w), float(h) / float(screen_h));
+	const float ox = (float(w) - screen_w * s) * 0.5f;
+	const float oy = (float(h) - screen_h * s) * 0.5f;
+	const pl_rect2df c = screen_target.crop;
+	const bool flipped = c.y0 > c.y1; // swapchain OpenGL กลับหัว — texture ของเราไม่กลับ
+	t.crop.x0 = ox + std::min(c.x0, c.x1) * s;
+	t.crop.x1 = ox + std::max(c.x0, c.x1) * s;
+	t.crop.y0 = oy + std::min(c.y0, c.y1) * s;
+	t.crop.y1 = oy + std::max(c.y0, c.y1) * s;
+
+	pl_overlay ov = {};
+	pl_overlay_part part = {};
+	if (overlay && overlay->tex && overlay->num_parts > 0) {
+		ov = *overlay;
+		part = overlay->parts[0];
+		if (flipped)
+			std::swap(part.src.y0, part.src.y1);
+		part.dst = {ox, oy, ox + screen_w * s, oy + screen_h * s};
+		ov.parts = &part;
+		ov.num_parts = 1;
+		t.overlays = &ov;
+		t.num_overlays = 1;
+	}
+
+	pl_render_params p = params;
+	p.hooks = nullptr; // user shader hooks มี state ผูกกับ renderer หลัก — ไม่แชร์
+	p.num_hooks = 0;
+	p.background_transparency = 0.0f;
+	p.info_callback = nullptr;
+	return single ? pl_render_image(renderer, single, &t, &p)
+	              : pl_render_image_mix(renderer, mix, &t, &p);
+}
+
+bool PsWrapShotCapture::capture(const pl_frame_mix *mix, const pl_frame *single,
+                                const pl_render_params &params, const pl_frame &screen_target,
+                                const pl_overlay *overlay, int screen_w, int screen_h, DoneFn done)
+{
+	if (screen_w <= 0 || screen_h <= 0)
+		return false;
+	if (!single && (!mix || mix->num_frames <= 0))
+		return false;
+	if (!renderer)
+		renderer = pl_renderer_create(log, gpu);
+	if (!renderer) {
+		qCWarning(pswrapRec) << "shot: pl_renderer_create failed";
+		return false;
+	}
+
+	// ขนาดภาพ = ขนาด swapchain (ทุก pixel ตรงกับจอ) · ย่อคงสัดส่วนเฉพาะเมื่อเกินขีด GPU / 8192
+	int w = screen_w, h = screen_h;
+	const int max_dim = static_cast<int>(std::min<uint32_t>(gpu->limits.max_tex_2d_dim ? gpu->limits.max_tex_2d_dim : 8192, 8192));
+	if (w > max_dim || h > max_dim) {
+		const double k = std::min(double(max_dim) / w, double(max_dim) / h);
+		w = std::max(2, int(w * k));
+		h = std::max(2, int(h * k));
+	}
+
+	const pl_frame *src = single ? single : mix->frames[0];
+	const bool want_pq = src && pl_color_space_is_hdr(&src->color);
+
+	auto *job = new Job;
+	job->owner = this;
+	job->done = std::move(done);
+
+	pl_tex sdr = ensureTex(&tex_sdr, w, h, 8);
+	if (!sdr || !renderTo(sdr, false, src, mix, single, params, screen_target, overlay, screen_w, screen_h)) {
+		qCWarning(pswrapRec) << "shot: SDR render failed";
+		delete job;
+		return false;
+	}
+	job->sdr = QImage(w, h, QImage::Format_RGBX8888);
+	pl_tex pqt = nullptr;
+	if (want_pq) {
+		pqt = ensureTex(&tex_pq, w, h, 16);
+		if (pqt && renderTo(pqt, true, src, mix, single, params, screen_target, overlay, screen_w, screen_h))
+			job->pq = QImage(w, h, QImage::Format_RGBX64);
+		else
+			pqt = nullptr; // ได้แค่ SDR (log ไว้แล้วถ้า format ไม่มี)
+	}
+	if (job->sdr.isNull() || (pqt && job->pq.isNull())) {
+		qCWarning(pswrapRec) << "shot: out of memory for" << w << "x" << h;
+		delete job;
+		return false;
+	}
+
+	const bool async = gpu->limits.callbacks;
+	job->pending = pqt ? 2 : 1;
+	inflight.fetch_add(1, std::memory_order_acq_rel);
+
+	auto download = [&](pl_tex tex, QImage &img, bool *ok_flag) {
+		pl_tex_transfer_params d = {};
+		d.tex = tex;
+		d.ptr = img.bits();
+		d.row_pitch = static_cast<size_t>(img.bytesPerLine());
+		if (async) {
+			// ok_flag ตั้งก่อน — ถ้า pl_tex_download คืน false จะไม่มี callback → แก้ด้านล่าง
+			*ok_flag = true;
+			d.callback = &PsWrapShotCapture::onDownloaded;
+			d.priv = job;
+		}
+		const bool ok = pl_tex_download(gpu, &d);
+		if (!async)
+			*ok_flag = ok;
+		return ok;
+	};
+
+	// ลำดับสำคัญ: เมื่อ download ตัวสุดท้ายเข้าคิวแล้ว callback อาจลบ job ได้ทุกเมื่อ — ห้ามแตะ job หลังจากนั้น
+	if (pqt && !download(pqt, job->pq, &job->pq_ok)) {
+		job->pq_ok = false;
+		job->pq = QImage();
+		job->pending--; // ไม่มี callback ของ PQ
+		qCWarning(pswrapRec) << "shot: PQ download failed — SDR only";
+	}
+	const bool sdr_queued = download(sdr, job->sdr, &job->sdr_ok);
+	if (async) {
+		if (!sdr_queued) {
+			// ไม่มี callback ของ SDR → นับส่วนนี้ว่าจบเอง (ถ้า PQ จบไปแล้ว onDownloaded จะปิดงาน + เรียก done ด้วยภาพว่าง)
+			qCWarning(pswrapRec) << "shot: SDR download failed";
+			job->sdr_ok = false;
+			onDownloaded(job);
+		}
+		return true;
+	}
+	// ไม่มี GPU callback: download ข้างบนบล็อกจนเสร็จแล้ว → ปิดงานทันที
+	job->pending = 1;
+	onDownloaded(job);
+	return true;
+}
+
+void PsWrapShotCapture::onDownloaded(void *priv)
+{
+	auto *job = static_cast<Job *>(priv);
+	if (!job)
+		return;
+	if (job->pending > 0 && --job->pending > 0)
+		return;
+	if (!job->sdr_ok)
+		job->sdr = QImage();
+	if (!job->pq_ok)
+		job->pq = QImage();
+	if (job->sdr.isNull())
+		job->pq = QImage(); // PQ อย่างเดียวไม่ส่ง (ผู้ใช้คาดหวังภาพ SDR เสมอ)
+	PsWrapShotCapture *owner = job->owner;
+	if (job->done)
+		job->done(std::move(job->sdr), std::move(job->pq));
+	delete job;
+	owner->inflight.fetch_sub(1, std::memory_order_acq_rel);
+}

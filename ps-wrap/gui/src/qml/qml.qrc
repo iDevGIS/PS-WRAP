@@ -11,6 +11,7 @@
     <file>WebcamOverlay.qml</file>
     <file>StatsOverlay.qml</file>
     <file>MicSpectrumOverlay.qml</file>
+    <file>ClockOverlay.qml</file>
     <file>StreamToast.qml</file>
     <file>MicPreviewDialog.qml</file>
     <file>CamPreviewDialog.qml</file>
@@ -23,6 +24,8 @@
     <file>SteamShortcutDialog.qml</file>
     <file>SettingsDialog.qml</file>
     <file>SettingsKeysPage.qml</file>
+    <file>SettingsGamePresetsPage.qml</file>
+    <file>GoLiveSettingsPage.qml</file>
     <file>DisplaySettingsDialog.qml</file>
     <file>PlaceboSettingsDialog.qml</file>
     <file>PlaceboColorMappingDialog.qml</file>

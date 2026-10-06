@@ -1,5 +1,6 @@
 // PS-WRAP: วัดเสียงไมค์สำหรับ overlay spectrum (ดู pswrapmicmeter.h)
 #include <pswrapmicmeter.h>
+#include <pswrapvoiceproc.h>
 
 #include <QAtomicPointer>
 #include <QMutexLocker>
@@ -208,13 +209,7 @@ void PsWrapMicMeter::onTick()
 		live_out = is_live;
 		emit liveChanged();
 	}
-	static const bool dbg = qEnvironmentVariableIsSet("PSWRAP_MIC_DEBUG");
-	static int dbg_n = 0;
-	if (dbg && ++dbg_n % 60 == 0) {
-		float ring_peak = 0.0f, band_max = 0.0f;
-		{ QMutexLocker locker(&mutex); for (float v : ring) ring_peak = std::max(ring_peak, std::fabs(v)); }
-		for (float b : smooth_bands) band_max = std::max(band_max, b);
-		qInfo().nospace() << "PSWRAP micmeter live=" << is_live << " ring_peak=" << ring_peak << " band_max=" << band_max << " level=" << smooth_level;
-	}
+	// สถานะ noise gate ของเฟรมไมค์ล่าสุด (PsWrapVoiceProc) — ไม่มีเสียงเข้า = ถือว่าปิด
+	gate_open_out = is_live && PsWrapVoiceProc::gateOpenNow();
 	emit updated();
 }

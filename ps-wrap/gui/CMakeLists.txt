@@ -69,6 +69,17 @@ set(SOURCE_FILES
 	include/pswrapvoiceproc.h
 	src/pswrapvoiceproc.cpp
 	src/qmlmainwindow_pswraprec.cpp
+	src/qmlmainwindow_pswrapshot.cpp
+	src/qmlmainwindow_pswrapclock.cpp
+	src/qmlmainwindow_pswrapmic.cpp
+	include/pswrapgameprofiles.h
+	src/pswrapgameprofiles.cpp
+	src/qmlmainwindow_pswrapprofiles.cpp
+	include/pswrapsecrets.h
+	src/pswrapsecrets.cpp
+	include/pswraplive.h
+	src/pswraplive.cpp
+	src/qmlmainwindow_pswraplive.cpp
 	)
 set(RESOURCE_FILES "")
 
@@ -128,6 +139,12 @@ if(WIN32 AND TARGET FFMPEG::avdevice AND TARGET FFMPEG::swscale)
 	target_link_libraries(chiaki FFMPEG::avdevice FFMPEG::swscale ole32 oleaut32 strmiids uuid)
 	target_compile_definitions(chiaki PRIVATE PSWRAP_DSHOW_CAMERA=1)
 endif()   # PS-WRAP: Network สำหรับ single instance (QLocalServer)
+if(WIN32)
+	target_link_libraries(chiaki advapi32)   # PS-WRAP: Credential Manager (CredWriteW/CredReadW) ของ pswrapsecrets
+endif()
+if(TARGET FFMPEG::swscale)
+	target_link_libraries(chiaki FFMPEG::swscale)   # PS-WRAP: Go Live ย่อภาพเป็น 16:9 (pswraplive.cpp) — ทุกแพลตฟอร์ม ไม่ใช่แค่ DirectShow
+endif()
 if (${Qt6DBus_FOUND} AND NOT WIN32)
 	target_link_libraries(chiaki Qt::DBus)
 if (NOT APPLE)

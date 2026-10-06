@@ -2618,6 +2618,7 @@ QmlMainWindow::~QmlMainWindow()
 
     if (pl_gpu gpu = placeboGpu()) {
         pswrapDestroyCapture();   // PS-WRAP: render thread จบแล้ว + recorder หยุดแล้ว
+        pswrapDestroyShot();      // PS-WRAP: ภาพหน้าจอ (รอ download ที่ค้างก่อนลบ)
         pl_unmap_avframe(gpu, &direct_frame);
         if (quick_tex)
             pl_tex_destroy(gpu, &quick_tex);
@@ -7785,6 +7786,10 @@ void QmlMainWindow::render()
     pswrapRecordCapture(bypass_frame_queue ? nullptr : &frame_mix,
                         bypass_frame_queue ? &direct_render_frame : nullptr,
                         params, target_frame, target_frame.num_overlays > 0 ? &overlay : nullptr, hint_frame);
+    // PS-WRAP: ภาพหน้าจอ — ทำงานเฉพาะเฟรมที่มีคำขอ (qmlmainwindow_pswrapshot.cpp)
+    pswrapShotCapture(bypass_frame_queue ? nullptr : &frame_mix,
+                      bypass_frame_queue ? &direct_render_frame : nullptr,
+                      params, target_frame, target_frame.num_overlays > 0 ? &overlay : nullptr);
     close_started_frame(true);
 
     if (startup_video_visible_refresh_pending.loadAcquire() != 0) {

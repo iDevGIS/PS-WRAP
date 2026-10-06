@@ -9,6 +9,7 @@
 #include "pswrapcamera.h"
 #include "pswrapsegmenter.h"
 #include "pswrapfacetracker.h"
+#include "pswrapgameprofiles.h"
 #include "chiaki/remote/holepunch.h"
 #ifdef Q_OS_MACOS
 #include "macWakeSleep.h"
@@ -517,6 +518,12 @@ QmlMainWindow *QmlBackend::qmlWindow() const
     return window;
 }
 
+// PS-WRAP: Go Live — ตัวจริงเป็นลูกของ window (สเปคภาพมาจาก window) · QML ใช้ Chiaki.goLive
+QObject *QmlBackend::goLiveObject() const
+{
+    return window ? window->goLiveObject() : nullptr;
+}
+
 QmlSettings *QmlBackend::qmlSettings() const
 {
     return settings_qml;
@@ -963,6 +970,10 @@ void QmlBackend::createSession(const StreamSessionConnectInfo &connect_info)
 
     session_info = connect_info;
     window->setStreamMaxFPS(connect_info.video_profile.max_fps);
+    // PS-WRAP: preset รายเกม — ปรับความละเอียด/fps/bitrate ของ session นี้ก่อนสร้าง StreamSession (ไม่เขียนทับ setting หลัก)
+    // overlay/facecam/replay ของ preset ตั้งตอน sessionChanged (pswrapgameprofiles.cpp)
+    if (window->gameProfiles()->prepareSession(session_info, hosts()))
+        window->setStreamMaxFPS(session_info.video_profile.max_fps);
     disable_zero_copy = !settings->GetUseZeroCopy();
     {
         QMutexLocker locker(&hw_transfer_state_mutex);

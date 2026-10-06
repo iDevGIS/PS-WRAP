@@ -80,6 +80,7 @@ class QmlBackend : public QObject
     Q_OBJECT
     Q_PROPERTY(QmlMainWindow* window READ qmlWindow CONSTANT)
     Q_PROPERTY(QmlSettings* settings READ qmlSettings CONSTANT)
+    Q_PROPERTY(QObject *goLive READ goLiveObject CONSTANT)   // PS-WRAP: Go Live (= Chiaki.window.goLive · pswraplive.h)
     Q_PROPERTY(StreamSession* session READ qmlSession NOTIFY sessionChanged)
     Q_PROPERTY(QList<QmlController*> controllers READ qmlControllers NOTIFY controllersChanged)
     Q_PROPERTY(bool discoveryEnabled READ discoveryEnabled WRITE setDiscoveryEnabled NOTIFY discoveryEnabledChanged)
@@ -116,6 +117,7 @@ public:
 
     QmlMainWindow *qmlWindow() const;
     QmlSettings *qmlSettings() const;
+    QObject *goLiveObject() const;   // PS-WRAP
     StreamSession *qmlSession() const;
     QList<QmlController*> qmlControllers() const;
 
