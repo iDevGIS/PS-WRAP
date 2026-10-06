@@ -24,7 +24,7 @@ $mingw = @(
   "cc","cmake","curl","fast_float","fftw","hidapi","json-c","libevent","lcms2","libdovi",
   "meson","miniupnpc","gcc","nasm","ninja","openssl","opus","pkgconf","protobuf",
   "python","python-psutil","python-glad","python-jinja","python-pip","python-protobuf",
-  "qt6-base","qt6-declarative","qt6-svg","shaderc","speexdsp","spirv-cross","vulkan","vulkan-headers"
+  "qt6-base","qt6-declarative","qt6-svg","shaderc","speexdsp","rnnoise","spirv-cross","vulkan","vulkan-headers"
 ) | ForEach-Object { "mingw-w64-x86_64-$_" }
 
 Write-Host "ติดตั้ง deps (ประมาณ 1.7 GB)..." -ForegroundColor Cyan

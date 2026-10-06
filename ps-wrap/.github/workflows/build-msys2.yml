@@ -61,6 +61,7 @@ jobs:
             qt6-svg:p
             shaderc:p
             speexdsp:p
+            rnnoise:p
             spirv-cross:p
             vulkan:p
             vulkan-headers:p

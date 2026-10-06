@@ -66,6 +66,8 @@ set(SOURCE_FILES
 	src/pswrapreccapture.cpp
 	include/pswrapmicmeter.h
 	src/pswrapmicmeter.cpp
+	include/pswrapvoiceproc.h
+	src/pswrapvoiceproc.cpp
 	src/qmlmainwindow_pswraprec.cpp
 	)
 set(RESOURCE_FILES "")
@@ -140,6 +142,15 @@ target_link_libraries(chiaki SDL2::SDL2)
 if(CHIAKI_ENABLE_SPEEX)
   target_link_libraries(chiaki PkgConfig::SpeexDSP)
   target_compile_definitions(chiaki PRIVATE CHIAKI_GUI_ENABLE_SPEEX)
+  # PS-WRAP: RNNoise (ถ้ามี) ลดเสียงรบกวนไมค์แทน speex denoise — ไม่มีก็ build ได้ (ใช้ speex แทน)
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(RNNOISE IMPORTED_TARGET rnnoise)
+    if(RNNOISE_FOUND)
+      target_link_libraries(chiaki PkgConfig::RNNOISE)
+      target_compile_definitions(chiaki PRIVATE PSWRAP_HAVE_RNNOISE)
+    endif()
+  endif()
 endif()
 if(CHIAKI_GUI_ENABLE_SDL_GAMECONTROLLER)
 	target_compile_definitions(chiaki PRIVATE CHIAKI_GUI_ENABLE_SDL_GAMECONTROLLER)

@@ -50,6 +50,7 @@
 
 class QKeyEvent;
 class Settings;
+class PsWrapVoiceProc;
 
 class ChiakiException: public Exception
 {
@@ -279,14 +280,15 @@ class StreamSession : public QObject
 		unsigned int audio_buffer_size;
 		ChiakiHolepunchSession holepunch_session;
 #if CHIAKI_GUI_ENABLE_SPEEX
-		SpeexEchoState *echo_state;
-		SpeexPreprocessState *preprocess_state;
+		// PS-WRAP: speex ย้ายไป PsWrapVoiceProc (ปรับค่าสดได้ + จัดจังหวะ echo reference) — ไมค์เปิด mono เสมอเมื่อมี speex
+		PsWrapVoiceProc *pswrap_voice = nullptr;
 		bool speech_processing_enabled;
 		SDL_AudioCVT mic_speex_cvt;
-		SDL_AudioCVT echo_speex_cvt;
 		uint8_t *echo_resampler_buf, *mic_resampler_buf;
-		QMutex echo_to_cancel_mutex;
-		QQueue<QByteArray> echo_to_cancel;
+		QAtomicInteger<qint64> pswrap_mic_cb_ns{0};    // เวลา callback ไมค์ล่าสุด (steady ns)
+		int pswrap_mic_dev_frames = 0;                   // บัฟเฟอร์อุปกรณ์ไมค์
+		int pswrap_out_dev_frames = 0;                   // บัฟเฟอร์อุปกรณ์ลำโพง
+		size_t pswrap_mic_chunk_left = 0;                // byte ที่เหลือใน chunk ที่ ReadMic กำลังไล่ (หลังเฟรมปัจจุบัน)
 #endif
 		SDL_AudioDeviceID haptics_output;
 		SDL_AudioCVT haptics_cvt;

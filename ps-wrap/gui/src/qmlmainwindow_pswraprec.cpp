@@ -7,6 +7,7 @@
 #include <pswraprecorder.h>
 #include <pswrapreccapture.h>
 #include <pswrapmicmeter.h>
+#include <pswrapvoiceproc.h>
 
 #include <SDL.h>
 
@@ -30,6 +31,16 @@
 
 namespace {
 
+// หน้าทดสอบไมค์: ไมค์ mono → PsWrapVoiceProc (ไม่มีเสียงเกม = ไม่มี echo reference, ได้แค่ลดเสียงรบกวน) → สเตอริโอเข้า meter
+struct MicPreviewState
+{
+	PsWrapVoiceProc voice;
+	int16_t frame[PsWrapVoiceProc::kFrame] = {};
+	int16_t stereo[PsWrapVoiceProc::kFrame * 2] = {};
+	int fill = 0;
+};
+MicPreviewState *g_mic_preview_state = nullptr;   // ใช้คู่กับ pswrap_mic_preview (สร้างก่อนเปิด ลบหลังปิดอุปกรณ์)
+
 QString defaultRecordingFolder()
 {
 	QString base = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
@@ -45,6 +56,18 @@ void QmlMainWindow::pswrapInitRecording()
 	pswrap_recorder = new PsWrapRecorder(this);
 	pswrap_mic_meter = new PsWrapMicMeter(this);
 	connect(pswrap_recorder, &PsWrapRecorder::recordingChanged, this, [this]() { pswrapRefreshTray(); });
+#if CHIAKI_GUI_ENABLE_SPEEX
+	// ลดเสียงรบกวน/ตัด echo: ค่าใน Settings → ของกลางของ PsWrapVoiceProc ทันที (สตรีมที่เล่นอยู่ + หน้าทดสอบไมค์รับไปเฟรมถัดไป)
+	auto sync_voice = [this]() {
+		PsWrapVoiceProc::setParams(settings->GetSpeechProcessingEnabled(), settings->GetNoiseSuppressLevel(), settings->GetEchoSuppressLevel());
+	};
+	sync_voice();
+	if (QmlSettings *qs = backend->qmlSettings()) {
+		connect(qs, &QmlSettings::speechProcessingChanged, this, sync_voice);
+		connect(qs, &QmlSettings::noiseSuppressLevelChanged, this, sync_voice);
+		connect(qs, &QmlSettings::echoSuppressLevelChanged, this, sync_voice);
+	}
+#endif
 	// สตรีมจบ = ปิดไฟล์ให้เรียบร้อยทันที (ก่อน render หยุด) · tray ตามสถานะ mute ของ session
 	connect(backend, &QmlBackend::sessionChanged, this, [this](StreamSession *s) {
 		if (!s && pswrap_recorder->isRecording())
@@ -85,9 +108,21 @@ void QmlMainWindow::pswrapInitRecording()
 	}
 }
 
-static void pswrapMicPreviewCb(void *, Uint8 *stream, int len)
+static void pswrapMicPreviewCb(void *userdata, Uint8 *stream, int len)
 {
-	PsWrapMicMeter::tap(reinterpret_cast<const int16_t *>(stream), static_cast<size_t>(len) / (2 * sizeof(int16_t)), 2);
+	auto *st = static_cast<MicPreviewState *>(userdata);
+	const int16_t *in = reinterpret_cast<const int16_t *>(stream);
+	const size_t n = static_cast<size_t>(len) / sizeof(int16_t);
+	for (size_t i = 0; i < n; i++) {
+		st->frame[st->fill++] = in[i];
+		if (st->fill < PsWrapVoiceProc::kFrame)
+			continue;
+		st->fill = 0;
+		st->voice.process(st->frame, 0);
+		for (int k = 0; k < PsWrapVoiceProc::kFrame; k++)
+			st->stereo[2 * k] = st->stereo[2 * k + 1] = st->frame[k];
+		PsWrapMicMeter::tap(st->stereo, PsWrapVoiceProc::kFrame, 2);
+	}
 }
 
 bool QmlMainWindow::startMicPreview(const QString &device)
@@ -96,15 +131,19 @@ bool QmlMainWindow::startMicPreview(const QString &device)
 	SDL_AudioSpec want = {}, have = {};
 	want.freq = 48000;
 	want.format = AUDIO_S16SYS;
-	want.channels = 2;
+	want.channels = 1;
 	want.samples = 480;
 	want.callback = pswrapMicPreviewCb;
+	g_mic_preview_state = new MicPreviewState;
+	want.userdata = g_mic_preview_state;
 	const QByteArray name = device.toUtf8();
 	SDL_AudioDeviceID id = SDL_OpenAudioDevice(device.isEmpty() ? nullptr : name.constData(), 1, &want, &have, 0);
 	if (!id && !device.isEmpty())
 		id = SDL_OpenAudioDevice(nullptr, 1, &want, &have, 0); // ถอดอยู่ → ลอง default
 	if (!id) {
 		qCWarning(chiakiGui) << "PSWRAP mic preview: open failed" << device << SDL_GetError();
+		delete g_mic_preview_state;
+		g_mic_preview_state = nullptr;
 		return false;
 	}
 	pswrap_mic_preview = id;
@@ -119,6 +158,8 @@ void QmlMainWindow::stopMicPreview()
 		SDL_CloseAudioDevice(pswrap_mic_preview); // รอ callback ที่กำลังรันจบก่อนคืน
 		pswrap_mic_preview = 0;
 	}
+	delete g_mic_preview_state;
+	g_mic_preview_state = nullptr;
 }
 
 void QmlMainWindow::pswrapStopRecordingForTeardown()

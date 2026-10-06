@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 ### Changed
+- 2026-10-06 **ไอคอนปุ่มจอยชุดใหม่**: ✕ ○ □ △ เป็นแผ่นเข้มไล่เฉด ขอบบาง สัญลักษณ์สีแบบ PS (ฟ้า/แดง/ชมพู/เขียว) · L1/R1 ทรง pill, L3/R3 วงกลม (เดิมของ upstream ล้นกรอบจน L1 เป็นข้าวหลามตัด R3 เป็นครึ่งวง) · สร้างจาก `scripts/gen-glyphs.py` · ชุด Steam Deck ใช้แบบเดิม
+- 2026-10-06 แถบล่างหน้าแรก: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (ไอคอน + จุดเปิด/ปิด) แทนปุ่มไอคอนฟ้าลอยเดี่ยว · เลขเวอร์ชันย้ายไปท้ายแถบ
 - 2026-10-06 **ที่เก็บข้อมูลของแอปเป็นของ PS-WRAP เอง**: registry `HKCU\Software\PS-WRAP\PS-WRAP`, log/cache `%APPDATA%\PS-WRAP\PS-WRAP` (เดิมใช้ร่วมกับ chiaki-ng ใน `Chiaki\Chiaki`) · เปิดครั้งแรกย้าย settings, เครื่องที่ลงทะเบียน, placebo และทุก profile มาให้อัตโนมัติ ไม่ลบของเดิม · โฟลเดอร์ source เปลี่ยนจาก `chiaki-ng/` เป็น `ps-wrap/`
 - 2026-10-04 facecam effect: ขนาดแว่นอิงความกว้างหน้า + ยึดเทียบจมูก (เงย/ก้มไม่ลอยขึ้นหน้าผาก) · tracking ตามเร็วขึ้นตอนขยับไว (smoothing ปรับตามความเร็ว), คาดการณ์ตำแหน่งตอนหน้าหายชั่วคราว, แว่นจางเข้า/ออกแทนหายวับ, ย่อภาพก่อนป้อนโมเดลเร็วขึ้น
 - 2026-10-04 **หน้าต่างตอนสตรีม = หน้าต่างหน้าแรก** (ขนาด/ตำแหน่ง/maximize ชุดเดียว) — ไม่ resize ตามความละเอียดสตรีมอีก ปรับขนาดระหว่างเล่นจำให้ทั้งสองหน้า
@@ -12,6 +14,8 @@
 - 2026-10-04 การ์ด stats ย่อ ~25% (font 12/15, icon 15) ให้ไม่แย่งสายตาตอนเล่น · แถว dropped frames แสดงตลอด (upstream โชว์เฉพาะ > 0 ทำให้การ์ดกระพริบ/เปลี่ยนความสูงตอนเล่น)
 - 2026-10-04 เปลี่ยนทิศทางจาก "Python wrapper รอบ chiaki.exe" เป็น "fork chiaki-ng + redesign UI" — ของเก่าย้ายไป `archive/pswrap-python/`
 ### Fixed
+- 2026-10-06 **ตัดเสียงลำโพงย้อนเข้าไมค์ (echo cancellation) ใช้ไม่ได้เมื่อลำโพงหน่วงเกิน ~100 ms** (upstream: เก็บเสียงอ้างอิงตอน decode ก่อนเข้าคิวเสียง + filter ยาว 100 ms) → เก็บเสียงอ้างอิงตอนส่งเข้าการ์ดเสียงจริง คำนวณว่า sample ไหนกำลังออกลำโพงเทียบกับเวลาที่ไมค์อัดแต่ละเฟรม + filter 300 ms (ทนความหน่วงที่คาดผิด −60…+240 ms เช่นลำโพง Bluetooth) · ตั้ง sample rate 48 kHz ให้ speex echo (upstream ไม่ได้ตั้ง ค่าเริ่มต้น 8 kHz)
+- 2026-10-06 `scripts/snap.ps1` คืน profile ปกติไม่ได้จริง (pwsh ทิ้ง `--profile ""`, script error ออกก่อนคืนค่า, คืนค่าก่อน process ปิด) → ตัว dist เปิดเป็น profile `pswrap-test` · ตอนนี้ใช้ `"--profile="` ใน try/finally + รอ process ปิด + ตรวจซ้ำ
 - 2026-10-06 build จาก clone ใหม่บน Windows: แพตช์ curl พังเมื่อ `core.autocrlf=true` (curl เป็น CRLF แพตช์เป็น LF) → แปลงเป็น LF ก่อนแพตช์ · submodule oboe/borealis (Android/Switch) ไม่ดึงตอน clone (`update = none`) เพราะ oboe path ยาวเกิน MAX_PATH ทำ `--recurse-submodules` ล้ม
 - 2026-10-06 build: แพตช์ Schannel AIA ของ curl ถูกข้ามแบบเงียบๆ เมื่อโฟลเดอร์ build อยู่ใต้ git repo อื่น (`git apply --directory`) → `CURLSSLOPT_SCHANNEL_AIA undeclared` · ตอนนี้ apply ใน copy ของ curl ที่ `git init` เป็นรากเอง
 - 2026-10-05 **แอป crash/ค้างกลางสตรีม (ทำให้กดปุ่มไม่ติดเป็นช่วงๆ)**: (1) `QQuickRenderControl::sync()` ถูกเรียกข้าม thread แบบไม่บล็อก GUI (upstream) → แข่งกับ overlay ที่ขยับตลอด → SIGSEGV ใน Qt6Gui · ตอนนี้ sync 2 จังหวะ: render thread `beginFrame()` (รอ GPU) ก่อน แล้ว GUI บล็อกเฉพาะ sync (~0.2ms) — เวอร์ชันแรกที่บล็อกทั้ง sync ทำให้สะดุดรัวเมื่อหน้าต่างใหญ่ (GUI รอ GPU ทุกเฟรม) (2) libplacebo assert `!tex_vk->held` (dialog ค้างจอ) เมื่อ render ส่ง overlay texture ที่ Qt ยังถืออยู่ — upstream มีช่องนี้ ตอนนี้ endFrame ก่อนใช้เสมอ (3) render แทรกหลัง resize ทำให้เปิดรอบซ้อนวนไม่จบ
@@ -34,6 +38,8 @@
 - 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
 - 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)
 ### Added
+- 2026-10-06 **ลดเสียงรบกวน + ตัดเสียงลำโพงในหน้าทดสอบไมค์**: แถว Noise reduction / Speaker echo เลือก Off/Low/Medium/High (จอย: ↓ ลงมาจากรายการไมค์ แล้ว ←→) · มีผลทันทีทั้งในหน้าทดสอบและกลางสตรีม ไม่ต้องเริ่มสตรีมใหม่ (ใช้ค่า Speech Processing เดิมใน Settings) · ลดเสียงรบกวนด้วย **RNNoise** (dependency ใหม่ `rnnoise` ใน MSYS2 — ไม่มีก็ build ได้ ใช้ speex แทน) · โค้ดอยู่ `pswrapvoiceproc.{h,cpp}`
+- 2026-10-06 ชิป **Recordings** ที่แถบล่างหน้าแรก กดแล้วเปิดโฟลเดอร์คลิปที่อัด
 - 2026-10-05 `scripts/deploy.ps1 -StartMenu` สร้าง shortcut PS-WRAP ใน Start Menu (ระดับ user ไม่ต้อง admin)
 - 2026-10-05 **คลิกที่ overlay (จอย/กล้อง/stats) = เข้าโหมดแก้ตัวนั้น** ไม่ต้องจำคีย์ลัด · คลิกอีกตัวสลับได้ทันที · คลิกที่ว่าง = จบ · การ์ด stats ลาก/ย่อขยายได้แล้วและจำตำแหน่ง (statsX/Y/Scale) · C++: เมาส์ในกรอบ overlay ส่งให้ QML ไม่เข้าเกม (`setOverlayHitRects`)
 - 2026-10-05 Facecam effects **Jin mask (private)** / **Jin mask + headband (private)**: sprite ตัดจากภาพเกมที่ลูกพี่ส่ง (ลิขสิทธิ์ Sucker Punch/Sony — ใช้ส่วนตัวเท่านั้น ไฟล์ `fx/jin_*.png` ข้าง exe ไม่อยู่ใน repo asset) · เครื่องมือตัดชิ้นส่วน `cutpart.py` + polygon trace

@@ -5,6 +5,7 @@
 #include <controllermanager.h>
 #include <pswraprecorder.h>   // PS-WRAP: อัดวิดีโอ
 #include <pswrapmicmeter.h>   // PS-WRAP: overlay spectrum ไมค์
+#include <pswrapvoiceproc.h>   // PS-WRAP: ลดเสียงรบกวน + ตัดเสียงลำโพงย้อน
 
 #include <chiaki/base64.h>
 #include <chiaki/streamconnection.h>
@@ -17,6 +18,7 @@
 #include <QMutexLocker>
 #include <QtMath>
 #include <atomic>
+#include <chrono>
 
 #include <algorithm>
 
@@ -452,22 +454,10 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 	chiaki_opus_decoder_init(&opus_decoder, log.GetChiakiLog());
 	chiaki_opus_encoder_init(&opus_encoder, log.GetChiakiLog());
 #if CHIAKI_GUI_ENABLE_SPEEX
-	speech_processing_enabled = connect_info.speech_processing_enabled;
-	if(speech_processing_enabled)
-	{
-		echo_state = speex_echo_state_init(MICROPHONE_SAMPLES, MICROPHONE_SAMPLES * 10);
-		preprocess_state = speex_preprocess_state_init(MICROPHONE_SAMPLES, MICROPHONE_SAMPLES * 100);
-		int32_t noise_suppress_level = -1 * connect_info.noise_suppress_level;
-		int32_t echo_suppress_level = -1 * connect_info.echo_suppress_level;
-		speex_preprocess_ctl(preprocess_state, SPEEX_PREPROCESS_SET_ECHO_STATE, echo_state);
-		speex_preprocess_ctl(preprocess_state, SPEEX_PREPROCESS_SET_NOISE_SUPPRESS, &noise_suppress_level);
-		speex_preprocess_ctl(preprocess_state, SPEEX_PREPROCESS_GET_NOISE_SUPPRESS, &noise_suppress_level);
-		CHIAKI_LOGI(GetChiakiLog(), "Noise suppress level is %i dB", noise_suppress_level);
-		speex_preprocess_ctl(preprocess_state, SPEEX_PREPROCESS_SET_ECHO_SUPPRESS, &echo_suppress_level);
-		speex_preprocess_ctl(preprocess_state, SPEEX_PREPROCESS_GET_ECHO_SUPPRESS, &echo_suppress_level);
-		CHIAKI_LOGI(GetChiakiLog(), "Echo suppress level is %i dB", echo_suppress_level);
-		CHIAKI_LOGI(GetChiakiLog(), "Started microphone echo cancellation and noise suppression");
-	}
+	// PS-WRAP: ไมค์ผ่าน PsWrapVoiceProc เสมอ (mono) → เปิด/ปิด/ปรับระดับได้กลางสตรีมจากหน้า mic test / Settings
+	speech_processing_enabled = true;
+	pswrap_voice = new PsWrapVoiceProc();
+	PsWrapVoiceProc::setParams(connect_info.speech_processing_enabled, connect_info.noise_suppress_level, connect_info.echo_suppress_level);
 #endif
 	audio_buffer_size = connect_info.audio_buffer_size;
 	mouse_touch_enabled = connect_info.mouse_touch_enabled;
@@ -736,11 +726,8 @@ StreamSession::~StreamSession()
 	chiaki_opus_decoder_fini(&opus_decoder);
 	chiaki_opus_encoder_fini(&opus_encoder);
 #if CHIAKI_GUI_ENABLE_SPEEX
-	if(speech_processing_enabled)
-	{
-		speex_echo_state_destroy(echo_state);
-		speex_preprocess_state_destroy(preprocess_state);
-	}
+	delete pswrap_voice;   // หลัง session join แล้ว — ไม่มี thread เสียงเหลือ (audio_out/in ปิดไปก่อนหน้านี้)
+	pswrap_voice = nullptr;
 #endif
 #if CHIAKI_GUI_ENABLE_SDL_GAMECONTROLLER
 	QMetaObject::invokeMethod(this, [this]() {
@@ -789,10 +776,8 @@ StreamSession::~StreamSession()
 #if CHIAKI_GUI_ENABLE_SPEEX
 	if(speech_processing_enabled)
 	{
-		{
-			QMutexLocker locker(&echo_to_cancel_mutex);
-			echo_to_cancel.clear();
-		}
+		if(pswrap_voice)
+			pswrap_voice->resetPlayback();
 		if(mic_resampler_buf)
 		{
 			free(mic_resampler_buf);
@@ -1411,6 +1396,11 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 		audio_out_overflow_logged = false;
 	}
 
+	pswrap_out_dev_frames = obtained.samples;
+#if CHIAKI_GUI_ENABLE_SPEEX
+	if(pswrap_voice)
+		pswrap_voice->resetPlayback();
+#endif
 	SDL_PauseAudioDevice(audio_out, 0);
 	StartAudioOutDrainThread();
 
@@ -1464,15 +1454,6 @@ void StreamSession::InitMic(unsigned int channels, unsigned int rate)
 			free(mic_resampler_buf);
 			mic_resampler_buf = nullptr;
 		}
-		if(echo_resampler_buf)
-		{
-			free(echo_resampler_buf);
-			echo_resampler_buf = nullptr;
-		}
-		{
-			QMutexLocker locker(&echo_to_cancel_mutex);
-			echo_to_cancel.clear();
-		}
 #endif
 	};
 
@@ -1520,21 +1501,6 @@ void StreamSession::InitMic(unsigned int channels, unsigned int rate)
 			clear_mic_buffers();
 			return;
 		}
-
-		if(SDL_BuildAudioCVT(&echo_speex_cvt, AUDIO_S16SYS, 2, 48000, AUDIO_S16SYS, 1, 48000) < 0)
-		{
-			CHIAKI_LOGE(GetChiakiLog(), "Failed to build echo audio converter: %s", SDL_GetError());
-			clear_mic_buffers();
-			return;
-		}
-		echo_speex_cvt.len = mic_speex_cvt.len * mic_speex_cvt.len_ratio;
-		echo_resampler_buf = (uint8_t*) calloc(echo_speex_cvt.len * echo_speex_cvt.len_mult, sizeof(uint8_t));
-		if(!echo_resampler_buf)
-		{
-			CHIAKI_LOGE(GetChiakiLog(), "Echo resampler buf could not be created, aborting mic startup");
-			clear_mic_buffers();
-			return;
-		}
 	}
 #endif
 
@@ -1577,6 +1543,7 @@ void StreamSession::InitMic(unsigned int channels, unsigned int rate)
 			"Microphone '%s' opened with converted format %#x, %u channels @ %u Hz (requested %#x, %u channels @ %u Hz)",
 			qPrintable(audio_in_device_name), obtained.format, obtained.channels, obtained.freq, spec.format, spec.channels, spec.freq);
 
+	pswrap_mic_dev_frames = obtained.samples;
 	CHIAKI_LOGI(log.GetChiakiLog(), "Microphone '%s' opened with %u channels @ %u Hz, buffer size %u",
 			qPrintable(audio_in_device_name), obtained.channels, obtained.freq, obtained.size);
 }
@@ -1619,6 +1586,7 @@ void StreamSession::QueueMicData(const uint8_t *micdata, size_t micdata_size)
 			memcpy(mic_ring_buf.data(), micdata + first_copy, micdata_size - first_copy);
 		mic_ring_write_pos = (mic_ring_write_pos + micdata_size) % capacity;
 		mic_ring_fill += micdata_size;
+		pswrap_mic_cb_ns.storeRelaxed(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 
 		if(!mic_ring_drain_queued)
 		{
@@ -1675,37 +1643,28 @@ void StreamSession::DrainMicRingBuffer()
 #if CHIAKI_GUI_ENABLE_SPEEX
 bool StreamSession::ProcessMicFrame(int16_t *echo_buf)
 {
-	if(!speech_processing_enabled)
+	(void)echo_buf;
+	// PS-WRAP: mic_buf = mono 480 · ประมวลผลในที่ (ถ้าเปิดอยู่) → upmix สเตอริโอ → opus
+	if(pswrap_voice)
 	{
-		pswrapTapMic(mic_buf.buf);
-		chiaki_opus_encoder_frame(mic_buf.buf, &opus_encoder);
-		return true;
+		// sample สุดท้ายของเฟรมนี้อัดไปแล้วนานเท่าไหร่: ตั้งแต่ callback ล่าสุด + ที่ค้างใน ring + ที่เหลือใน chunk + บัฟเฟอร์อุปกรณ์ (~ครึ่ง) + 10 ms ของ Windows
+		size_t ring_fill = 0;
+		{
+			QMutexLocker locker(&mic_ring_mutex);
+			ring_fill = mic_ring_fill;
+		}
+		const qint64 now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		const qint64 since_cb = qMax<qint64>(0, now_ns - pswrap_mic_cb_ns.loadRelaxed());
+		const int64_t lag = since_cb * PsWrapVoiceProc::kRate / 1000000000LL
+			+ (int64_t)((ring_fill + pswrap_mic_chunk_left) / sizeof(int16_t))
+			+ pswrap_mic_dev_frames / 2 + PsWrapVoiceProc::kRate / 100;
+		pswrap_voice->process(mic_buf.buf, lag);
 	}
 
 	SDL_AudioCVT cvt = mic_speex_cvt;
 	cvt.len = mic_buf.size_bytes;
 	cvt.buf = mic_resampler_buf;
-
-	QByteArray echo_data;
-	{
-		QMutexLocker locker(&echo_to_cancel_mutex);
-		if(!echo_to_cancel.isEmpty())
-			echo_data = echo_to_cancel.dequeue();
-	}
-
-	if(!echo_data.isEmpty())
-	{
-		auto echo = reinterpret_cast<const int16_t *>(echo_data.constData());
-		speex_echo_cancellation(echo_state, mic_buf.buf, echo, echo_buf);
-		speex_preprocess_run(preprocess_state, echo_buf);
-		memcpy(mic_resampler_buf, echo_buf, mic_buf.size_bytes);
-	}
-	else
-	{
-		speex_preprocess_run(preprocess_state, mic_buf.buf);
-		memcpy(mic_resampler_buf, mic_buf.buf, mic_buf.size_bytes);
-	}
-
+	memcpy(mic_resampler_buf, mic_buf.buf, mic_buf.size_bytes);
 	if(SDL_ConvertAudio(&cvt) != 0)
 	{
 		CHIAKI_LOGE(log.GetChiakiLog(), "Failed to resample mic audio: %s", SDL_GetError());
@@ -1744,6 +1703,7 @@ void StreamSession::ReadMic(const QByteArray &micdata)
 	{
 		memcpy((uint8_t *)mic_buf.buf + mic_buf.current_byte, micdata_ptr, mic_bytes_left);
 #if CHIAKI_GUI_ENABLE_SPEEX
+		pswrap_mic_chunk_left = bytes_read - mic_bytes_left;
 		if(!ProcessMicFrame(echo_buf))
 			return;
 #else
@@ -1756,6 +1716,7 @@ void StreamSession::ReadMic(const QByteArray &micdata)
 		{
 			memcpy((uint8_t *)mic_buf.buf, micdata_ptr + mic_bytes_left + i * mic_buf.size_bytes, mic_buf.size_bytes);
 #if CHIAKI_GUI_ENABLE_SPEEX
+			pswrap_mic_chunk_left = bytes_read - (size_t)(i + 1) * mic_buf.size_bytes;
 			if(!ProcessMicFrame(echo_buf))
 				return;
 #else
@@ -1983,34 +1944,6 @@ void StreamSession::PushAudioFrame(int16_t *og_buf, size_t samples_count)
 		SDL_MixAudioFormat((uint8_t *)buf.data(), (uint8_t *)og_buf, AUDIO_S16SYS, buf.size(), audio_volume);
 	else
 		memcpy(buf.data(), og_buf, (size_t)buf.size());
-#if CHIAKI_GUI_ENABLE_SPEEX
-	// change samples to mono for processing with SPEEX
-	if(echo_resampler_buf && speech_processing_enabled && !muted)
-	{
-		if(buf.size() != (int)(mic_buf.size_bytes * 2))
-		{
-			CHIAKI_LOGW(log.GetChiakiLog(),
-				"Skipping echo reference frame with unexpected size %d, expected %u",
-				buf.size(), mic_buf.size_bytes * 2);
-			goto queue_audio;
-		}
-		SDL_AudioCVT cvt = echo_speex_cvt;
-		cvt.len = mic_buf.size_bytes * 2;
-		cvt.buf = echo_resampler_buf;
-		memcpy(echo_resampler_buf, buf.constData(), mic_buf.size_bytes * 2);
-		if(SDL_ConvertAudio(&cvt) != 0)
-		{
-			CHIAKI_LOGE(log.GetChiakiLog(), "Failed to resample echo audio: %s", SDL_GetError());
-			return;
-		}
-		QByteArray echo_frame(reinterpret_cast<const char *>(echo_resampler_buf), cvt.len_cvt);
-		QMutexLocker locker(&echo_to_cancel_mutex);
-		if(echo_to_cancel.size() >= ECHO_QUEUE_MAX)
-			echo_to_cancel.dequeue();
-		echo_to_cancel.enqueue(echo_frame);
-	}
-#endif
-queue_audio:
 	QueueAudioOutData(buf);
 }
 
@@ -2102,6 +2035,17 @@ void StreamSession::DrainAudioOutRingBuffer()
 			SDL_ClearQueuedAudio(audio_out);
 			break;
 		}
+#if CHIAKI_GUI_ENABLE_SPEEX
+		// PS-WRAP: echo reference = สิ่งที่เพิ่งเข้าอุปกรณ์จริง + ยังเหลือกี่ sample กว่าจะออกลำโพง (คิว SDL + บัฟเฟอร์อุปกรณ์ + ~10 ms ของ Windows)
+		if(pswrap_voice && !muted && audio_out_sample_size && pswrap_audio_rate == PsWrapVoiceProc::kRate)
+		{
+			const unsigned ch = (unsigned)(audio_out_sample_size / sizeof(int16_t));
+			const int64_t pending = (int64_t)(SDL_GetQueuedAudioSize(audio_out) / audio_out_sample_size)
+				+ pswrap_out_dev_frames + PsWrapVoiceProc::kRate / 100;
+			pswrap_voice->pushPlayback(reinterpret_cast<const int16_t *>(audio_chunk.constData()),
+				(size_t)audio_chunk.size() / audio_out_sample_size, ch, pending);
+		}
+#endif
 	}
 }
 
