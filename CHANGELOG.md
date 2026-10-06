@@ -4,6 +4,7 @@
 
 ## [Unreleased]
 ### Changed
+- 2026-10-06 **ไฟล์โปรแกรมชื่อ `PS-WRAP.exe`** (เดิม `chiaki.exe`) — ตั้ง `OUTPUT_NAME` ใน CMake เฉพาะ Windows (target ยังชื่อ chiaki) · สคริปต์ build/run/deploy/drive/snap หา process ทั้ง `PS-WRAP` และ `chiaki` · shortcut ต้องสร้างใหม่ด้วย `deploy.ps1 -Shortcut -StartMenu` · ถ้าเคยอนุญาต `chiaki.exe` ใน Firewall/Controlled folder access ต้องอนุญาต `PS-WRAP.exe` ใหม่
 - 2026-10-06 **ไอคอนปุ่มจอยชุดใหม่**: ✕ ○ □ △ เป็นแผ่นเข้มไล่เฉด ขอบบาง สัญลักษณ์สีแบบ PS (ฟ้า/แดง/ชมพู/เขียว) · L1/R1 ทรง pill, L3/R3 วงกลม (เดิมของ upstream ล้นกรอบจน L1 เป็นข้าวหลามตัด R3 เป็นครึ่งวง) · สร้างจาก `scripts/gen-glyphs.py` · ชุด Steam Deck ใช้แบบเดิม
 - 2026-10-06 แถบล่างหน้าแรก: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (ไอคอน + จุดเปิด/ปิด) แทนปุ่มไอคอนฟ้าลอยเดี่ยว · เลขเวอร์ชันย้ายไปท้ายแถบ
 - 2026-10-06 **ที่เก็บข้อมูลของแอปเป็นของ PS-WRAP เอง**: registry `HKCU\Software\PS-WRAP\PS-WRAP`, log/cache `%APPDATA%\PS-WRAP\PS-WRAP` (เดิมใช้ร่วมกับ chiaki-ng ใน `Chiaki\Chiaki`) · เปิดครั้งแรกย้าย settings, เครื่องที่ลงทะเบียน, placebo และทุก profile มาให้อัตโนมัติ ไม่ลบของเดิม · โฟลเดอร์ source เปลี่ยนจาก `chiaki-ng/` เป็น `ps-wrap/`

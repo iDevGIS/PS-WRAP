@@ -185,6 +185,11 @@ set_target_properties(chiaki PROPERTIES
 		MACOSX_BUNDLE_ICON_FILE chiaking.icns
 		RESOURCE "${RESOURCE_FILES}")
 
+if(WIN32)
+	# PS-WRAP: ไฟล์ exe ชื่อ PS-WRAP.exe (target ยังชื่อ chiaki ลด diff กับ upstream)
+	set_target_properties(chiaki PROPERTIES OUTPUT_NAME "PS-WRAP")
+endif()
+
 install(TARGETS chiaki
 		RUNTIME DESTINATION bin
 		BUNDLE DESTINATION bin)

@@ -1,4 +1,4 @@
-# จับ screenshot ของ chiaki.exe (build ของเรา) ที่ขนาดหน้าต่างกำหนด แล้วปิด — ใช้ --profile pswrap-test เสมอ
+# จับ screenshot ของ PS-WRAP.exe (build ของเรา) ที่ขนาดหน้าต่างกำหนด แล้วปิด — ใช้ --profile pswrap-test เสมอ
 # ใช้: .\scripts\snap.ps1 -Out design\screens\after\phase2 -Name 01-main [-Sizes 1920x1080,1280x800] [-Keys "{ESC}"] [-WaitSec 6]
 param(
     [Parameter(Mandatory)][string]$Out,
@@ -66,9 +66,9 @@ function Snap($file, $h) {
 
 # try/finally: ทุกทางออก (รวม Write-Error) ต้องคืน current_profile — เคยค้าง pswrap-test จนตัว dist ของลูกพี่เปิดเป็น profile ทดสอบ (2026-10-06)
 try {
-$p = Start-Process -FilePath "$src\build\gui\chiaki.exe" -ArgumentList "--profile", $Profile -WorkingDirectory $src -PassThru -RedirectStandardError $err -RedirectStandardOutput $so
+$p = Start-Process -FilePath "$src\build\gui\PS-WRAP.exe" -ArgumentList "--profile", $Profile -WorkingDirectory $src -PassThru -RedirectStandardError $err -RedirectStandardOutput $so
 Start-Sleep -Seconds $WaitSec; $p.Refresh()
-if ($p.HasExited -or $p.MainWindowHandle -eq 0) { if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }; Write-Error "chiaki.exe ไม่ขึ้นหน้าต่างใน ${WaitSec}s (exit $($p.ExitCode)) — ดู $err" }
+if ($p.HasExited -or $p.MainWindowHandle -eq 0) { if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }; Write-Error "PS-WRAP.exe ไม่ขึ้นหน้าต่างใน ${WaitSec}s (exit $($p.ExitCode)) — ดู $err" }
 $h = $p.MainWindowHandle
 if (-not (Ensure-Foreground $h)) { Stop-Process -Id $p.Id -Force; Write-Error "ดึงหน้าต่าง chiaki ขึ้นหน้าสุดไม่ได้ — ยกเลิก" }
 if ($Keys) { [System.Windows.Forms.SendKeys]::SendWait($Keys); Start-Sleep -Seconds 2 }
@@ -102,7 +102,7 @@ foreach ($s in $Sizes) {
     # คืนค่าด้วยกลไกของแอปเอง: "--profile=" + คำสั่ง list (ไม่เปิด GUI)
     # gotcha: --profile "" ใช้ไม่ได้ — pwsh ทิ้ง arg ว่าง ค่าไม่เคยถูกคืนจริง (ตรวจ 2026-10-06)
     for ($i = 0; $i -lt 3; $i++) {
-        & "$src\build\gui\chiaki.exe" "--profile=" list *> $null
+        & "$src\build\gui\PS-WRAP.exe" "--profile=" list *> $null
         if (-not (Get-ItemProperty "HKCU:\Software\PS-WRAP\PS-WRAP\settings" -ErrorAction SilentlyContinue).current_profile) { break }
         Start-Sleep -Seconds 1
     }

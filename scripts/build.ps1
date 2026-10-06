@@ -1,4 +1,4 @@
-# configure + build chiaki-ng ใน MSYS2 mingw64 → ps-wrap\build\gui\chiaki.exe
+# configure + build chiaki-ng ใน MSYS2 mingw64 → ps-wrap\build\gui\PS-WRAP.exe
 # ใช้: .\scripts\build.ps1 [-Clean] [-Debug]
 param([switch]$Clean, [switch]$Debug)
 $ErrorActionPreference = "Stop"
@@ -11,11 +11,11 @@ $src = (Resolve-Path (Join-Path $PSScriptRoot "..\ps-wrap")).Path -replace '\\',
 $type = if ($Debug) { "Debug" } else { "Release" }
 $cleanFlag = if ($Clean) { "--clean-first" } else { "" }
 
-# gotcha: ถ้า chiaki.exe จาก build dir ยังรันอยู่ ld เขียน output ไม่ได้ (exit 1) → ปิดให้ก่อน
-$running = Get-Process chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" }
-if ($running) { Write-Host "ปิด chiaki.exe ที่รันจาก build dir (pid $($running.Id -join ',')) ก่อน build" -ForegroundColor Yellow; $running | Stop-Process -Force; Start-Sleep 1 }
+# gotcha: ถ้า PS-WRAP.exe จาก build dir ยังรันอยู่ ld เขียน output ไม่ได้ (exit 1) → ปิดให้ก่อน
+$running = Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" }
+if ($running) { Write-Host "ปิด PS-WRAP.exe ที่รันจาก build dir (pid $($running.Id -join ',')) ก่อน build" -ForegroundColor Yellow; $running | Stop-Process -Force; Start-Sleep 1 }
 $sw = [Diagnostics.Stopwatch]::StartNew()
 & $bash -lc "set -e; cd '$src'; cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$type -DCHIAKI_ENABLE_CLI=OFF && cmake --build build $cleanFlag --target chiaki"
 $sw.Stop()
 if ($LASTEXITCODE -ne 0) { Write-Error "build ล้มเหลว (exit $LASTEXITCODE)" }
-Write-Host "build ผ่าน ใช้เวลา $([int]$sw.Elapsed.TotalSeconds)s → ps-wrap\build\gui\chiaki.exe" -ForegroundColor Green
+Write-Host "build ผ่าน ใช้เวลา $([int]$sw.Elapsed.TotalSeconds)s → ps-wrap\build\gui\PS-WRAP.exe" -ForegroundColor Green

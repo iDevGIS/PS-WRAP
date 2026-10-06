@@ -621,7 +621,7 @@ bool PsWrapRecorder::start(const PsWrapRecConfig &config, QString *error)
 #ifdef Q_OS_WIN
 			// แก้ในแอปไม่ได้: Windows Security "Controlled folder access" บล็อก exe ที่ไม่รู้จักไม่ให้เขียน Videos/Documents/Desktop (พบ 2026-10-06)
 			if (file_error)
-				err += QStringLiteral(" ") + tr("If Windows Security \"Controlled folder access\" is on, allow PS-WRAP (chiaki.exe) there or choose another recording folder in Settings.");
+				err += QStringLiteral(" ") + tr("If Windows Security \"Controlled folder access\" is on, allow PS-WRAP.exe there or choose another recording folder in Settings.");
 #else
 			Q_UNUSED(file_error);
 #endif

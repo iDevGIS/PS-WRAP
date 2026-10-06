@@ -1,4 +1,4 @@
-# ขับ chiaki.exe (build ของเรา) ที่ "เปิดอยู่แล้ว" ทีละขั้น: ตั้งขนาด / คลิก / กดคีย์ / จับภาพ — ไม่เปิด/ปิดโปรแกรมเอง
+# ขับ PS-WRAP.exe (build ของเรา) ที่ "เปิดอยู่แล้ว" ทีละขั้น: ตั้งขนาด / คลิก / กดคีย์ / จับภาพ — ไม่เปิด/ปิดโปรแกรมเอง
 # ใช้: .\scripts\drive.ps1 -Out design\screens\after\phase4 -Actions "size:1920x1080","click:1751,479","wait:8","snap:stream-01","key:ctrl+o","wait:2","snap:menu"
 #   พิกัดเป็น logical px นับจากมุมซ้ายบนของหน้าต่าง (รวม title bar) เหมือนที่เห็นใน screenshot · key: ctrl+o, right, left, up, down, return, esc, pageup, pagedown, menu
 param(
@@ -30,8 +30,8 @@ public static class WDrive {
 [WDrive]::SetProcessDPIAware() | Out-Null
 $scale = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero).DpiX / 96.0
 
-$p = Get-Process chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" } | Select-Object -First 1
-if (-not $p) { Write-Error "ไม่พบ chiaki.exe จาก build dir ที่รันอยู่" }
+$p = Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" } | Select-Object -First 1
+if (-not $p) { Write-Error "ไม่พบ PS-WRAP.exe จาก build dir ที่รันอยู่" }
 # gotcha: ตอนสตรีม upstream สร้าง StatsOverlayWidget เป็น top-level window ชื่อ 'PS-WRAP' เหมือนกัน (ToolTip, ไม่รับ input)
 # และ $p.MainWindowHandle อาจชี้ไปตัวนั้น → เลือกหน้าต่างที่ "ใหญ่ที่สุด" ของ process แทน
 if (-not ("WEnum2" -as [type])) {
@@ -57,7 +57,7 @@ function Resolve-Handle {
     return $script:fallback
 }
 $h = Resolve-Handle
-if ($h -eq [IntPtr]::Zero) { Write-Error "chiaki.exe ไม่มีหน้าต่าง" }
+if ($h -eq [IntPtr]::Zero) { Write-Error "PS-WRAP.exe ไม่มีหน้าต่าง" }
 
 function Ensure-Front {
     for ($i = 0; $i -lt 5; $i++) {
@@ -131,7 +131,7 @@ foreach ($a in $Actions) {
     $kind, $arg = $a -split ":", 2
     # resolve ใหม่ทุก action: หน้าต่างอาจถูกซ่อน/สร้างใหม่ — ไม่ถ่าย/คลิกใส่หน้าต่างอื่นเด็ดขาด
     $h = Resolve-Handle
-    if ($h -eq [IntPtr]::Zero) { if ($kind -eq "visible") { "visible: False" ; continue } ; Write-Error "chiaki.exe ไม่มีหน้าต่างที่มองเห็น — หยุดก่อน action '$a'" }
+    if ($h -eq [IntPtr]::Zero) { if ($kind -eq "visible") { "visible: False" ; continue } ; Write-Error "PS-WRAP.exe ไม่มีหน้าต่างที่มองเห็น — หยุดก่อน action '$a'" }
     if ($kind -eq "visible") { "visible: True"; continue }
     switch ($kind) {
         "size"  { $w, $hh = $arg -split "x"; [WDrive]::SetWindowPos($h, [IntPtr]::Zero, 0, 0, [int]([int]$w * $scale), [int]([int]$hh * $scale), 0x0040) | Out-Null; Start-Sleep -Seconds 1; [WDrive]::SetWindowPos($h, [IntPtr]::Zero, 0, 0, [int]([int]$w * $scale), [int]([int]$hh * $scale), 0x0040) | Out-Null; Start-Sleep -Seconds 1 }
