@@ -275,8 +275,23 @@ void QmlMainWindow::toggleRecording()
 	cfg.path = QDir(folder).filePath(QStringLiteral("PS-WRAP %1.mp4")
 		.arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH-mm-ss"))));
 	QString err;
-	if (!pswrap_recorder->start(cfg, &err))
-		emit pswrap_recorder->failed(err);
+	if (pswrap_recorder->start(cfg, &err))
+		return;
+	// เขียนโฟลเดอร์ที่ตั้งไว้ไม่ได้ (เครื่องลูกพี่: Windows Security "Controlled folder access" บล็อก exe ที่ไม่รู้จักไม่ให้เขียน Videos)
+	// → ย้ายไปโฟลเดอร์สำรองใน home ที่ระบบไม่คุ้มครอง แล้วแจ้งผู้ใช้ แทนที่จะอัดไม่ได้เลย
+	const QString fallback = QDir(QDir::homePath()).filePath(QStringLiteral("PS-WRAP Recordings"));
+	if (pswrap_recorder->lastStartFileError() && QDir::cleanPath(folder) != QDir::cleanPath(fallback)) {
+		const QString blocked = QDir::toNativeSeparators(folder);
+		cfg.path = QDir(fallback).filePath(QFileInfo(cfg.path).fileName());
+		QString err2;
+		if (pswrap_recorder->start(cfg, &err2)) {
+			qCInfo(chiakiGui) << "PSWRAP recording: fallback folder" << fallback << "because" << err;
+			emit pswrap_recorder->notice(tr("Windows blocked saving to %1, so this recording is saved to %2. To keep using your folder, allow PS-WRAP in Windows Security → Ransomware protection → Allow an app, or pick another folder in Settings.")
+				.arg(blocked, QDir::toNativeSeparators(fallback)), cfg.path);
+			return;
+		}
+	}
+	emit pswrap_recorder->failed(err);
 }
 
 void QmlMainWindow::openRecordingsFolder()

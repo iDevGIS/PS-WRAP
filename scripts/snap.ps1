@@ -64,6 +64,8 @@ function Snap($file, $h) {
     $bmp.Save($file, [System.Drawing.Imaging.ImageFormat]::Png); "saved $file"
 }
 
+# try/finally: ทุกทางออก (รวม Write-Error) ต้องคืน current_profile — เคยค้าง pswrap-test จนตัว dist ของลูกพี่เปิดเป็น profile ทดสอบ (2026-10-06)
+try {
 $p = Start-Process -FilePath "$src\build\gui\chiaki.exe" -ArgumentList "--profile", $Profile -WorkingDirectory $src -PassThru -RedirectStandardError $err -RedirectStandardOutput $so
 Start-Sleep -Seconds $WaitSec; $p.Refresh()
 if ($p.HasExited -or $p.MainWindowHandle -eq 0) { if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }; Write-Error "chiaki.exe ไม่ขึ้นหน้าต่างใน ${WaitSec}s (exit $($p.ExitCode)) — ดู $err" }
@@ -93,10 +95,19 @@ foreach ($s in $Sizes) {
     $first = $false
     Snap (Join-Path $outDir "$Name-${s}@$($scale)x.png") $h
 }
-Stop-Process -Id $p.Id -Force
-# gotcha: upstream เซฟ --profile เป็น settings/current_profile ใน default settings → ตัวติดตั้งจะเปิดเป็น profile ทดสอบด้วย
-# คืนค่าด้วยกลไกของแอปเอง: --profile "" + คำสั่ง list (ไม่เปิด GUI)
-& "$src\build\gui\chiaki.exe" --profile "" list *> $null
-"current_profile reset to default"
+} finally {
+    if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+    if ($p) { $p.WaitForExit(5000) | Out-Null }   # Stop-Process คืนก่อน process ตายจริง → reset ทันทีโดนทับ
+    # gotcha: upstream เซฟ --profile เป็น settings/current_profile ใน default settings → ตัวติดตั้งจะเปิดเป็น profile ทดสอบด้วย
+    # คืนค่าด้วยกลไกของแอปเอง: "--profile=" + คำสั่ง list (ไม่เปิด GUI)
+    # gotcha: --profile "" ใช้ไม่ได้ — pwsh ทิ้ง arg ว่าง ค่าไม่เคยถูกคืนจริง (ตรวจ 2026-10-06)
+    for ($i = 0; $i -lt 3; $i++) {
+        & "$src\build\gui\chiaki.exe" "--profile=" list *> $null
+        if (-not (Get-ItemProperty "HKCU:\Software\PS-WRAP\PS-WRAP\settings" -ErrorAction SilentlyContinue).current_profile) { break }
+        Start-Sleep -Seconds 1
+    }
+    if ((Get-ItemProperty "HKCU:\Software\PS-WRAP\PS-WRAP\settings" -ErrorAction SilentlyContinue).current_profile) { Write-Warning "current_profile ยังไม่ว่าง — เช็ค registry" }
+    "current_profile reset to default"
+}
 $qmlErr = Get-Content $err -ErrorAction SilentlyContinue | Select-String -Pattern "qml|QML|rror|PSWRAP"
 if ($qmlErr) { "--- stderr ---"; $qmlErr | Select-Object -First 15 } else { "stderr: no QML errors" }

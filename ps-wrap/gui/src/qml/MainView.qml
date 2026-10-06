@@ -1084,26 +1084,79 @@ Pane {
                 }
             }
 
+            // PS-WRAP: เปิดโฟลเดอร์คลิปที่อัด (Chiaki.window.recordingFolder)
+            BarChip {
+                iconSource: "qrc:/icons/menu/folder.svg"
+                text: qsTr("Recordings")
+                onClicked: Chiaki.window.openRecordingsFolder()
+            }
+
+            // PS-WRAP: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (เดิมเป็น flat button ไอคอนฟ้าลอยเดี่ยว)
+            BarChip {
+                iconSource: "qrc:/icons/menu/discover.svg"
+                active: Chiaki.discoveryEnabled
+                showDot: true
+                text: active ? qsTr("Discovery on") : qsTr("Discovery off")
+                onClicked: Chiaki.discoveryEnabled = !Chiaki.discoveryEnabled
+            }
+
             Label {
                 visible: consolePane.width >= 1600
                 text: Qt.application.version
                 font.pixelSize: Theme.fontCaption
                 color: Theme.textMuted
             }
+        }
+    }
 
-            C.Button {
-                Layout.minimumWidth: 56
-                flat: true
-                focusPolicy: Qt.NoFocus
-                checkable: true
-                checked: Chiaki.discoveryEnabled
-                icon.source: "qrc:/icons/discover-" + (checked ? "" : "off-") + "24px.svg"
-                icon.width: 24
-                icon.height: 24
-                // จอแคบ (Deck 1280) โชว์แค่ไอคอน
-                text: consolePane.width >= 1600 ? (checked ? qsTr("Discovery on") : qsTr("Discovery off")) : ""
-                onToggled: Chiaki.discoveryEnabled = !Chiaki.discoveryEnabled
+    // PS-WRAP: ชิปแถบล่าง (หน้าตาเดียวกับ micChip/camChip/padChip)
+    component BarChip: Rectangle {
+        id: chip
+        property string iconSource
+        property string text
+        property bool active: true
+        property bool showDot: false
+        signal clicked()
+        radius: Theme.radiusChip
+        color: chipMouse.containsMouse ? Theme.surfaceRaised : Qt.rgba(1, 1, 1, 0.04)
+        border.width: 1
+        border.color: chipMouse.containsMouse ? Theme.accent : Theme.border
+        implicitHeight: 36
+        implicitWidth: chipRow.implicitWidth + Theme.space4 * 2
+        Behavior on color { ColorAnimation { duration: Theme.durFast } }
+        RowLayout {
+            id: chipRow
+            anchors.centerIn: parent
+            spacing: Theme.space2
+            Image {
+                Layout.preferredWidth: 20
+                Layout.preferredHeight: 20
+                sourceSize: Qt.size(20, 20)
+                source: chip.iconSource
+                opacity: chip.active ? 1.0 : 0.4
+            }
+            Rectangle {
+                visible: chip.showDot
+                width: 8; height: 8; radius: 4
+                color: chip.active ? Theme.success : Theme.textMuted
+            }
+            Label {
+                visible: consolePane.width >= 1800   // จอแคบ: เหลือแค่ไอคอน (+ จุดสถานะ)
+                text: chip.text
+                font.pixelSize: Theme.fontCaption
+                font.weight: Font.DemiBold
+                color: chip.active ? Theme.text : Theme.textMuted
             }
         }
+        MouseArea {
+            id: chipMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: chip.clicked()
+        }
+        ToolTip.visible: chipMouse.containsMouse && consolePane.width < 1800
+        ToolTip.text: chip.text
+        ToolTip.delay: 500
     }
 }

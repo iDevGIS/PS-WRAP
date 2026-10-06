@@ -598,6 +598,7 @@ PsWrapRecorder *PsWrapRecorder::instance()
 bool PsWrapRecorder::start(const PsWrapRecConfig &config, QString *error)
 {
 	QString err;
+	start_file_error = false;
 	if (isRecording() || impl) {
 		err = tr("Already recording.");
 	} else {
@@ -615,6 +616,7 @@ bool PsWrapRecorder::start(const PsWrapRecConfig &config, QString *error)
 		} else if (!p->open(&err)) {
 			file_error = p->open_failed_on_file;
 		}
+		start_file_error = file_error;
 		if (!err.isEmpty()) {
 #ifdef Q_OS_WIN
 			// แก้ในแอปไม่ได้: Windows Security "Controlled folder access" บล็อก exe ที่ไม่รู้จักไม่ให้เขียน Videos/Documents/Desktop (พบ 2026-10-06)

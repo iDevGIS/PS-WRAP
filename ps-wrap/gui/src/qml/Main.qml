@@ -682,5 +682,15 @@ Item {
                 detail: message
             });
         }
+        // อัดได้แต่ย้ายไปโฟลเดอร์สำรอง (Windows บล็อกโฟลเดอร์ที่ตั้งไว้)
+        function onNotice(message, path) {
+            recToast.show({
+                kind: "info",
+                title: qsTr("Recording to backup folder"),
+                detail: message,
+                actionText: qsTr("Show in folder"),
+                action: function() { Chiaki.window.revealRecording(path); }
+            });
+        }
     }
 }

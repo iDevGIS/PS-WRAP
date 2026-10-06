@@ -119,8 +119,8 @@ Item {
                         font.pixelSize: Theme.fontCaption
                         color: Theme.textMuted
                         elide: Text.ElideMiddle
-                        maximumLineCount: 2
-                        wrapMode: toast.kind === "error" ? Text.Wrap : Text.NoWrap
+                        maximumLineCount: toast.kind === "success" ? 2 : 4
+                        wrapMode: toast.kind === "success" ? Text.NoWrap : Text.Wrap
                     }
                 }
 

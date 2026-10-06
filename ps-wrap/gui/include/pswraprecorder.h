@@ -68,6 +68,7 @@ public:
 	QString lastPath() const { return last_path; }
 	QString lastError() const { return last_error; }
 	QString description() const { return description_value; }
+	bool lastStartFileError() const { return start_file_error; }   // start() ล้มเพราะเขียนไฟล์/โฟลเดอร์ไม่ได้ (เช่น Controlled folder access)
 
 	// render thread: ถึงเวลาจับเฟรมถัดไปหรือยัง (คุม fps ของไฟล์ ไม่ผูกกับ refresh rate จอ)
 	bool wantsVideoFrame(qint64 now_us);
@@ -87,6 +88,7 @@ signals:
 	void lastErrorChanged();
 	void saved(const QString &path);
 	void failed(const QString &message);
+	void notice(const QString &message, const QString &path);   // ข้อมูลที่ผู้ใช้ควรรู้ (เช่น ย้ายไปเซฟโฟลเดอร์สำรอง)
 
 private:
 	struct Impl;
@@ -98,6 +100,7 @@ private:
 	QString last_path;
 	QString last_error;
 	QString description_value;
+	bool start_file_error = false;
 	QTimer tick_timer;
 	qint64 start_ms = 0;
 
