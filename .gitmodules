@@ -12,9 +12,11 @@
 	url = https://github.com/streetpea/gf-complete.git
 [submodule "ps-wrap/android/app/src/main/cpp/oboe"]
 	path = ps-wrap/android/app/src/main/cpp/oboe
+	update = none
 	url = https://github.com/google/oboe
 [submodule "ps-wrap/switch/borealis"]
 	path = ps-wrap/switch/borealis
+	update = none
 	url = https://github.com/streetpea/borealis.git
 [submodule "ps-wrap/third-party/curl"]
 	path = ps-wrap/third-party/curl
