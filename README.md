@@ -3,6 +3,20 @@
 PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบบ UI ใหม่ทั้งหมด ให้ทันสมัยและเล่นด้วยจอยอย่างเดียวได้
 พัฒนาต่อจาก [chiaki-ng](https://github.com/streetpea/chiaki-ng) โดยทีม BudToZai — แกน streaming (`ps-wrap/lib/`) คงเดิมจาก upstream
 
+![หน้าหลัก](screenshots/main.png)
+
+| ระหว่างสตรีม: การ์ด network stats | Settings › Keys |
+|---|---|
+| ![สตรีมพร้อม overlay](screenshots/stream-overlay.jpg) | ![หน้า Keys](screenshots/settings-keys.png) |
+
+**เมนูระหว่างสตรีม** — กด Ctrl+O หรือ L1+R1+L3+R3
+
+![เมนูสตรีม](screenshots/stream-menu.png)
+
+| Disconnect (ค่าเริ่มต้นไม่สั่งเครื่องหลับ) | เมนู system tray |
+|---|---|
+| ![Disconnect dialog](screenshots/disconnect.png) | ![Tray menu](screenshots/tray-menu.png) |
+
 ## มีอะไรใหม่จาก chiaki-ng
 
 - **UI ใหม่ทั้งชุด** — design system (`controls/Theme.qml`), หน้าหลักแบบ console card, Settings แบบ sidebar 9 หน้า, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า
