@@ -690,6 +690,9 @@ Item {
         // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
         const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
         Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
+        // การ์ดแชท → ภาพแนวตั้ง (เปิดด้วย Chat ในหน้าต่าง 9:16)
+        const chat = chatFrame.visible ? chatFrame.mapToItem(null, 0, 0, chatFrame.width, chatFrame.height) : Qt.rect(0, 0, 0, 0);
+        Chiaki.window.setVerticalChatRect(chat.x, chat.y, chat.width, chat.height);
     }
     Timer { interval: 200; repeat: true; running: !!Chiaki.session; onTriggered: view.pushOverlayHitRects() }
     Component.onDestruction: { if (Chiaki.window) Chiaki.window.setOverlayHitRects([]); root.toastBottomInset = 0; }

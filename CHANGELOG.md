@@ -4,6 +4,17 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
+## [0.3.1] — 2026-10-07
+Images, GIFs and live chat in the vertical 9:16 picture, plus fixes.
+### Added
+- **Images, GIFs and live chat in the vertical 9:16 picture.** In the 9:16 window, **＋ Image** adds a PNG, JPG, animated GIF or SVG (banner, logo and so on) from a file or from a link such as Giphy (downloaded by the app, up to 50 MB). Drag to move, scroll to resize, and right-click for bring to front / send to back / opacity / remove. Up to 8 images per layout, saved per layout; files are copied to the app's `overlays` folder, so moving the original is fine. **Chat** puts the live chat card into the vertical picture (drag/scroll like the facecam). Everything appears in the preview, Record 9:16 and vertical Go Live, and never covers the game screen while you play.
+
+### Changed
+- The facecam frame now matches the mic, stats, clock and chat cards: a thin 1 px edge with an accent line along the bottom, instead of a solid white 2 px border.
+
+### Fixed
+- **Vertical 9:16 clips and live streams in the Blur fill layout had a green background** (the preview window looked fine). libplacebo writes its blurred border as RGB straight into every plane without converting to YCbCr, so the NV12 file got the wrong colors. The Blur fill layout is now drawn to an RGBA texture first and then converted to NV12 in a second pass.
+
 ## [0.3.0] — 2026-10-07
 4K output, vertical 9:16, live chat on screen, a fix for stuck buttons, and an About page.
 
@@ -157,6 +168,7 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.3.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.1
 [0.3.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.2.0
 [0.1.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.1.1

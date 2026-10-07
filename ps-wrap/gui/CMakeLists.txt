@@ -76,6 +76,8 @@ set(SOURCE_FILES
 	include/pswrapvertical.h
 	src/pswrapvertical.cpp
 	src/qmlmainwindow_pswrapvertical.cpp
+	include/pswrapverticallayers.h
+	src/pswrapverticallayers.cpp
 	include/pswrapchat.h
 	src/pswrapchat.cpp
 	src/qmlmainwindow_pswrapchat.cpp

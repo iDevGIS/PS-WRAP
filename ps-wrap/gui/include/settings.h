@@ -290,6 +290,13 @@ class Settings : public QObject
 		// ตำแหน่ง facecam ที่ลากเองต่อเลย์เอาต์ "cx,cy,w" (สัดส่วน canvas) · ว่าง = ค่าเริ่มต้น
 		QString GetVerticalCam(int mode) const { return settings.value(QStringLiteral("pswrap/verticalCam%1").arg(mode)).toString(); }
 		void SetVerticalCam(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalCam%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalCam%1").arg(mode), v); }
+		// รูป/GIF ที่วางในภาพแนวตั้งต่อเลย์เอาต์ (JSON array — pswrapverticallayers.cpp) · การ์ดแชทในภาพแนวตั้ง + ตำแหน่งต่อเลย์เอาต์ "cx,cy,w"
+		QString GetVerticalLayers(int mode) const { return settings.value(QStringLiteral("pswrap/verticalLayers%1").arg(mode)).toString(); }
+		void SetVerticalLayers(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalLayers%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalLayers%1").arg(mode), v); }
+		bool GetVerticalChat() const { return settings.value("pswrap/verticalChat", false).toBool(); }
+		void SetVerticalChat(bool v) { settings.setValue("pswrap/verticalChat", v); }
+		QString GetVerticalChatPos(int mode) const { return settings.value(QStringLiteral("pswrap/verticalChat%1").arg(mode)).toString(); }
+		void SetVerticalChatPos(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalChat%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalChat%1").arg(mode), v); }
 		// PS-WRAP: Instant Replay — เก็บ N วินาทีล่าสุดไว้ในแรมระหว่างสตรีม (ดู PsWrapRecorder::startReplay)
 		bool GetReplayEnabled() const { return settings.value("pswrap/replayEnabled", false).toBool(); }
 		void SetReplayEnabled(bool v) { settings.setValue("pswrap/replayEnabled", v); }

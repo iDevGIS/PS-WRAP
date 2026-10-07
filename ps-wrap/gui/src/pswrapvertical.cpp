@@ -1,5 +1,6 @@
 // PS-WRAP: ภาพแนวตั้ง 9:16 — เลย์เอาต์ + preview (ดู pswrapvertical.h)
 #include <pswrapvertical.h>
+#include <pswrapverticallayers.h>
 
 #include <QLoggingCategory>
 
@@ -48,7 +49,7 @@ pl_rect2df coverSlice(const pl_rect2df &src, float dst_aspect, float crop_x)
 } // namespace
 
 PsWrapVerticalGeometry pswrapVerticalGeometry(const PsWrapVerticalLayout &layout, float W, float H,
-                                              const pl_rect2df &src, float cam_aspect)
+                                              const pl_rect2df &src, float cam_aspect, float chat_aspect)
 {
 	PsWrapVerticalGeometry g;
 	const float m = H * 0.02f;   // ระยะขอบ facecam
@@ -95,10 +96,25 @@ PsWrapVerticalGeometry pswrapVerticalGeometry(const PsWrapVerticalLayout &layout
 		const float cy = std::clamp(layout.cam_cy * H, h * 0.5f, H - h * 0.5f);
 		g.cam_dst = rect(cx - w * 0.5f, cy - h * 0.5f, cx + w * 0.5f, cy + h * 0.5f);
 	}
+	// การ์ดแชท: ค่าเริ่มต้น = กลางด้านล่าง กว้าง 86% · ลากเองได้เหมือน facecam
+	if (chat_aspect > 0.0f) {
+		// ค่าเริ่มต้น: สูงไม่เกิน 30% (พอดีพื้นที่ว่างด้านล่างของ Blur fill ไม่บังเกม) กว้างไม่เกิน 86%
+		float w = layout.chat_w > 0.0f ? std::clamp(layout.chat_w, 0.08f, 1.0f) * W : std::min(W * 0.86f, H * 0.30f * chat_aspect);
+		float h = w / chat_aspect;
+		if (h > H * 0.6f) {
+			h = H * 0.6f;
+			w = h * chat_aspect;
+		}
+		const float dcy = layout.chat_w > 0.0f ? layout.chat_cy : (H - m - h * 0.5f) / H;
+		const float dcx = layout.chat_w > 0.0f ? layout.chat_cx : 0.5f;
+		const float cx = std::clamp(dcx * W, w * 0.5f, W - w * 0.5f);
+		const float cy = std::clamp(dcy * H, h * 0.5f, H - h * 0.5f);
+		g.chat_dst = rect(cx - w * 0.5f, cy - h * 0.5f, cx + w * 0.5f, cy + h * 0.5f);
+	}
 	return g;
 }
 
-bool pswrapRenderVertical(pl_renderer renderer, const pl_frame_mix *mix, const pl_frame *single, const pl_render_params &params,
+bool pswrapRenderVertical(pl_gpu gpu, pl_renderer renderer, const pl_frame_mix *mix, const pl_frame *single, const pl_render_params &params,
                           const pl_frame &screen_target, const pl_overlay *overlay, int screen_w, int screen_h,
                           const PsWrapVerticalLayout &layout, pl_frame &t, PsWrapVerticalGeometry *out)
 {
@@ -107,36 +123,53 @@ bool pswrapRenderVertical(pl_renderer renderer, const pl_frame_mix *mix, const p
 		return false;
 	const int W = t.planes[0].texture->params.w, H = t.planes[0].texture->params.h;
 
-	// กรอบ facecam บนจอ ∩ จอ — ใช้เป็นทั้งสัดส่วนและส่วนที่ตัดจาก quick_tex
-	const QRectF cam = layout.cam.intersected(QRectF(0, 0, screen_w, screen_h));
-	const bool has_cam = overlay && overlay->tex && overlay->num_parts > 0 && cam.width() >= 2 && cam.height() >= 2;
+	// กรอบ facecam / การ์ดแชทบนจอ ∩ จอ — ใช้เป็นทั้งสัดส่วนและส่วนที่ตัดจาก quick_tex
+	const QRectF screen(0, 0, screen_w, screen_h);
+	const bool has_quick = overlay && overlay->tex && overlay->num_parts > 0;
+	const QRectF cam = layout.cam.intersected(screen);
+	const QRectF chat = layout.chat.intersected(screen);
+	const bool has_cam = has_quick && cam.width() >= 2 && cam.height() >= 2;
+	const bool has_chat = has_quick && chat.width() >= 2 && chat.height() >= 2;
 	const PsWrapVerticalGeometry g = pswrapVerticalGeometry(layout, float(W), float(H), src->crop,
-	                                                        has_cam ? float(cam.width() / cam.height()) : 0.0f);
+	                                                        has_cam ? float(cam.width() / cam.height()) : 0.0f,
+	                                                        has_chat ? float(chat.width() / chat.height()) : 0.0f);
 	if (out)
 		*out = g;
 	t.crop = g.game_dst;
 
-	pl_overlay ov = {};
-	pl_overlay_part part = {};
-	t.overlays = nullptr;
-	t.num_overlays = 0;
-	if (has_cam && g.cam_dst.x1 > g.cam_dst.x0) {
-		ov = *overlay;
-		part = overlay->parts[0];
+	// overlay ชี้ part ใน parts → reserve ก่อน ไม่ให้ vector ย้ายที่
+	std::vector<pl_overlay> ovs;
+	std::vector<pl_overlay_part> parts;
+	ovs.reserve(size_t(PsWrapVerticalLayers::maxLayers()) + 2);
+	parts.reserve(size_t(PsWrapVerticalLayers::maxLayers()) + 2);
+	pswrapVerticalLayersAppend(gpu, float(W), float(H), ovs, parts);
+
+	// ส่วนของ quick_tex (overlay QML ทั้งจอ) ตรงกรอบ r บนจอ → วางที่ dst บน canvas
+	auto addQuickPart = [&](const QRectF &r, const pl_rect2df &dst) {
+		if (!(dst.x1 > dst.x0) || parts.size() >= parts.capacity())
+			return;
+		pl_overlay_part part = overlay->parts[0];
 		const pl_rect2df c = screen_target.crop;
 		if (c.y0 > c.y1)   // swapchain OpenGL กลับหัว
 			std::swap(part.src.y0, part.src.y1);
 		const pl_rect2df full = part.src;   // quick_tex ครอบทั้งจอ
-		part.src.x0 = full.x0 + (full.x1 - full.x0) * float(cam.left() / screen_w);
-		part.src.x1 = full.x0 + (full.x1 - full.x0) * float(cam.right() / screen_w);
-		part.src.y0 = full.y0 + (full.y1 - full.y0) * float(cam.top() / screen_h);
-		part.src.y1 = full.y0 + (full.y1 - full.y0) * float(cam.bottom() / screen_h);
-		part.dst = g.cam_dst;
-		ov.parts = &part;
+		part.src.x0 = full.x0 + (full.x1 - full.x0) * float(r.left() / screen_w);
+		part.src.x1 = full.x0 + (full.x1 - full.x0) * float(r.right() / screen_w);
+		part.src.y0 = full.y0 + (full.y1 - full.y0) * float(r.top() / screen_h);
+		part.src.y1 = full.y0 + (full.y1 - full.y0) * float(r.bottom() / screen_h);
+		part.dst = dst;
+		parts.push_back(part);
+		pl_overlay ov = *overlay;
+		ov.parts = &parts.back();
 		ov.num_parts = 1;
-		t.overlays = &ov;
-		t.num_overlays = 1;
-	}
+		ovs.push_back(ov);
+	};
+	if (has_chat)
+		addQuickPart(chat, g.chat_dst);
+	if (has_cam)
+		addQuickPart(cam, g.cam_dst);
+	t.overlays = ovs.empty() ? nullptr : ovs.data();
+	t.num_overlays = int(ovs.size());
 
 	pl_render_params p = params;
 	p.hooks = nullptr;
@@ -248,7 +281,7 @@ bool PsWrapVerticalPreview::capture(const pl_frame_mix *mix, const pl_frame *sin
 	t.repr.bits.color_depth = 8;
 	t.color = pl_color_space_srgb;   // สตรีม HDR → tone-map ลง SDR
 	PsWrapVerticalGeometry g;
-	const bool ok = pswrapRenderVertical(renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, layout, t, &g);
+	const bool ok = pswrapRenderVertical(gpu, renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, layout, t, &g);
 	last_geometry = g;
 	if (!ok) {
 		static bool warned = false;

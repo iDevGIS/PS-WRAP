@@ -27,6 +27,9 @@ struct PsWrapVerticalLayout
 	QRectF cam;            // กรอบ facecam บนจอ (pixel ของ swapchain) · ว่าง = ไม่มี facecam
 	// ตำแหน่ง facecam ที่ผู้ใช้ลากเอง (สัดส่วนของ canvas: จุดกึ่งกลาง + ความกว้าง) · cam_w <= 0 = ค่าเริ่มต้นของเลย์เอาต์
 	float cam_cx = 0.5f, cam_cy = 0.2f, cam_w = 0.0f;
+	// การ์ดแชทไลฟ์ (ตัดจาก quick_tex ตรงกรอบแชทบนจอ เหมือน facecam) · chat ว่าง = ไม่วาด
+	QRectF chat;
+	float chat_cx = 0.5f, chat_cy = 0.82f, chat_w = 0.0f;   // chat_w <= 0 = ค่าเริ่มต้น
 };
 
 // ผลคำนวณเลย์เอาต์บน canvas ขนาด w×h (พิกัด pixel ของ canvas)
@@ -35,16 +38,18 @@ struct PsWrapVerticalGeometry
 	pl_rect2df src_crop = {};   // ส่วนของเฟรมสตรีมที่ใช้
 	pl_rect2df game_dst = {};   // ที่วางเกมบน canvas
 	pl_rect2df cam_dst = {};    // ที่วาง facecam (ว่าง = ไม่วาด)
+	pl_rect2df chat_dst = {};   // ที่วางการ์ดแชท (ว่าง = ไม่วาด)
 	bool blur_border = false;
 };
 
-// src = crop ของเฟรมสตรีม · cam_aspect = กว้าง/สูงของกรอบ facecam (0 = ไม่มี)
+// src = crop ของเฟรมสตรีม · cam_aspect / chat_aspect = กว้าง/สูงของกรอบบนจอ (0 = ไม่มี)
 PsWrapVerticalGeometry pswrapVerticalGeometry(const PsWrapVerticalLayout &layout, float canvas_w, float canvas_h,
-                                              const pl_rect2df &src, float cam_aspect);
+                                              const pl_rect2df &src, float cam_aspect, float chat_aspect = 0.0f);
 
 // วาด canvas แนวตั้งลง target (ตั้ง repr/color/planes ของ target มาแล้ว) ด้วย renderer ที่ให้มา — ใช้ทั้ง preview และไฟล์/ไลฟ์
+// ลำดับ overlay: รูป/GIF ของผู้ใช้ (pswrapverticallayers) → การ์ดแชท → facecam
 // คืนเรขาคณิตที่ใช้จริงใน *out (nullable) · false = render ล้มเหลว
-bool pswrapRenderVertical(pl_renderer renderer, const struct pl_frame_mix *mix, const struct pl_frame *single,
+bool pswrapRenderVertical(pl_gpu gpu, pl_renderer renderer, const struct pl_frame_mix *mix, const struct pl_frame *single,
                           const struct pl_render_params &params, const struct pl_frame &screen_target,
                           const struct pl_overlay *overlay, int screen_w, int screen_h,
                           const PsWrapVerticalLayout &layout, struct pl_frame &target, PsWrapVerticalGeometry *out);

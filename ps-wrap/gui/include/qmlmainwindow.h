@@ -100,6 +100,8 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(qreal verticalCropX READ verticalCropX WRITE setVerticalCropX NOTIFY verticalCropXChanged)    // 0..1
     Q_PROPERTY(int verticalFrame READ verticalFrame NOTIFY verticalFrameChanged)
     Q_PROPERTY(QObject *verticalRecorder READ verticalRecorderObject CONSTANT)   // PS-WRAP: อัดคลิปแนวตั้ง (recording/seconds/saved/failed)
+    Q_PROPERTY(bool verticalChat READ verticalChat WRITE setVerticalChat NOTIFY verticalChatChanged)   // PS-WRAP: การ์ดแชทในภาพแนวตั้ง
+    Q_PROPERTY(QObject *verticalLayers READ verticalLayersObject CONSTANT)        // PS-WRAP: รูป/GIF ในภาพแนวตั้ง (pswrapverticallayers.h)
     // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp) — เดินเองระหว่างสตรีมเมื่อเปิด · saveReplay() → recorder.replaySaved
     Q_PROPERTY(bool replayEnabled READ replayEnabled WRITE setReplayEnabled NOTIFY replayEnabledChanged)
     Q_PROPERTY(int replaySeconds READ replaySeconds WRITE setReplaySeconds NOTIFY replaySecondsChanged)   // 30..120
@@ -233,6 +235,12 @@ public:
     // เฟส 2: ลากใน preview — กรอบล่าสุด (สัดส่วน 0..1 ของ canvas) {game:{x,y,w,h}, cam:{x,y,w,h}|null}
     Q_INVOKABLE QVariantMap verticalHitRects() const;
     Q_INVOKABLE void setVerticalCam(qreal cx, qreal cy, qreal w);   // ตำแหน่ง facecam ของเลย์เอาต์ปัจจุบัน · w<=0 = คืนค่าเริ่มต้น
+    bool verticalChat() const;
+    void setVerticalChat(bool on);   // เปิดแล้วเปิด overlay แชทบนจอให้ด้วย (ภาพตัดมาจากการ์ดบนจอ)
+    Q_INVOKABLE void setVerticalChatRect(qreal x, qreal y, qreal w, qreal h);   // logical px ของการ์ดแชทบนจอ · w<=0 = ไม่มี
+    Q_INVOKABLE void setVerticalChatPos(qreal cx, qreal cy, qreal w);           // ตำแหน่งการ์ดแชทในภาพแนวตั้ง · w<=0 = ค่าเริ่มต้น
+    class PsWrapVerticalLayers *verticalLayers();   // สร้างครั้งแรกที่เรียก (ลูกของ window)
+    QObject *verticalLayersObject();
     void setCaptureHeight(int height);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void openRecordingsFolder();
@@ -310,6 +318,7 @@ signals:
     void captureHeightChanged();       // PS-WRAP
     void verticalPreviewChanged();     // PS-WRAP
     void verticalLayoutChanged();
+    void verticalChatChanged();        // PS-WRAP
     void verticalCropXChanged();
     void verticalFrameChanged();
     void micGainDbChanged();
