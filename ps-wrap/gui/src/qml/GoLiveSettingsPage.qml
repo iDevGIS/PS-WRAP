@@ -486,6 +486,111 @@ Item {
                 wrapMode: Text.WordWrap
                 text: page.api ? page.api.lastError : ""
             }
+
+            // ---------- PS-WRAP: แชทไลฟ์บนจอ (Chiaki.window.liveChat — pswrapchat.cpp) ----------
+            Rectangle {
+                id: chatCardBox
+                readonly property QtObject chat: Chiaki.window ? Chiaki.window.liveChat : null
+                Layout.fillWidth: true
+                Layout.topMargin: Theme.space4
+                implicitHeight: chatCol.implicitHeight + Theme.space4 * 2
+                radius: Theme.radiusCard
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.border
+
+                GridLayout {
+                    id: chatCol
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.space4 }
+                    columns: 2
+                    columnSpacing: Theme.space4
+                    rowSpacing: Theme.space3
+
+                    Label {
+                        Layout.columnSpan: 2
+                        text: qsTr("CHAT ON SCREEN")
+                        font.pixelSize: Theme.fontCaption
+                        font.letterSpacing: 1.5
+                        font.weight: Font.DemiBold
+                        color: Theme.textMuted
+                    }
+                    Label {
+                        Layout.columnSpan: 2
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: Theme.fontCaption
+                        color: Theme.textMuted
+                        text: qsTr("Shows YouTube and Twitch chat as an overlay while you stream (Chat in the stream menu, Ctrl+Shift+H or the tray). It connects only while the overlay is on. Twitch needs no login. YouTube needs a YouTube Data API v3 key from Google Cloud Console; each check costs quota, so chat refreshes every 5 seconds or more.")
+                    }
+
+                    Label {
+                        text: qsTr("YouTube")
+                        font.pixelSize: Math.round(Theme.fontBody * page.uiScale)
+                        color: Theme.text
+                    }
+                    C.TextField {
+                        Layout.fillWidth: true
+                        text: chatCardBox.chat ? chatCardBox.chat.youtubeSource : ""
+                        placeholderText: qsTr("@handle, channel ID (UC…) or live video link")
+                        onEditingFinished: if (chatCardBox.chat) chatCardBox.chat.youtubeSource = text
+                        onActiveFocusChanged: if (activeFocus) page.ensureVisible(this)
+                    }
+
+                    Label {
+                        text: qsTr("API key")
+                        font.pixelSize: Math.round(Theme.fontBody * page.uiScale)
+                        color: Theme.text
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.space2
+                        C.TextField {
+                            id: ytKeyField
+                            Layout.fillWidth: true
+                            echoMode: TextInput.Password
+                            inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+                            placeholderText: chatCardBox.chat && chatCardBox.chat.youtubeKeySaved ? qsTr("Saved — type to replace") : qsTr("Paste YouTube Data API v3 key")
+                            onEditingFinished: {
+                                // ล้างช่องก่อน แล้วค่อยบันทึกลง Credential Manager (ไม่ถือ key ค้างใน QML)
+                                const key = text.trim();
+                                text = "";
+                                if (key.length > 0 && chatCardBox.chat)
+                                    chatCardBox.chat.setYoutubeApiKey(key);
+                            }
+                            onActiveFocusChanged: if (activeFocus) page.ensureVisible(this)
+                        }
+                        C.Button {
+                            text: qsTr("Clear")
+                            flat: true
+                            visible: !!chatCardBox.chat && chatCardBox.chat.youtubeKeySaved
+                            onClicked: chatCardBox.chat.setYoutubeApiKey("")
+                        }
+                    }
+
+                    Label {
+                        text: qsTr("Twitch")
+                        font.pixelSize: Math.round(Theme.fontBody * page.uiScale)
+                        color: Theme.text
+                    }
+                    C.TextField {
+                        Layout.fillWidth: true
+                        text: chatCardBox.chat ? chatCardBox.chat.twitchChannel : ""
+                        placeholderText: qsTr("channel name (no login needed)")
+                        onEditingFinished: if (chatCardBox.chat) chatCardBox.chat.twitchChannel = text
+                        onActiveFocusChanged: if (activeFocus) page.ensureVisible(this)
+                    }
+
+                    Label {
+                        Layout.columnSpan: 2
+                        Layout.fillWidth: true
+                        visible: text.length > 0
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: Theme.fontCaption
+                        color: Theme.textMuted
+                        text: chatCardBox.chat && chatCardBox.chat.running ? chatCardBox.chat.status : ""
+                    }
+                }
+            }
         }
     }
 }

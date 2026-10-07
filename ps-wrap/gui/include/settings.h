@@ -263,6 +263,13 @@ class Settings : public QObject
 		void SetMicOverlay(bool v) { settings.setValue("pswrap/micOverlay", v); }
 		bool GetClockOverlay() const { return settings.value("pswrap/clockOverlay", false).toBool(); }   // PS-WRAP: นาฬิกา + เวลาเล่น
 		void SetClockOverlay(bool v) { settings.setValue("pswrap/clockOverlay", v); }
+		// PS-WRAP: แชทไลฟ์บนจอ (pswrapchat.cpp) — แหล่ง YouTube (@handle / channel / ลิงก์) + ช่อง Twitch · API key อยู่ Credential Manager
+		bool GetChatOverlay() const { return settings.value("pswrap/chatOverlay", false).toBool(); }
+		void SetChatOverlay(bool v) { settings.setValue("pswrap/chatOverlay", v); }
+		QString GetChatYouTube() const { return settings.value("pswrap/chatYouTube").toString(); }
+		void SetChatYouTube(const QString &v) { settings.setValue("pswrap/chatYouTube", v); }
+		QString GetChatTwitch() const { return settings.value("pswrap/chatTwitch").toString(); }
+		void SetChatTwitch(const QString &v) { settings.setValue("pswrap/chatTwitch", v); }
 		// PS-WRAP: ไมค์ — เพิ่มเสียง (dB) + noise gate (ดู PsWrapVoiceProc::setDynamics)
 		double GetMicGainDb() const { return settings.value("pswrap/micGainDb", 0.0).toDouble(); }
 		void SetMicGainDb(double v) { settings.setValue("pswrap/micGainDb", v); }

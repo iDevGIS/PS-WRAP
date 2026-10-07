@@ -80,6 +80,8 @@ class QmlMainWindow : public QWindow
     // PS-WRAP: อัดวิดีโอ + overlay spectrum ไมค์ (ดู pswraprecorder.h / pswrapmicmeter.h)
     Q_PROPERTY(bool micOverlay READ micOverlay WRITE setMicOverlay NOTIFY micOverlayChanged)
     Q_PROPERTY(bool clockOverlay READ clockOverlay WRITE setClockOverlay NOTIFY clockOverlayChanged)   // PS-WRAP: นาฬิกา + เวลาเล่น (qmlmainwindow_pswrapclock.cpp)
+    Q_PROPERTY(bool chatOverlay READ chatOverlay WRITE setChatOverlay NOTIFY chatOverlayChanged)       // PS-WRAP: แชทไลฟ์บนจอ (qmlmainwindow_pswrapchat.cpp)
+    Q_PROPERTY(QObject *liveChat READ liveChatObject CONSTANT)                                         // PS-WRAP: PsWrapLiveChat (ข้อความ/สถานะ/แหล่ง)
     Q_PROPERTY(int camFx READ camFx WRITE setCamFx NOTIFY camFxChanged)                          // PS-WRAP: 0..13 (ดู WebcamOverlay.fx)
     Q_PROPERTY(int camBackground READ camBackground WRITE setCamBackground NOTIFY camBackgroundChanged) // 0 keep · 1 green · 2 blue · 3 AI
     Q_PROPERTY(QObject *recorder READ recorderObject CONSTANT)
@@ -204,6 +206,11 @@ public:
     void setMicOverlay(bool v);
     bool clockOverlay() const;          // PS-WRAP: qmlmainwindow_pswrapclock.cpp
     void setClockOverlay(bool v);
+    bool chatOverlay() const;           // PS-WRAP: qmlmainwindow_pswrapchat.cpp
+    void setChatOverlay(bool v);
+    class PsWrapLiveChat *liveChat();   // สร้างครั้งแรกที่เรียก (ลูกของ window)
+    QObject *liveChatObject();
+    void pswrapSyncChat();              // เปิด overlay + มีสตรีม = ต่อแชท · ไม่งั้นหยุด
     QObject *recorderObject() const;
     QObject *micMeterObject() const;
     PsWrapGameProfiles *gameProfiles();   // PS-WRAP: สร้างครั้งแรกที่เรียก (ลูกของ window) — qmlmainwindow_pswrapprofiles.cpp
@@ -242,6 +249,9 @@ public:
     // PS-WRAP: ขนาดพื้นที่ภาพ 16:9 ตาม preset (qmlmainwindow_pswrapsize.cpp) — physical px · width/height -1 = Fullscreen
     Q_INVOKABLE QVariantList playerSizes();   // [{width, height, stream, current}] เฉพาะที่วางบนจอได้ + Fullscreen ท้ายสุด
     Q_INVOKABLE void setPlayerSize(int width, int height);
+    // PS-WRAP: หน้า About (qmlmainwindow_pswrapabout.cpp) — ไฟล์ license ที่วางข้าง exe ในแพ็กเกจ release
+    Q_INVOKABLE bool appFileExists(const QString &name) const;
+    Q_INVOKABLE void openAppFile(const QString &name);
     // PS-WRAP: ทดสอบไมค์นอกสตรีม (หน้า preview) — เปิดอุปกรณ์ capture ส่ง PCM เข้า micMeter · "" = Auto
     Q_INVOKABLE bool startMicPreview(const QString &device);
     Q_INVOKABLE void stopMicPreview();
@@ -296,6 +306,7 @@ signals:
     void statsOverlayChanged();
     void micOverlayChanged();          // PS-WRAP
     void clockOverlayChanged();        // PS-WRAP
+    void chatOverlayChanged();         // PS-WRAP
     void captureHeightChanged();       // PS-WRAP
     void verticalPreviewChanged();     // PS-WRAP
     void verticalLayoutChanged();

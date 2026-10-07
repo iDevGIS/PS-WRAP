@@ -39,6 +39,8 @@ Item {
     readonly property bool micOverlayVisible: Chiaki.window.micOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
     // PS-WRAP: นาฬิกา + เวลาเล่น (ClockOverlay.qml) — เงื่อนไขเดียวกับ mic · เวลาเล่นนับจากตอน session connected (sessionStartMs)
     readonly property bool clockOverlayVisible: !!Chiaki.window.clockOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
+    // PS-WRAP: แชทไลฟ์ (ChatOverlay.qml) — เงื่อนไขเดียวกับนาฬิกา · ตัวดึงแชทต่อเองเมื่อเปิด overlay ระหว่างสตรีม (C++)
+    readonly property bool chatOverlayVisible: !!Chiaki.window.chatOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
     property double sessionStartMs: 0
     function noteSessionStart() {
         if (!Chiaki.session || !Chiaki.session.connected)
@@ -103,6 +105,7 @@ Item {
             statsEditMode ||
             micEditMode ||
             clockEditMode ||
+            chatEditMode ||
             menuController.open ||
             menuController.closing ||
             sessionStopDialogActive ||
@@ -119,7 +122,7 @@ Item {
         errorTextLabel.text = "";
         sessionLoading = !(Chiaki.window.loadingTransitionComplete || (Chiaki.settings.audioVideoDisabled & 0x02));
     }
-    StackView.onDeactivated: { Chiaki.window.keepVideo = false; if (overlayEditMode) view.stopOverlayEdit(); if (camEditMode) view.stopCamEdit(); if (statsEditMode) view.stopStatsEdit(); if (micEditMode) view.stopMicEdit(); if (clockEditMode) view.stopClockEdit(); }
+    StackView.onDeactivated: { Chiaki.window.keepVideo = false; if (overlayEditMode) view.stopOverlayEdit(); if (camEditMode) view.stopCamEdit(); if (statsEditMode) view.stopStatsEdit(); if (micEditMode) view.stopMicEdit(); if (clockEditMode) view.stopClockEdit(); if (chatEditMode) view.stopChatEdit(); }
 
     Component.onCompleted: {
         noteSessionStart();
@@ -503,6 +506,7 @@ Item {
             onWebcamEditRequested: { menuController.close(); view.startCamEdit(); }
             onMicEditRequested: { menuController.close(); view.startMicEdit(); }
             onClockEditRequested: { menuController.close(); view.startClockEdit(); }
+            onChatEditRequested: { menuController.close(); view.startChatEdit(); }
         }
     }
 
@@ -571,6 +575,10 @@ Item {
         property real clockX: -1        // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น ขวาบน)
         property real clockY: -1
         property real clockW: 0.13      // ความกว้างเป็นสัดส่วนของ overlayBaseW (≈250px ที่ 1920)
+        // chat overlay (แชทไลฟ์)
+        property real chatX: -1         // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น ซ้ายกลาง)
+        property real chatY: -1
+        property real chatW: 0.18       // ≈345px ที่ 1920
     }
 
     // ---- edit mode ของ overlay: ขอ input คืนจากเกมชั่วคราว ลากด้วยเมาส์/ลูกศร/จอย, มุมขวาล่างย่อขยาย, L1/R1 หรือ +/- ย่อขยาย, Esc/◯ หรือ Enter/✕ เสร็จ ----
@@ -621,6 +629,7 @@ Item {
         if (camEditMode) view.stopCamEdit();
         if (micEditMode) view.stopMicEdit();
         if (clockEditMode) view.stopClockEdit();
+        if (chatEditMode) view.stopChatEdit();
         Chiaki.window.statsOverlay = true;
         statsEditMode = true;
         updateOverlayInteractionActive();
@@ -635,18 +644,20 @@ Item {
     }
     onStatsEditModeChanged: if (statsEditMode) statsFrame.forceActiveFocus(Qt.TabFocusReason)
     // คลิกที่ overlay = เข้าโหมดแก้ตัวนั้น (สลับจากตัวอื่นได้ทันที) · คลิกที่ว่าง = จบโหมดแก้
-    readonly property bool anyOverlayEdit: overlayEditMode || camEditMode || statsEditMode || micEditMode || clockEditMode
+    readonly property bool anyOverlayEdit: overlayEditMode || camEditMode || statsEditMode || micEditMode || clockEditMode || chatEditMode
     function editOverlay(which) {
         if (which !== "pad" && overlayEditMode) { overlayEditMode = false; }
         if (which !== "cam" && camEditMode) { camEditMode = false; camFrame.save(); }
         if (which !== "stats" && statsEditMode) { statsEditMode = false; statsFrame.save(); }
         if (which !== "mic" && micEditMode) { micEditMode = false; micFrame.save(); }
         if (which !== "clock" && clockEditMode) { clockEditMode = false; clockFrame.save(); }
+        if (which !== "chat" && chatEditMode) { chatEditMode = false; chatFrame.save(); }
         if (which === "pad") { if (!overlayEditMode) { overlayEditMode = true; Chiaki.window.padOverlay = true; } view.grabInputOnce(overlayFrame); }
         else if (which === "cam") { if (!camEditMode) { camEditMode = true; Chiaki.window.camOverlay = true; } view.grabInputOnce(camFrame); }
         else if (which === "stats") { if (!statsEditMode) { statsEditMode = true; Chiaki.window.statsOverlay = true; } view.grabInputOnce(statsFrame); }
         else if (which === "mic") { if (!micEditMode) { micEditMode = true; Chiaki.window.micOverlay = true; } view.grabInputOnce(micFrame); }
         else if (which === "clock") { if (!clockEditMode) { clockEditMode = true; Chiaki.window.clockOverlay = true; } view.grabInputOnce(clockFrame); }
+        else if (which === "chat") { if (!chatEditMode) { chatEditMode = true; Chiaki.window.chatOverlay = true; } view.grabInputOnce(chatFrame); }
         updateOverlayInteractionActive();
     }
     function stopAllOverlayEdit() {
@@ -655,6 +666,7 @@ Item {
         if (statsEditMode) view.stopStatsEdit();
         if (micEditMode) view.stopMicEdit();
         if (clockEditMode) view.stopClockEdit();
+        if (chatEditMode) view.stopChatEdit();
     }
     // grab input ครั้งเดียวต่อช่วงแก้ (สลับตัวที่แก้ไม่ grab ซ้อน) แล้วโฟกัสตัวใหม่
     property bool editInputGrabbed: false
@@ -674,7 +686,7 @@ Item {
     function rectOf(item) { return item.visible ? Qt.rect(item.x, item.y, item.width, item.height) : Qt.rect(0, 0, 0, 0) }
     function pushOverlayHitRects() {
         if (!Chiaki.window) return;
-        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(root.recordingToast)]);
+        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast)]);
         // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
         const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
         Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
@@ -725,6 +737,7 @@ Item {
         if (overlayEditMode) view.stopOverlayEdit();
         if (micEditMode) view.stopMicEdit();
         if (clockEditMode) view.stopClockEdit();
+        if (chatEditMode) view.stopChatEdit();
         Chiaki.window.camOverlay = true;
         camEditMode = true;
         view.updateOverlayInteractionActive();
@@ -762,6 +775,7 @@ Item {
         if (camEditMode) view.stopCamEdit();
         if (statsEditMode) view.stopStatsEdit();
         if (clockEditMode) view.stopClockEdit();
+        if (chatEditMode) view.stopChatEdit();
         Chiaki.window.micOverlay = true;
         micEditMode = true;
         view.updateOverlayInteractionActive();
@@ -816,6 +830,34 @@ Item {
         sequence: "Ctrl+Shift+T"
         autoRepeat: false
         onActivated: { console.log("PSWRAP shortcut clock"); Chiaki.window.clockOverlay = !Chiaki.window.clockOverlay; }
+    }
+    // ---- chat overlay: Ctrl+Shift+H เปิด/ปิด · edit mode (ลาก/ย่อขยาย) เหมือนนาฬิกา ----
+    property bool chatEditMode: false
+    function startChatEdit() {
+        if (useSeparateMenuWindow || !Chiaki.session || chatEditMode)
+            return;
+        if (overlayEditMode) view.stopOverlayEdit();
+        if (camEditMode) view.stopCamEdit();
+        if (statsEditMode) view.stopStatsEdit();
+        if (micEditMode) view.stopMicEdit();
+        if (clockEditMode) view.stopClockEdit();
+        Chiaki.window.chatOverlay = true;
+        chatEditMode = true;
+        view.updateOverlayInteractionActive();
+        view.grabInputOnce(chatFrame);
+    }
+    function stopChatEdit() {
+        if (!chatEditMode)
+            return;
+        chatEditMode = false;
+        chatFrame.save();
+        releaseAfterEdit.restart();
+    }
+    onChatEditModeChanged: if (chatEditMode) chatFrame.forceActiveFocus(Qt.TabFocusReason)
+    Shortcut {
+        sequence: "Ctrl+Shift+H"
+        autoRepeat: false
+        onActivated: { console.log("PSWRAP shortcut chat"); Chiaki.window.chatOverlay = !Chiaki.window.chatOverlay; }
     }
     // ---- Instant Replay / marker / screenshot (C++: Chiaki.window.saveReplay/addMarker/takeScreenshot) ----
     //      ผลลัพธ์ (replaySaved / screenshotSaved / failed) แสดงเป็น toast ที่ Main.qml · marker แสดง pill เล็กๆ ด้านล่างนี้
@@ -1465,6 +1507,118 @@ Item {
                     pswrapPrefs.clockW = Math.min(0.4, Math.max(0.07, w / overlayBaseW));
                 }
                 onReleased: clockFrame.save()
+            }
+        }
+    }
+
+    // PS-WRAP: chat inline (Vulkan) — วาดที่ 340×420 แล้ว scale ตามกรอบ · จำตำแหน่งเป็นสัดส่วนของกรอบวิดีโอ · ค่าเริ่มต้นซ้ายกลาง
+    FocusScope {
+        id: chatFrame
+        z: 60
+        readonly property real aspect: chatCard.implicitWidth / chatCard.implicitHeight
+        visible: !useSeparateMenuWindow && Chiaki.session && (chatOverlayVisible || chatEditMode)
+        onVisibleChanged: if (visible) layout()
+        width: Math.max(140, Math.round(overlayBaseW * pswrapPrefs.chatW))
+        height: Math.round(width / aspect)
+
+        function layout() {
+            const maxX = Math.max(0, videoW - width);
+            const maxY = Math.max(0, videoH - height);
+            x = videoX + (pswrapPrefs.chatX < 0 ? 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.chatX * videoW))));
+            y = videoY + (pswrapPrefs.chatY < 0 ? Math.round(maxY * 0.45) : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.chatY * videoH))));
+        }
+        function save() {
+            pswrapPrefs.chatX = videoW > 0 ? (x - videoX) / videoW : -1;
+            pswrapPrefs.chatY = videoH > 0 ? (y - videoY) / videoH : -1;
+        }
+        function nudge(dx, dy) {
+            x = Math.min(Math.max(videoX, x + dx), videoX + Math.max(0, videoW - width));
+            y = Math.min(Math.max(videoY, y + dy), videoY + Math.max(0, videoH - height));
+            save();
+        }
+        function resizeBy(delta) {
+            pswrapPrefs.chatW = Math.min(0.5, Math.max(0.1, pswrapPrefs.chatW + delta));
+            Qt.callLater(function() { layout(); save(); });
+        }
+        Component.onCompleted: layout()
+        Connections {
+            target: view
+            function onWidthChanged() { chatFrame.layout() }
+            function onHeightChanged() { chatFrame.layout() }
+            function onVideoXChanged() { chatFrame.layout() }
+            function onVideoYChanged() { chatFrame.layout() }
+        }
+        onWidthChanged: layout()
+
+        Keys.onPressed: (event) => {
+            if (!chatEditMode) return;
+            switch (event.key) {
+            case Qt.Key_Left:  nudge(-10, 0); break;
+            case Qt.Key_Right: nudge(10, 0); break;
+            case Qt.Key_Up:    nudge(0, -10); break;
+            case Qt.Key_Down:  nudge(0, 10); break;
+            case Qt.Key_PageUp: case Qt.Key_Minus: resizeBy(-0.01); break;
+            case Qt.Key_PageDown: case Qt.Key_Plus: case Qt.Key_Equal: resizeBy(0.01); break;
+            case Qt.Key_Escape: case Qt.Key_Return: case Qt.Key_Enter: case Qt.Key_Backspace: view.stopChatEdit(); break;
+            default: return;
+            }
+            event.accepted = true;
+        }
+
+        ChatOverlay {
+            id: chatCard
+            overlayOpacity: chatEditMode ? 1.0 : 0.95
+            scale: chatFrame.width / implicitWidth
+            transformOrigin: Item.TopLeft
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -6
+            visible: chatEditMode
+            color: Qt.rgba(0, 0.655, 1, 0.08)
+            radius: 16 * chatCard.scale + 6
+            border.width: 2
+            border.color: Theme.accent
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: !chatEditMode
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+            onPressed: view.notePress()
+            onClicked: view.overlayClicked("chat")
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: chatEditMode
+            cursorShape: chatEditMode ? Qt.SizeAllCursor : Qt.ArrowCursor
+            drag.target: chatFrame
+            drag.minimumX: videoX
+            drag.minimumY: videoY
+            drag.maximumX: videoX + Math.max(0, videoW - chatFrame.width)
+            drag.maximumY: videoY + Math.max(0, videoH - chatFrame.height)
+            onReleased: chatFrame.save()
+            drag.onActiveChanged: if (!drag.active) chatFrame.save()
+        }
+        Rectangle {
+            visible: chatEditMode
+            anchors { right: parent.right; bottom: parent.bottom; margins: -10 }
+            width: 28; height: 28; radius: 14
+            color: Theme.accent
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.SizeFDiagCursor
+                property real startX: 0
+                property real startW: 0
+                onPressed: (mouse) => { startX = mapToItem(view, mouse.x, 0).x; startW = chatFrame.width; }
+                onPositionChanged: (mouse) => {
+                    if (!pressed) return;
+                    const nowX = mapToItem(view, mouse.x, 0).x;
+                    const w = Math.max(140, startW + (nowX - startX));
+                    pswrapPrefs.chatW = Math.min(0.5, Math.max(0.1, w / overlayBaseW));
+                }
+                onReleased: chatFrame.save()
             }
         }
     }

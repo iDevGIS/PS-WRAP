@@ -58,6 +58,12 @@ Pane {
 
     // ---- หน้าสถานะ controller (กดจาก chip ในแถบล่าง) ----
     // แพตเทิร์นเดียวกับ ConfirmDialog ของ upstream (Dialog + x/y จาก root + เนื้อหาเป็น child) — พิสูจน์แล้วว่ากลางจอ
+    // PS-WRAP: เครดิต / license (เปิดจากชิป About ที่แถบล่าง)
+    AboutDialog {
+        id: aboutDialog
+        returnFocusTo: consolePane
+    }
+
     Dialog {
         id: controllerPopup
         parent: Overlay.overlay
@@ -1107,11 +1113,11 @@ Pane {
                 onClicked: Chiaki.discoveryEnabled = !Chiaki.discoveryEnabled
             }
 
-            Label {
-                visible: consolePane.width >= 1600
-                text: Qt.application.version
-                font.pixelSize: Theme.fontCaption
-                color: Theme.textMuted
+            // PS-WRAP: เวอร์ชัน + เครดิต (AboutDialog.qml) — แทนเลขเวอร์ชันเปล่าๆ (เดิมเป็นเลขของ upstream)
+            BarChip {
+                iconSource: "qrc:/icons/menu/info.svg"
+                text: qsTr("PS-WRAP %1 · About").arg(Qt.application.version)
+                onClicked: aboutDialog.open()
             }
         }
     }

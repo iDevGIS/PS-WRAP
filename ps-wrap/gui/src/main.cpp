@@ -128,7 +128,7 @@ int real_main(int argc, char *argv[])
 	QGuiApplication::setOrganizationName(QStringLiteral("PS-WRAP"));
 	QGuiApplication::setApplicationName(QStringLiteral("PS-WRAP"));
 	pswrapMigrateLegacyChiakiSettings();
-	QGuiApplication::setApplicationVersion(CHIAKI_VERSION);
+	QGuiApplication::setApplicationVersion(PSWRAP_VERSION);   // PS-WRAP: เวอร์ชันของเรา (upstream = CHIAKI_VERSION ใน log)
 	QGuiApplication::setApplicationDisplayName("PS-WRAP");
 #if defined(Q_OS_MACOS)
 	qputenv("QT_MTL_NO_TRANSACTION", "1");

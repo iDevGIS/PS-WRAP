@@ -156,9 +156,12 @@ void QmlMainWindow::pswrapSetupTrayView(QMenu *menu)
 	connect(vertical_action, &QAction::triggered, this, [this]() { setVerticalPreview(!verticalPreview()); });
 	auto *vrec_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/record.svg")), tr("Record 9:16"));
 	connect(vrec_action, &QAction::triggered, this, [this]() { toggleVerticalRecording(); });
+	auto *chat_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/chat.svg")), tr("Live chat"));
+	connect(chat_action, &QAction::triggered, this, [this]() { setChatOverlay(!chatOverlay()); });
 
 	// สถานะตามตอนเปิดเมนู: Stream menu / 9:16 ใช้ได้เฉพาะระหว่างสตรีม · Settings เฉพาะนอกสตรีม
-	connect(menu, &QMenu::aboutToShow, this, [this, stream_menu, settings_action, vertical_action, vrec_action]() {
+	connect(menu, &QMenu::aboutToShow, this, [this, stream_menu, settings_action, vertical_action, vrec_action, chat_action]() {
+		chat_action->setText(tr("Live chat") + (chatOverlay() ? QStringLiteral("   ●  ON") : QStringLiteral("   ○  OFF")));
 		const bool vrec_on = pswrap_vrec && pswrap_vrec->isRecording();
 		vrec_action->setEnabled(session != nullptr && pswrap_vrec && !pswrap_vrec->isBusy());
 		vrec_action->setText(vrec_on ? tr("Stop 9:16 recording") + QStringLiteral("   ●  REC") : tr("Record 9:16"));

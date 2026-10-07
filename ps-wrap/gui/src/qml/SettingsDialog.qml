@@ -3300,7 +3300,7 @@ DialogView {
 
                     C.Button {
                         id: aboutButton
-                        text: qsTr("About %1-ng").arg(Qt.application.name)
+                        text: qsTr("About PS-WRAP")
                         onClicked: aboutDialog.open()
                         Material.roundedScale: Material.SmallScale
                     }
@@ -3377,47 +3377,10 @@ DialogView {
             }
         }
 
-        Dialog {
+        // PS-WRAP: หน้า About ใหม่ (AboutDialog.qml) — เครดิต chiaki-ng / Chiaki + license · เดิมขึ้น "About PS-WRAP-ng" และบอกว่าเป็น chiaki-ng
+        AboutDialog {
             id: aboutDialog
-            parent: Overlay.overlay
-            x: Math.round((root.width - width) / 2)
-            y: Math.round((root.height - height) / 2)
-            title: qsTr("About %1-ng").arg(Qt.application.name)
-            modal: true
-            standardButtons: Dialog.Ok
-            Material.roundedScale: Material.MediumScale
-            onAboutToHide: aboutButton.forceActiveFocus(Qt.TabFocusReason)
-
-            RowLayout {
-                spacing: 50
-                onVisibleChanged: if (visible) forceActiveFocus(Qt.TabFocusReason)
-                Keys.onReturnPressed: aboutDialog.close()
-                Keys.onEscapePressed: aboutDialog.close()
-
-                Image {
-                    Layout.preferredWidth: Math.round(dialog.controlWidth * 0.5)
-                    fillMode: Image.PreserveAspectFit
-                    verticalAlignment: Image.AlignTop
-                    source: "qrc:icons/chiaking-logo.svg"
-                }
-
-                Label {
-                    Layout.preferredWidth: dialog.controlWidth
-                    verticalAlignment: Text.AlignTop
-                    wrapMode: Text.Wrap
-                    text: "<h1>chiaki-ng</h1> by Street Pea, version %1
-                        <h2>Fork of Chiaki</h2> by Florian Markl at version 2.1.1
-
-                        <p>This program is free software: you can redistribute it and/or modify
-                        it under the terms of the GNU Affero General Public License version 3
-                        as published by the Free Software Foundation.</p>
-
-                        <p>This program is distributed in the hope that it will be useful,
-                        but WITHOUT ANY WARRANTY; without even the implied warranty of
-                        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-                        GNU General Public License for more details.</p>".arg(Qt.application.version)
-                }
-            }
+            returnFocusTo: aboutButton
         }
 
         Dialog {

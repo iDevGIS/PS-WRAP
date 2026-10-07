@@ -72,9 +72,13 @@ set(SOURCE_FILES
 	src/qmlmainwindow_pswrapshot.cpp
 	src/qmlmainwindow_pswrapclock.cpp
 	src/qmlmainwindow_pswrapsize.cpp
+	src/qmlmainwindow_pswrapabout.cpp
 	include/pswrapvertical.h
 	src/pswrapvertical.cpp
 	src/qmlmainwindow_pswrapvertical.cpp
+	include/pswrapchat.h
+	src/pswrapchat.cpp
+	src/qmlmainwindow_pswrapchat.cpp
 	src/qmlmainwindow_pswrapmic.cpp
 	include/pswrapgameprofiles.h
 	src/pswrapgameprofiles.cpp

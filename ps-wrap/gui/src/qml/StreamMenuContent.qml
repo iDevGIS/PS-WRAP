@@ -20,6 +20,7 @@ FocusScope {
     readonly property bool recording: !!recorder && recorder.recording
     readonly property bool micOverlayEnabled: !!Chiaki.window && Chiaki.window.micOverlay
     readonly property bool clockOverlayEnabled: !!Chiaki.window && !!Chiaki.window.clockOverlay
+    readonly property bool chatOverlayEnabled: !!Chiaki.window && !!Chiaki.window.chatOverlay
     // PS-WRAP: Instant Replay (Chiaki.window.replayEnabled/replaySeconds/saveReplay + recorder.replayActive)
     readonly property bool replayEnabled: !!Chiaki.window && !!Chiaki.window.replayEnabled
     readonly property bool replayActive: !!recorder && !!recorder.replayActive
@@ -53,6 +54,7 @@ FocusScope {
     signal webcamEditRequested()
     signal micEditRequested()
     signal clockEditRequested()
+    signal chatEditRequested()
 
     // ภาพหน้าจอรวม overlay QML ด้วย → รอเมนูเลื่อนลงจบ (250ms) ก่อนถ่าย
     Timer {
@@ -623,6 +625,21 @@ FocusScope {
                     onToggled: Chiaki.window.clockOverlay = !Chiaki.window.clockOverlay
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: micVizButton
+                    KeyNavigation.right: chatButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: แชทไลฟ์บนจอ (YouTube / Twitch — ตั้งแหล่งใน Settings › Go Live › Chat on screen)
+                MenuButton {
+                    id: chatButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/chat.svg"
+                    text: qsTr("Chat")
+                    checkable: true
+                    checked: !!Chiaki.window && !!Chiaki.window.chatOverlay
+                    onToggled: Chiaki.window.chatOverlay = !Chiaki.window.chatOverlay
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: clockButton
                     KeyNavigation.right: editOverlayButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
@@ -635,8 +652,8 @@ FocusScope {
                     enabled: Chiaki.session
                     onClicked: content.overlayEditRequested()
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: clockButton
-                    KeyNavigation.right: content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : statsButton))
+                    KeyNavigation.left: chatButton
+                    KeyNavigation.right: content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton)))
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
@@ -650,7 +667,7 @@ FocusScope {
                     onClicked: content.webcamEditRequested()
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: editOverlayButton
-                    KeyNavigation.right: content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : statsButton)
+                    KeyNavigation.right: content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton))
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
@@ -664,7 +681,7 @@ FocusScope {
                     onClicked: content.micEditRequested()
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: content.webcamEnabled ? camEditButton : editOverlayButton
-                    KeyNavigation.right: content.clockOverlayEnabled ? clockEditButton : statsButton
+                    KeyNavigation.right: content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton)
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
@@ -678,6 +695,20 @@ FocusScope {
                     onClicked: content.clockEditRequested()
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton)
+                    KeyNavigation.right: content.chatOverlayEnabled ? chatEditButton : statsButton
+                    Keys.onReturnPressed: clicked()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                MenuButton {
+                    id: chatEditButton
+                    segmented: true
+                    iconSource: "qrc:/icons/menu/move.svg"
+                    text: qsTr("Move chat")
+                    visible: content.chatOverlayEnabled
+                    enabled: Chiaki.session
+                    onClicked: content.chatEditRequested()
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton))
                     KeyNavigation.right: statsButton
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
@@ -691,7 +722,7 @@ FocusScope {
                     checked: Chiaki.settings.showStreamStats
                     onToggled: Chiaki.settings.showStreamStats = !Chiaki.settings.showStreamStats
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton))
+                    KeyNavigation.left: content.chatOverlayEnabled ? chatEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton)))
                     KeyNavigation.right: replayButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
@@ -810,7 +841,7 @@ FocusScope {
             maximumLineCount: 2
             elide: Text.ElideRight
             opacity: 0.8
-            text: qsTr("Ctrl+O menu · F12 screenshot · Ctrl+Shift + R record · B save replay · K marker · S stats · O pad · E move pad · C cam · V move cam · M spectrum · T clock · L live · Esc = PS")
+            text: qsTr("Ctrl+O menu · F12 screenshot · Ctrl+Shift + R record · B save replay · K marker · S stats · O pad · E move pad · C cam · V move cam · M spectrum · T clock · H chat · L live · Esc = PS")
         }
     }
 
