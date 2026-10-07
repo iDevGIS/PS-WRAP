@@ -4,6 +4,8 @@
 *.md
 !/README.md
 !/CHANGELOG.md
+!/README.th.md
+!/CHANGELOG.th.md
 
 # งานภายใน / ไม่ใช่ source
 /design/
@@ -29,6 +31,8 @@ ps-wrap/scripts/holepunch/refresh-go/refresh-token
 # secrets / local config
 .env
 *.local.toml
+# API key / stream key ของลูกพี่ — ระบุตรงๆ กันไว้แม้วันหน้าจะปลด /docs/ ออกจาก ignore
+/docs/.secert.md
 
 # python / logs / os
 __pycache__/

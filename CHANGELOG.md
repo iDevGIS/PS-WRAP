@@ -1,103 +1,163 @@
 # Changelog
 
-รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) · อิงเวอร์ชัน upstream + suffix ของเรา (เช่น `1.9.9-pswrap.1`)
+English · [ภาษาไทย](CHANGELOG.th.md)
 
-## [Unreleased]
+The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
+
+## [0.3.0] — 2026-10-07
+4K output, vertical 9:16, live chat on screen, a fix for stuck buttons, and an About page.
+
 ### Added
-- 2026-10-07 **ไลฟ์แนวตั้ง 9:16**: ปลายทาง Go Live แต่ละอันเลือก "Vertical 9:16" ได้ (TikTok / Instagram เปิดไว้เป็นค่าเริ่มต้น) → ส่งภาพ 1080 × 1920 ตามเลย์เอาต์ในหน้าต่าง 9:16 · ไลฟ์แนวนอนกับแนวตั้งพร้อมกันได้ (เช่น YouTube + TikTok) · ปลายทางแนวตั้งล้วนใช้กับสตรีม HDR ได้ (tone-map เป็น SDR)
-- 2026-10-07 **อัดคลิปแนวตั้ง 9:16** (ปุ่ม ● Record 9:16 ในหน้าต่าง 9:16 / tray): 1080 × 1920 60fps อัดพร้อมคลิปปกติได้ · จุด REC บนจอมีป้าย "9:16"
-- 2026-10-07 หน้าต่าง 9:16: **ลาก facecam** เพื่อย้าย, scroll เพื่อย่อ/ขยาย, ดับเบิลคลิกคืนค่า (จำแยกต่อเลย์เอาต์) · **ลากภาพเกมซ้าย-ขวา** เพื่อเลื่อนตำแหน่งตัด · ปุ่ม Reset cam
-- 2026-10-07 **Preview ภาพแนวตั้ง 9:16** (ปุ่ม 9:16 ในเมนูสตรีม / tray): หน้าต่างแยกโชว์ภาพแนวตั้งสดสำหรับ Shorts/TikTok/Reels เลือกได้ 3 เลย์เอาต์ — Cam + game (facecam บน เกมล่าง), Center crop (เกมเต็มจอ + facecam มุมบน, เลื่อนตำแหน่งตัดได้), Blur fill (เกมเต็มภาพกลางจอ พื้นหลังเบลอ) · facecam ตัดจาก overlay บนจอ · ยังเป็น preview (อัด/ไลฟ์แนวตั้งเป็นขั้นต่อไป)
-- 2026-10-07 tray **Record preset ▸** (Same as stream / 1440p / 4K) — ค่าเดียวกับ Output Resolution · จุด REC กระพริบบนจอมีป้าย **4K** / **1440p** ต่อท้ายเมื่ออัดแบบ upscale (บนจอเท่านั้น ไม่ติดไฟล์)
-- 2026-10-07 **เมนู tray**: Stream menu (เปิดเมนูสตรีมได้โดยไม่ต้องกด L1+R1+L3+R3 / Ctrl+O), Settings (จากหน้าแรก), Picture size ▸ (720p–1440p / Fullscreen เหมือนปุ่ม Size)
-- 2026-10-06 **Output Resolution: Same as stream / 1440p / 4K (upscaled)** (Settings › General) ใช้ร่วมกันทั้งคลิป, Instant Replay และ Go Live · ขยายด้วย upscaler ตามปุ่ม QUALITY (HQ + Spatial = FSRCNNX) · Go Live: YouTube/Custom ส่งได้ถึง 4K (bitrate สูงสุด 51 Mbps) แพลตฟอร์มอื่นย่อเป็น 1080p ให้เอง
-- 2026-10-06 **ชิป Screenshots** แถบล่างหน้าแรก: เปิด Explorer พร้อมเลือกภาพหน้าจอล่าสุดให้
-- 2026-10-06 **ขนาดภาพ (Size ▾) ในเมนูสตรีม**: เลือก 720p / 900p / 1080p / 1440p / Fullscreen → พื้นที่ภาพเป็น 16:9 พอดีเป๊ะ (pixel จริง แม้จอ scale 150%) ไม่มีขอบดำ คลิปอัด/ภาพหน้าจอได้ขนาดตามชื่อ · ป้าย STREAM บอกขนาดที่ตรงกับความละเอียดสตรีม · ซ่อนขนาดที่ใหญ่กว่าจอ · ใช้จอยเลือกได้
-- 2026-10-06 **Instant Replay**: เก็บ 30–120 วินาทีล่าสุดในหน่วยความจำ กด Ctrl+Shift+B / ปุ่ม Save ในเมนูสตรีม / tray เพื่อเซฟย้อนหลัง · ใช้ encoder ชุดเดียวกับการอัด (อัดระหว่าง replay ได้)
-- 2026-10-06 **Marker ระหว่างอัด** (Ctrl+Shift+K) → ใส่เป็น chapter ในไฟล์ (VLC กระโดดไปจุดที่ปักได้) · คลิปที่ไม่มี marker ยังเป็น MP4 แบบกันแอปตายเหมือนเดิม
-- 2026-10-06 **Screenshot ปุ่มเดียว** (F12 / Ctrl+Shift+P / เมนูสตรีม / tray): ภาพเต็มความละเอียดหน้าต่าง ติด overlay ทั้งหมด · สตรีม HDR ได้ PNG SDR + `HDR.png` (PQ/BT.2020)
-- 2026-10-06 **Mic boost (−12…+24 dB) + noise gate** ต่อท้ายตัวลดเสียงรบกวน มีผลทั้งเสียงเข้า PS5 แทร็ก Mic ในคลิป และ spectrum · ปรับในหน้าทดสอบไมค์
-- 2026-10-06 **overlay นาฬิกา / เวลาเล่น** (Ctrl+Shift+T) ลาก/ย่อขยาย/จำตำแหน่งได้เหมือน overlay อื่น
-- 2026-10-06 **Game presets**: Settings › Game presets ตั้ง preset ต่อเกม (ความละเอียด/fps/bitrate, overlay, เอฟเฟกต์กล้อง, Instant Replay) ใช้อัตโนมัติตอนเริ่มสตรีม คืนค่าเดิมตอนจบ
-- 2026-10-06 **Go Live** (Settings › Go Live, Ctrl+Shift+L, เมนูสตรีม, tray): ไลฟ์ H.264 1080p60 ไป YouTube / Twitch / Facebook / Kick / Custom RTMP(S) พร้อมกัน · ต่อใหม่เองเมื่อหลุด, ปลายทางช้าไม่ถ่วงที่อื่น · stream key เก็บใน Windows Credential Manager · ยังไม่มี 9:16 (TikTok) และ YouTube HDR
-- 2026-10-06 **อัดคลิป** (Ctrl+Shift+R / เมนูสตรีม / tray): ภาพบนจอ + overlay ทุกตัว (NVENC, SDR H.264 / HDR HEVC 10-bit) + เสียง 3 แทร็ก Game+Mic / Game / Mic · ถ้า Windows บล็อกโฟลเดอร์ Videos จะเซฟไป `%USERPROFILE%\PS-WRAP Recordings` แทนพร้อมแจ้ง
-- 2026-10-06 mic visualizer overlay (คลิกวงไมค์ = mute/unmute), หน้าทดสอบไมค์/กล้อง (คลิกชิปหน้าแรก), เลือกไมค์ได้ทั้ง Settings / เมนูสตรีม / tray, เมนู tray: mute, เลือกไมค์, เอฟเฟกต์/พื้นหลังกล้อง
-- 2026-10-06 `scripts/smoke.ps1` smoke test อัตโนมัติก่อน deploy
-- 2026-10-06 **ลดเสียงรบกวน + ตัดเสียงลำโพงในหน้าทดสอบไมค์**: แถว Noise reduction / Speaker echo เลือก Off/Low/Medium/High (จอย: ↓ ลงมาจากรายการไมค์ แล้ว ←→) · มีผลทันทีทั้งในหน้าทดสอบและกลางสตรีม ไม่ต้องเริ่มสตรีมใหม่ (ใช้ค่า Speech Processing เดิมใน Settings) · ลดเสียงรบกวนด้วย **RNNoise** (dependency ใหม่ `rnnoise` ใน MSYS2 — ไม่มีก็ build ได้ ใช้ speex แทน) · โค้ดอยู่ `pswrapvoiceproc.{h,cpp}`
-- 2026-10-06 ชิป **Recordings** ที่แถบล่างหน้าแรก กดแล้วเปิดโฟลเดอร์คลิปที่อัด
-- 2026-10-05 `scripts/deploy.ps1 -StartMenu` สร้าง shortcut PS-WRAP ใน Start Menu (ระดับ user ไม่ต้อง admin)
-- 2026-10-05 **คลิกที่ overlay (จอย/กล้อง/stats) = เข้าโหมดแก้ตัวนั้น** ไม่ต้องจำคีย์ลัด · คลิกอีกตัวสลับได้ทันที · คลิกที่ว่าง = จบ · การ์ด stats ลาก/ย่อขยายได้แล้วและจำตำแหน่ง (statsX/Y/Scale) · C++: เมาส์ในกรอบ overlay ส่งให้ QML ไม่เข้าเกม (`setOverlayHitRects`)
-- 2026-10-05 Facecam effects **Jin mask (private)** / **Jin mask + headband (private)**: sprite ตัดจากภาพเกมที่ลูกพี่ส่ง (ลิขสิทธิ์ Sucker Punch/Sony — ใช้ส่วนตัวเท่านั้น ไฟล์ `fx/jin_*.png` ข้าง exe ไม่อยู่ใน repo asset) · เครื่องมือตัดชิ้นส่วน `cutpart.py` + polygon trace
-- 2026-10-04 Facecam effect **Samurai armor (photo)**: sprite ภาพจริงจากภาพพิพิธภัณฑ์ CC0 (Commons: MAP Expo Sujibachi kabuto + menpo) ตัดพื้นหลังด้วย AI + เจาะช่องตา · โหลดจาก `fx/samurai_photo.png` ข้าง exe (เปลี่ยนภาพได้ไม่ต้อง build) · +Samurai armor (kabuto+mask) แบบวาด
-- 2026-10-04 **Facecam effects v2 (LINE-grade)**: MediaPipe Face Landmarker 478 จุด (ONNX, Apache-2.0, 4.9 MB) ติดตามจากครอปของเฟรมก่อน + head pose 3 แกน → sticker หมุนแบบ 3D ตามหัน/เงย/เอียง, ยึดกับจุดจริง (หางตา/ปาก/สันจมูก/คาง), 1-Euro filter กันสั่น · เพิ่ม **Samurai mask**, **Ninja**, **Ghost (Tsushima)** · ไม่มี face_mesh.onnx = ถอยไปใช้ 6 จุดอัตโนมัติ
-- 2026-10-04 dev: env `PSWRAP_FAKE_CAM=<ไฟล์วิดีโอ>` ใช้ไฟล์แทนกล้องเพื่อทดสอบ facecam/effects ซ้ำได้
-- 2026-10-04 Facecam effects เพิ่ม: Mustache / Clown nose / Crown / Bane mask / Party (แว่น+หนวด+มงกุฎ) — F ในโหมดย้ายวน 7 โหมด
-- 2026-10-04 **Facecam effect: แว่นตาดำ** (Settings › Facecam Effect › Sunglasses, หรือ F ในโหมดย้าย) — BlazeFace (ONNX, MediaPipe weights Apache-2.0) ติดตามตา 2 ข้างบน CPU, แว่น SVG วาดเอง ขยาย/หมุนตามหน้า, ถูก mask มุมโค้ง/วงกลมด้วย, ใช้ร่วมกับ AI ตัดพื้นหลังได้
-- 2026-10-04 **Facecam: AI ตัดพื้นหลังโดยไม่ใช้ฉากเขียว** (Settings › Facecam Background › AI remove) — MediaPipe Selfie Segmentation (ONNX, Apache-2.0) บน ONNX Runtime (MIT) CPU ~5 ms/frame, โหลด DLL ตอนรัน ไม่มี = ปิดฟีเจอร์เงียบๆ · ไฟล์ `onnxruntime.dll` + `models/selfie_segmentation.onnx` ข้าง exe
-- 2026-10-04 **Facecam รองรับกล้องเสมือน DirectShow** (NVIDIA Broadcast / OBS Virtual Camera / Streamlabs) ผ่าน libavdevice ของ ffmpeg ที่มีอยู่ — Qt WMF backend มองไม่เห็นกล้องพวกนี้
-- 2026-10-04 Settings › General: **Facecam Preview** สด (เห็น mirror/shape/zoom/pan/chroma key ตามจริงขณะปรับ) + แถว Facecam Pan X/Y · กล้องเปิดเฉพาะตอนอยู่หน้า General
-- 2026-10-04 **Single instance**: เปิดซ้ำจะดึงหน้าต่างเดิมขึ้นแทน (รวมคืนจาก tray/minimize) — แยกต่อโปรไฟล์ด้วย QLocalServer; CLI (list/stream/wakeup) ไม่กระทบ · ต้องมี Qt6Network ใน dist
-- 2026-10-04 **Tray menu** ใหม่: Show · Controller overlay · Facecam · Network stats · Always on top (checkable + ● ON / ○ OFF) · Quit พร้อมไอคอน — toggle overlay ได้แม้ระหว่างสตรีม · ค่า pad/cam overlay ย้ายไปอยู่ C++ (`Chiaki.window.padOverlay/camOverlay/statsOverlay`, key เดิม)
-- 2026-10-04 Facecam: zoom/pan (ครอปเข้าหน้า), chroma key ฉากเขียว/น้ำเงิน (shader `chroma.frag.qsb`), Settings Facecam Zoom / Background / Key Tolerance, คีย์ Z/X WASD G ในโหมดย้าย
-- 2026-10-04 **Facecam overlay** (`WebcamOverlay.qml`, Qt Multimedia backend WMF): กล้องเว็บแคมทับวิดีโอขณะสตรีม มุมโค้ง/วงกลม, mirror, ลาก/ย่อขยาย/จำตำแหน่ง (โหมดย้าย: M = mirror, C = circle) · เมนู OVERLAY: Cam / Move cam · hotkey Ctrl+Shift+C เปิด-ปิด, Ctrl+Shift+V ย้าย · เลือกกล้อง/mirror/รูปทรงได้ที่ Settings › General (Facecam Camera/Mirror/Shape) และกด N ในโหมดย้ายเพื่อสลับกล้อง · Vulkan backend เท่านั้น
-- 2026-10-04 การ์ด stats: แถว **rtt at connect** (RTT ที่ senkusha วัดตอนเชื่อมต่อ, `StreamSession.rttMs` additive) — ยังไม่ใช่ ping สด (ต้องแตะ lib)
-- 2026-10-04 การ์ด network stats ขณะสตรีม: ไอคอนต่อแถว (bitrate/queue/latency/loss/dropped/lost, `gui/res/stats/*.svg`), ชื่อชิดซ้ายสีจาง ค่าชิดขวา พื้น/ขอบตาม Theme · เมนูสตรีม: ป้ายกลุ่มอยู่ในแคปซูล สูงเท่ากันทุกกลุ่ม
-- 2026-10-04 **เมนูสตรีม v3 "control deck"**: แถวตัวเลือกเป็นกลุ่ม segmented (FIT / QUALITY / Display / OVERLAY) ห่อบรรทัดอัตโนมัติเมื่อจอแคบ (ไม่มีเลื่อนแนวนอน) · stats บรรทัดเดียว · แถว hint hotkey · ความสูงเมนูตามเนื้อหา — ทดสอบจริง 1100/1554/1920
-- 2026-10-04 hotkey **Ctrl+Shift+S** สลับกล่อง network stats ขณะสตรีม (เดิมต้องเปิดเมนู Ctrl+O → Stats) · ชุด hotkey ตอนสตรีม: Ctrl+O เมนู, Ctrl+Shift+O overlay จอย, Ctrl+Shift+E ย้าย/ย่อ overlay, Ctrl+Shift+S stats
-- 2026-10-04 Settings › Keys ใหม่ (`SettingsKeysPage.qml`): 26 ปุ่มจัดเป็น 6 การ์ดตามหมวด (Face / D-Pad / Shoulders & triggers / System / Left stick / Right stick) คอลัมน์ย่อ/ขยายตามความกว้าง ไม่ล้นจอเล็ก, ปุ่มคีย์เป็น chip, นำทางจอย ↑↓←→ ข้ามการ์ดได้
-- 2026-10-04 Settings ทั้ง 9 หน้า: ชื่อ setting ชิดซ้ายคอลัมน์คงที่ (ตัดโคลอน), ค่า default เป็นตัวเล็กสีจาง, การ์ดพื้นหลังจัดกลุ่มต่อหน้า, ระยะแถวสม่ำเสมอ — กระชับและอ่านง่ายขึ้น
-- 2026-10-04 **Hide to tray** (ปุ่ม To tray, ปิดด้วย X เมื่อเปิดใน Settings, tray icon มีเมนู Show/Always on top/Quit) และ **Always on top** (ปุ่ม pin ใน header, Settings › General, จำค่า) — key `settings/pswrap_hide_to_tray`, `pswrap_always_on_top`
-- 2026-10-04 รูปเครื่อง PS5/PS4 ใหม่ตามรุ่น (`ConsoleArt.qml` + `gui/res/console/*`): ไฟสถานะเต้น/หายใจตาม ready/standby, glow, ลอยขึ้นเมื่อเลือก
-- 2026-10-04 เมนูสตรีม v2: 2 แถว (End Stream · Mic · Volume / FIT · QUALITY · Display · OVERLAY) มีไอคอน แถวล่างเลื่อนแนวนอนได้ ไม่ล้นจอเล็ก
-- 2026-10-04 overlay: โหมดย้าย/ย่อขยาย (เมาส์/คีย์/จอย) จำตำแหน่ง, ซ่อน/แสดงด้วยเมนูหรือ Ctrl+Shift+O, ปุ่ม Stats ซ่อน/แสดงกล่อง network ในเมนูสตรีม
-- 2026-10-04 **Controller overlay ขณะสตรีม** พอร์ตจาก BudToZaiDualSenseTracker (SVG DualSense ปุ่มกดสว่าง สติ๊กเลื่อน L2/R2 ตามแรงกด) เปิด/ปิดจากเมนูสตรีม + preview สดใน modal Controllers · เมนูสตรีมรวมเป็น `StreamMenuContent` ใช้ทั้ง Vulkan/OpenGL
-- 2026-10-04 **Responsive**: ฟอนต์/ความกว้าง control ใน Settings และ sub-dialog ย่อตามหน้าต่าง (ไม่ล้นที่ 1180–1280 px) · ไอคอนจอยตามรุ่น (Kenney Input Prompts CC0: PS4/PS5, badge EDGE)
-- 2026-10-04 สถานะ controller: chip ไอคอนจอยในแถบล่าง + popup รายละเอียด (ชนิด/ชื่อ/VID:PID/GUID/แบตหรือ USB/ปุ่ม Map Buttons) — เพิ่ม `name/type/vidpid/guid/powerLevel()` ใน `QmlController`, ไอคอน `gui/res/controller.svg`
-- 2026-10-04 **Phase 3 Settings**: sidebar แนวตั้งจัดกลุ่ม Basics/Advanced แทน tab แนวนอน, header ใหม่ (Back/Title/subtitle), เนื้อหาชิดซ้าย · `DialogView` chrome ใหม่ให้ทุก sub-dialog · `AutoConnectView` ใหม่
-- 2026-10-04 **Phase 4 Stream menu**: `StreamMenuWindow` ปุ่ม pill จัดกลุ่ม FIT/QUALITY, ปุ่ม End Stream, stats ตาม Theme (คง navigation จอย)
-- 2026-10-04 **Branding**: ชื่อแอป PS-WRAP (window title, display name, installer) + ไอคอนใหม่ (`gui/res/pswrap.svg`, `gui/pswrap.ico/.png`) · settings ยังอยู่ที่เดิม (`HKCU\Software\Chiaki`) ใช้ config เก่าต่อได้
-- 2026-10-04 **Phase 2 หน้าหลัก**: `MainView.qml` ใหม่ — console card พร้อม status chip (ready/standby/remote), ปุ่ม Play/Register, hint bar ปุ่มจอย, empty state, setup banner แบบไม่ modal แทน dialog Steam/PSN ที่เด้งซ้อนกัน, responsive สำหรับ Steam Deck
-- 2026-10-04 **Phase 1 design system**: `controls/Theme.qml` tokens singleton, `FocusRing.qml`, restyle `controls/*` (focus ring ชัดสำหรับจอย/TV), root Material palette ผูก Theme → ToolBar/พื้นหลังเปลี่ยนเป็น slate เข้ม
-- 2026-10-04 clone upstream `a9a2805` (v1.9.9) เป็น `chiaki-ng/` branch `ps-wrap/ui`, เอกสารชุดใหม่, design inventory, ADR-0001..0003
+- **About page with credits** (ⓘ chip on the home screen bar, or Settings › Config › About PS-WRAP). It states that PS-WRAP is built on chiaki-ng by Street Pea and contributors, which comes from Chiaki by Florian Märkl. It lists every library, model and image we use with its license, shows the AGPL-3.0 license and a link to the source, and has a Licenses button that opens `THIRD-PARTY-NOTICES.txt` (in release packages).
+- **Live chat on screen** (Ctrl+Shift+H, Chat in the stream menu, or the tray). Shows YouTube chat (an @handle, channel ID or live link, plus a YouTube Data API key) and Twitch chat (a channel name, no login) as a card you can drag, resize and place. The card is also included in landscape clips and live streams. Set it up in Settings › Go Live › Chat on screen. The API key is kept in Windows Credential Manager.
+- **Vertical 9:16 live streaming**: each Go Live destination can be set to "Vertical 9:16" (on by default for TikTok and Instagram). It sends a 1080 × 1920 picture using the layout from the 9:16 window. Landscape and vertical destinations can run at the same time (for example YouTube and TikTok). Vertical-only destinations also work with HDR streams (tone-mapped to SDR).
+- **Vertical 9:16 clips** (● Record 9:16 in the 9:16 window or the tray): 1080 × 1920 at 60 fps, and you can record them alongside a normal clip. The on-screen REC dot shows a "9:16" label.
+- 9:16 window: **drag the facecam** to move it, scroll to resize it, and double-click to reset it (saved per layout). **Drag the game picture sideways** to move the crop. Includes a Reset cam button.
+- **Vertical 9:16 preview** (9:16 in the stream menu or the tray): a separate window that shows the vertical picture live for Shorts, TikTok and Reels. It has three layouts:
+  - Cam + game: facecam on top, game below.
+  - Center crop: the game fills the frame with the facecam in a top corner, and you can move the crop.
+  - Blur fill: the whole game in the middle over a blurred background.
+- **Output Resolution: Same as stream / 1440p / 4K (upscaled)** (Settings › General). One setting for clips, Instant Replay and Go Live. Upscaling uses the upscaler picked under QUALITY (HQ + Spatial = FSRCNNX). For Go Live, YouTube and Custom can send up to 4K (bitrate up to 51 Mbps); other platforms are scaled to 1080p automatically.
+- Tray **Record preset ▸** (Same as stream / 1440p / 4K), the same value as Output Resolution. When recording upscaled, the blinking REC dot shows a **4K** or **1440p** label. The label only appears on screen, not in the file.
+- **Tray menu** entries:
+  - **Stream menu**: opens the in-stream menu without L1+R1+L3+R3 or Ctrl+O.
+  - **Settings**: opens Settings from the home screen.
+  - **Picture size ▸**: 720p–1440p or Fullscreen, the same as the Size button.
+
 ### Changed
-- 2026-10-06 **คลิป/Replay/ไลฟ์ จับเฉพาะกรอบวิดีโอ 16:9** (เรนเดอร์จากเฟรมสตรีมตรงๆ) — ขนาดหรือสัดส่วนหน้าต่าง/จอ ultrawide ไม่มีผลอีกแล้ว ไม่มีขอบดำของหน้าต่างติดไปในไฟล์ · ความละเอียดตั้งต้น = ความละเอียดสตรีม (เดิมผูกกับความสูงหน้าต่าง)
-- 2026-10-06 **ไฟล์โปรแกรมชื่อ `PS-WRAP.exe`** (เดิม `chiaki.exe`) — ตั้ง `OUTPUT_NAME` ใน CMake เฉพาะ Windows (target ยังชื่อ chiaki) · สคริปต์ build/run/deploy/drive/snap หา process ทั้ง `PS-WRAP` และ `chiaki` · shortcut ต้องสร้างใหม่ด้วย `deploy.ps1 -Shortcut -StartMenu` · ถ้าเคยอนุญาต `chiaki.exe` ใน Firewall/Controlled folder access ต้องอนุญาต `PS-WRAP.exe` ใหม่
-- 2026-10-06 **ไอคอนปุ่มจอยชุดใหม่**: ✕ ○ □ △ เป็นแผ่นเข้มไล่เฉด ขอบบาง สัญลักษณ์สีแบบ PS (ฟ้า/แดง/ชมพู/เขียว) · L1/R1 ทรง pill, L3/R3 วงกลม (เดิมของ upstream ล้นกรอบจน L1 เป็นข้าวหลามตัด R3 เป็นครึ่งวง) · สร้างจาก `scripts/gen-glyphs.py` · ชุด Steam Deck ใช้แบบเดิม
-- 2026-10-06 แถบล่างหน้าแรก: Discovery เป็นชิปแบบเดียวกับ mic/cam/จอย (ไอคอน + จุดเปิด/ปิด) แทนปุ่มไอคอนฟ้าลอยเดี่ยว · เลขเวอร์ชันย้ายไปท้ายแถบ
-- 2026-10-06 **ที่เก็บข้อมูลของแอปเป็นของ PS-WRAP เอง**: registry `HKCU\Software\PS-WRAP\PS-WRAP`, log/cache `%APPDATA%\PS-WRAP\PS-WRAP` (เดิมใช้ร่วมกับ chiaki-ng ใน `Chiaki\Chiaki`) · เปิดครั้งแรกย้าย settings, เครื่องที่ลงทะเบียน, placebo และทุก profile มาให้อัตโนมัติ ไม่ลบของเดิม · โฟลเดอร์ source เปลี่ยนจาก `chiaki-ng/` เป็น `ps-wrap/`
-- 2026-10-04 facecam effect: ขนาดแว่นอิงความกว้างหน้า + ยึดเทียบจมูก (เงย/ก้มไม่ลอยขึ้นหน้าผาก) · tracking ตามเร็วขึ้นตอนขยับไว (smoothing ปรับตามความเร็ว), คาดการณ์ตำแหน่งตอนหน้าหายชั่วคราว, แว่นจางเข้า/ออกแทนหายวับ, ย่อภาพก่อนป้อนโมเดลเร็วขึ้น
-- 2026-10-04 **หน้าต่างตอนสตรีม = หน้าต่างหน้าแรก** (ขนาด/ตำแหน่ง/maximize ชุดเดียว) — ไม่ resize ตามความละเอียดสตรีมอีก ปรับขนาดระหว่างเล่นจำให้ทั้งสองหน้า
-- 2026-10-04 facecam มุมโค้งเป็นสัดส่วนของกรอบ (9% ของด้านสั้น) — ย่อแล้วมุมไม่กลมเกิน
-- 2026-10-04 overlay จอย/กล้อง/stats ย่อ-ขยายและ**ยึดกรอบวิดีโอจริง** (กรอบ 16:9 กลางจอ ไม่ลอยบนแถบดำ) — หน้าต่างแคบ-สูงไม่ทำให้ overlay ใหญ่เกิน · stats การ์ด scale 0.45–1.5×
-- 2026-10-04 การ์ด stats ย่อ ~25% (font 12/15, icon 15) ให้ไม่แย่งสายตาตอนเล่น · แถว dropped frames แสดงตลอด (upstream โชว์เฉพาะ > 0 ทำให้การ์ดกระพริบ/เปลี่ยนความสูงตอนเล่น)
-- 2026-10-04 เปลี่ยนทิศทางจาก "Python wrapper รอบ chiaki.exe" เป็น "fork chiaki-ng + redesign UI" — ของเก่าย้ายไป `archive/pswrap-python/`
+- The app now shows PS-WRAP's own version (0.3.0) instead of the upstream version (1.10.0). The old About box said "About PS-WRAP-ng" and described the app as chiaki-ng; it has been replaced by the new About page.
+- **Clips, Instant Replay and live streams capture only the 16:9 video area.** They are rendered directly from the stream frames, so the window size, its aspect ratio or an ultrawide screen no longer matter, and no window bars end up in the file. The default resolution is the stream resolution (it used to follow the window height).
+
 ### Fixed
-- 2026-10-07 **UI ซ้อน 2 ชุดหลังเรียกหน้าต่างกลับ** (tray: Show PS-WRAP / คลิก icon / Picture size / Stream menu / Settings, เปิดแอปซ้ำ): ระหว่างสตรีมได้หน้าเกม 2 ชุด — facecam ขึ้น "Camera is busy", overlay ไมค์ซ้อน, หน้าต่าง 9:16 ซ้ำ · สาเหตุ restoreFromTray เรียก show() ที่สร้าง UI ใหม่ทั้งชุด แทนการแค่แสดงหน้าต่าง
-- 2026-10-07 **ปุ่มค้างกดอยู่เองบน PS5 จังหวะต่อสู้ (แถว L1/R1/L2/R2)**: การกด/ปล่อยปุ่มส่งผ่าน UDP ครั้งเดียว ถ้าแพ็กเก็ต "ปล่อยปุ่ม" หายตอนเน็ตหลุด PS5 จะไม่รู้ว่าปล่อย · ตอนนี้ส่งซ้ำอัตโนมัติ (+20/50/100/200 ms) และพก event ย้อนหลัง 8 ตัวแทน 4 (แก้ใน lib — ADR-0004)
-- 2026-10-07 tray › Facecam effect / Facecam background ไม่บอกว่าเลือกตัวไหนอยู่ (stylesheet ซ่อน indicator) → มี ✓ หน้าตัวที่เลือก
-- 2026-10-06 ชิป Recordings เปิดโฟลเดอร์ที่ไม่มีคลิปล่าสุด เมื่อ Windows "Controlled folder access" บล็อก Videos จนไฟล์ไปตกโฟลเดอร์สำรอง `~\PS-WRAP Recordings` → ตอนนี้หาไฟล์ล่าสุดจากทั้งสองโฟลเดอร์แล้วเลือกให้ใน Explorer
-- 2026-10-06 ปิดกล้อง (ปิดหน้าทดสอบกล้อง / ออกจาก Settings › General) แล้ว UI ค้าง ~3 วินาที → ปิดอุปกรณ์เบื้องหลัง · หน้าทดสอบกล้องบอก "No video from camera" เมื่อไม่มีภาพ (เดิมขึ้น Live หลอก) · ออกจากแอปรอปล่อยกล้องให้เรียบร้อย
-- 2026-10-06 หน้าแรกล้นจอเล็ก: การ์ดเครื่อง (ปุ่ม Play หลุดขอบ) และแถบล่าง (ชิปเหลือไอคอนเมื่อแคบ)
-- 2026-10-06 **ตัดเสียงลำโพงย้อนเข้าไมค์ (echo cancellation) ใช้ไม่ได้เมื่อลำโพงหน่วงเกิน ~100 ms** (upstream: เก็บเสียงอ้างอิงตอน decode ก่อนเข้าคิวเสียง + filter ยาว 100 ms) → เก็บเสียงอ้างอิงตอนส่งเข้าการ์ดเสียงจริง คำนวณว่า sample ไหนกำลังออกลำโพงเทียบกับเวลาที่ไมค์อัดแต่ละเฟรม + filter 300 ms (ทนความหน่วงที่คาดผิด −60…+240 ms เช่นลำโพง Bluetooth) · ตั้ง sample rate 48 kHz ให้ speex echo (upstream ไม่ได้ตั้ง ค่าเริ่มต้น 8 kHz)
-- 2026-10-06 `scripts/snap.ps1` คืน profile ปกติไม่ได้จริง (pwsh ทิ้ง `--profile ""`, script error ออกก่อนคืนค่า, คืนค่าก่อน process ปิด) → ตัว dist เปิดเป็น profile `pswrap-test` · ตอนนี้ใช้ `"--profile="` ใน try/finally + รอ process ปิด + ตรวจซ้ำ
-- 2026-10-06 build จาก clone ใหม่บน Windows: แพตช์ curl พังเมื่อ `core.autocrlf=true` (curl เป็น CRLF แพตช์เป็น LF) → แปลงเป็น LF ก่อนแพตช์ · submodule oboe/borealis (Android/Switch) ไม่ดึงตอน clone (`update = none`) เพราะ oboe path ยาวเกิน MAX_PATH ทำ `--recurse-submodules` ล้ม
-- 2026-10-06 build: แพตช์ Schannel AIA ของ curl ถูกข้ามแบบเงียบๆ เมื่อโฟลเดอร์ build อยู่ใต้ git repo อื่น (`git apply --directory`) → `CURLSSLOPT_SCHANNEL_AIA undeclared` · ตอนนี้ apply ใน copy ของ curl ที่ `git init` เป็นรากเอง
-- 2026-10-05 **แอป crash/ค้างกลางสตรีม (ทำให้กดปุ่มไม่ติดเป็นช่วงๆ)**: (1) `QQuickRenderControl::sync()` ถูกเรียกข้าม thread แบบไม่บล็อก GUI (upstream) → แข่งกับ overlay ที่ขยับตลอด → SIGSEGV ใน Qt6Gui · ตอนนี้ sync 2 จังหวะ: render thread `beginFrame()` (รอ GPU) ก่อน แล้ว GUI บล็อกเฉพาะ sync (~0.2ms) — เวอร์ชันแรกที่บล็อกทั้ง sync ทำให้สะดุดรัวเมื่อหน้าต่างใหญ่ (GUI รอ GPU ทุกเฟรม) (2) libplacebo assert `!tex_vk->held` (dialog ค้างจอ) เมื่อ render ส่ง overlay texture ที่ Qt ยังถืออยู่ — upstream มีช่องนี้ ตอนนี้ endFrame ก่อนใช้เสมอ (3) render แทรกหลัง resize ทำให้เปิดรอบซ้อนวนไม่จบ
-- 2026-10-05 คลิกสลับ overlay ระหว่างแก้แล้วจอยไม่เข้าเกมจนตัดสตรีม (grab input ซ้อน 2 ชั้น release ชั้นเดียว)
-- 2026-10-05 คลิกที่แค่ปลุกหน้าต่างไม่เข้าโหมดแก้ overlay · สลับไปแอปอื่นระหว่างแก้ = จบโหมดแก้ · แถบบนจอบอกว่าจอยหยุดส่งเข้าเกมระหว่างแก้
-- 2026-10-05 ปิดเมนู/dialog ระหว่างสตรีมแล้วปุ่มไม่ติดจนกว่าจะปล่อยทุกปุ่ม (upstream) → กันเฉพาะปุ่ม/ไกที่ค้างอยู่ตอนปิด ปุ่มอื่นใช้ได้ทันที
-- 2026-10-04 facecam ไม่ขึ้นภาพหลังเพิ่มโหมดทดสอบไฟล์ (MediaPlayer ยึด video sink) — ผูก sink เฉพาะเมื่อใช้ไฟล์
-- 2026-10-04 Settings: เปิดหน้าที่เนื้อหายาวกว่าจอแล้วเลื่อนลงเอง (ensureVisible เล็งทั้ง GridLayout) — เปิดหน้า General เห็น preview บนสุด
-- 2026-10-04 Vulkan overlay texture สร้างด้วย blit_dst — ก่อนหน้า `pl_tex_clear` ยิง validation error ทุกเฟรม (log บวม/ช้า) หลังแก้ ghost
-- 2026-10-04 facecam ภาพดำหลังเพิ่ม chroma key (ShaderEffect ต้องใช้ property ชื่อ `source`) — กล้องกลับมาติด
-- 2026-10-04 **overlay/dialog ซ้อนเป็นเงาหลังย่อ-ขยายหน้าต่างบน Vulkan** (PIN dialog 2 อัน, stats/จอย 2 ชุด): upstream ไม่ล้าง texture ของชั้น QML ฝั่ง Vulkan (OpenGL มี) → `pl_tex_clear` หลังสร้าง texture และก่อน Qt วาดทุกเฟรม
-- 2026-10-04 tray: คลิกเดียว = สลับซ่อน/โชว์ (รอ double-click interval), double-click = โชว์เสมอ — เดิมยิงซ้อนกัน
-- 2026-10-04 หลัง Console PIN dialog ปิด คีย์ลัด/เมนูสตรีมไม่ตอบ (focus หาย) → คืน focus ให้ StreamView
-- 2026-10-04 stats overlay บน Vulkan วาด inline ใน QML (`StatsOverlay.qml`) แทนหน้าต่างแยกของ upstream ที่ลอยทะลุหน้าต่างอื่น · widget แยกเหลือเฉพาะ OpenGL
-- 2026-10-04 tray ระหว่างสตรีม: ซ่อน = minimize (ไม่ hide) + เรียกกลับบังคับ sync overlay — แก้ overlay ซ้อนค้างหลาย ชุดหลัง double-click tray
-- 2026-10-04 dialog Disconnect Session ใหม่ (`DisconnectDialogContent.qml`): ปุ่มหลัก/ค่าเริ่มต้น = **Disconnect** (เครื่องยังเปิด) · Sleep console เป็นปุ่มรอง · ธีมเดียวกับแอป — เดิม upstream focus ที่ Sleep กดจอยพลาดเครื่องหลับ
-- 2026-10-04 ไอคอน system tray ขึ้นเสมอ (เดิมขึ้นเฉพาะเมื่อเปิด Hide To Tray ทำให้ผู้ใช้เห็นว่า "tray หาย")
-- 2026-10-04 `scripts/deploy.ps1`: เขียน `qt.conf` ลง dist (Qt หา plugins/qml ข้าง exe ไม่ fallback ไป C:\msys64) + ฆ่า dist exe ที่ค้างก่อน deploy ทับ
-- 2026-10-04 หน้าต่างหลักจำสถานะ maximize และไม่เอาขนาดตอน maximize ไปทับขนาดปกติ (เซฟหลังหยุดขยับ 400ms, key ใหม่ `settings/window_maximized`)
-- 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
-- 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)
+- **The UI was built twice after the window was restored** (tray Show PS-WRAP, clicking the icon, Picture size, Stream menu or Settings, or launching the app again). During a stream this gave two game screens: the facecam showed "Camera is busy", the mic overlay was doubled and the 9:16 window opened twice.
+- **Buttons stuck down on the PS5 in hectic moments (around L1/R1/L2/R2).** Button presses and releases were sent once over UDP, so a lost "release" packet left the PS5 thinking the button was still held. They are now resent automatically (+20/50/100/200 ms) and carry the last 8 events instead of 4. This is a change in `lib/`, recorded in ADR-0004.
+- Tray › Facecam effect / Facecam background did not show which option was selected; the selected one now has a ✓.
+
+## [0.2.0] — 2026-10-06
+Recording, Instant Replay, screenshots, Go Live and game presets.
+
+### Added
+- **Screenshots chip** on the home screen bar: opens Explorer with the latest screenshot selected.
+- **Picture size (Size ▾) in the stream menu**: pick 720p, 900p, 1080p, 1440p or Fullscreen.
+  - The video area becomes exactly 16:9 in real pixels, even at 150 % display scaling, so there are no black bars.
+  - Clips and screenshots come out at the size in the name.
+  - A STREAM tag marks the size that matches the stream resolution.
+  - Sizes larger than the screen are hidden, and you can pick a size with a controller.
+- **Instant Replay**: keeps the last 30–120 seconds in memory. Press Ctrl+Shift+B, Save in the stream menu or the tray to save them. It uses the same encoder as recording, so you can record while replay is on.
+- **Markers while recording** (Ctrl+Shift+K) are written as chapters in the file, so VLC can jump to them. Clips without markers are still crash-safe MP4s.
+- **One-button screenshot** (F12, Ctrl+Shift+P, the stream menu or the tray): a full-resolution image of the window with every overlay. HDR streams also save a PQ/BT.2020 `HDR.png` next to the SDR PNG.
+- **Mic boost (−12…+24 dB) and noise gate** after noise reduction. They affect the audio sent to the PS5, the Mic track in clips and the spectrum. Adjust them on the mic test page.
+- **Clock / play time overlay** (Ctrl+Shift+T), which you can drag, resize and place like the other overlays.
+- **Game presets** (Settings › Game presets): per-game resolution, fps, bitrate, overlays, camera effects and Instant Replay. A preset applies automatically when a stream starts and is undone when it ends.
+- **Go Live** (Settings › Go Live, Ctrl+Shift+L, the stream menu or the tray): stream H.264 1080p60 to YouTube, Twitch, Facebook, Kick and custom RTMP(S) at the same time. It reconnects by itself if it drops, and a slow destination does not hold back the others. Stream keys are kept in Windows Credential Manager.
+- **Clip recording** (Ctrl+Shift+R, the stream menu or the tray): the screen with every overlay (NVENC; SDR H.264 or HDR HEVC 10-bit) plus three audio tracks: Game+Mic, Game and Mic. If Windows blocks the Videos folder, clips are saved to `%USERPROFILE%\PS-WRAP Recordings` with a notice.
+- Microphone extras:
+  - A mic visualizer overlay; click the mic circle to mute or unmute.
+  - Mic and camera test pages; click the chips on the home screen.
+  - Microphone selection in Settings, the stream menu and the tray.
+  - Tray entries for mute, microphone, and camera effect and background.
+- `scripts/smoke.ps1`, an automatic smoke test before deploying.
+
+### Fixed
+- The Recordings chip opened a folder without the latest clip when Windows "Controlled folder access" blocked Videos and clips went to the fallback folder `~\PS-WRAP Recordings`. It now finds the latest file in both folders and selects it in Explorer.
+- Closing the camera (leaving the camera test page or Settings › General) froze the UI for about 3 seconds; the device now closes in the background. The camera test page says "No video from camera" when there is no picture (it used to show a false "Live"). Quitting waits for the camera to be released.
+- The home screen overflowed on small windows: the console card's Play button went off the edge, and the bottom bar now shrinks chips to icons when narrow.
+
+## [0.1.1] — 2026-10-06
+### Changed
+- **The program file is now `PS-WRAP.exe`** (it was `chiaki.exe`). This uses `OUTPUT_NAME` in CMake on Windows only; the build target is still called chiaki. Recreate shortcuts with `deploy.ps1 -Shortcut -StartMenu`. If you had allowed `chiaki.exe` in the firewall or Controlled folder access, allow `PS-WRAP.exe` again.
+
+## [0.1.0] — 2026-10-06
+First pre-release: a complete new interface on top of chiaki-ng.
+
+### Added
+- **Live noise reduction and speaker echo removal on the mic test page.** Pick Off, Low, Medium or High for Noise reduction and Speaker echo (with a controller, press ↓ from the microphone list, then ←→). Changes apply immediately, on the test page and in the middle of a stream. Noise reduction uses **RNNoise**, a new optional MSYS2 dependency; without it the build falls back to speex.
+- **Recordings** chip on the home screen bar opens the clips folder.
+- `scripts/deploy.ps1 -StartMenu` creates a PS-WRAP Start Menu shortcut (per user, no admin needed).
+- **Click an overlay (controller, camera or stats) to edit it**, with no shortcut to remember. Clicking another overlay switches to it; clicking empty space finishes editing. The stats card can now be dragged and resized, and it remembers its position.
+- Private-use facecam effects **Jin mask** and **Jin mask + headband**. The images are not in the repository or the release packages.
+- Facecam effect **Samurai armor (photo)**, made from a CC0 museum photo (Wikimedia Commons). It is loaded from `fx/samurai_photo.png` next to the exe, so you can swap the image without rebuilding. Also a drawn Samurai armor (kabuto + mask).
+- **Facecam effects v2**:
+  - MediaPipe Face Landmarker with 478 points and 3-axis head pose, so stickers rotate in 3D as you turn, nod and tilt.
+  - Stickers are anchored to real facial points, with a 1-Euro filter against jitter.
+  - New effects: Samurai mask, Ninja and Ghost (Tsushima).
+  - Without the model, it falls back to 6-point tracking.
+- Developer option: set `PSWRAP_FAKE_CAM=<video file>` to use a video file instead of the camera for repeatable facecam tests.
+- More facecam effects: Mustache, Clown nose, Crown, Bane mask and Party.
+- **Facecam effect: sunglasses** (Settings › Facecam Effect). It tracks both eyes with BlazeFace on the CPU and works together with AI background removal.
+- **Facecam AI background removal without a green screen** (Settings › Facecam Background › AI remove). It uses MediaPipe Selfie Segmentation on ONNX Runtime, about 5 ms per frame on the CPU. The DLL is loaded at run time; without it the feature is turned off quietly.
+- **Facecam supports DirectShow virtual cameras** (NVIDIA Broadcast, OBS Virtual Camera, Streamlabs).
+- Settings › General: live **facecam preview** and Facecam Pan X/Y.
+- **Single instance**: opening the app again brings the existing window forward, separately for each profile.
+- **Tray menu**: Show, Controller overlay, Facecam, Network stats, Always on top and Quit, with ● ON / ○ OFF states. Overlays can be toggled during a stream.
+- Facecam zoom and pan, green/blue screen chroma key, and Settings for zoom, background and key tolerance.
+- **Facecam overlay** over the stream:
+  - Rounded or circular, with mirror, drag, resize and a remembered position.
+  - Shortcuts: Ctrl+Shift+C toggles it, Ctrl+Shift+V moves it.
+  - Camera, mirror and shape can be set in Settings › General.
+  - Vulkan renderer only.
+- Stats card: an **rtt at connect** row (the RTT measured when the stream connects).
+- Network stats card during a stream: an icon per row, muted labels on the left, values on the right.
+- **Stream menu "control deck"**: options in segmented groups (FIT / QUALITY / Display / OVERLAY) that wrap on narrow screens, one-line stats, and a shortcut hint row.
+- **Ctrl+Shift+S** toggles the network stats card during a stream.
+- New Settings › Keys page: 26 buttons in 6 cards by group, columns that adapt to the width, and full controller navigation.
+- All 9 Settings pages tidied: fixed label column, muted defaults and grouped cards.
+- **Hide to tray** and **Always on top** (pin button in the header and in Settings › General).
+- New PS5/PS4 console art by model, with status lights that pulse for ready and breathe for standby.
+- **Controller overlay during a stream**, ported from BudToZaiDualSenseTracker: a DualSense image with lit buttons, moving sticks and pressure-sensitive L2/R2. It can be moved, resized and hidden.
+- **Responsive layout** for Settings and dialogs, and controller icons by model (Kenney Input Prompts, CC0).
+- Controller status chip on the home screen bar with a details popup (type, name, VID:PID, GUID, battery or USB, Map Buttons).
+- **Settings redesign**: a vertical sidebar grouped into Basics and Advanced, a new header, and a new frame for every sub-dialog.
+- **Stream menu redesign** with grouped pill buttons and an End Stream button, keeping controller navigation.
+- **Branding**: the app is called PS-WRAP (window title, display name, installer) with a new icon.
+- **New home screen**:
+  - A console card with a status chip (ready, standby, remote) and a Play/Register button.
+  - A controller hint bar and an empty state.
+  - A non-blocking setup banner instead of stacked Steam/PSN dialogs.
+  - Responsive layout for Steam Deck.
+- **Design system**: `controls/Theme.qml` tokens, a clear focus ring for controllers and TVs, and a dark slate palette.
+- Forked from upstream chiaki-ng `a9a2805`.
+
+### Changed
+- **New controller button icons**: ✕ ○ □ △ on dark tiles with PS-style colors. L1/R1 are pill-shaped and L3/R3 are round; upstream's icons overflowed their frame. The Steam Deck set is unchanged.
+- Home screen bar: Discovery is now a chip like mic, camera and controller. The version number moved to the end of the bar.
+- **PS-WRAP keeps its own data**: registry `HKCU\Software\PS-WRAP\PS-WRAP` and log/cache `%APPDATA%\PS-WRAP\PS-WRAP`. They used to be shared with chiaki-ng in `Chiaki\Chiaki`. The first launch copies settings, registered consoles, placebo settings and every profile automatically, without deleting the originals.
+- Facecam sunglasses scale with face width and anchor to the nose. Tracking follows fast movement better, predicts briefly lost faces and fades in and out.
+- **The streaming window is the same window as the home screen** (one size, position and maximized state). It no longer resizes to the stream resolution.
+- Facecam corner radius is proportional to the frame (9 % of the short side).
+- Controller, camera and stats overlays scale with and **stick to the real video area**, not the black bars.
+- The stats card is about 25 % smaller. The dropped frames row is always shown, so the card no longer jumps in height.
+- The project moved from a Python wrapper around chiaki.exe to a fork of chiaki-ng with a redesigned UI.
+
+### Fixed
+- **Speaker echo removal failed when speaker latency was above about 100 ms** (upstream). The reference audio is now captured when it actually goes to the sound card, aligned with each mic frame, and the filter is 300 ms long. It tolerates misestimated delays of −60…+240 ms, such as Bluetooth speakers. speex echo is set to 48 kHz; upstream left it at 8 kHz.
+- `scripts/snap.ps1` did not restore the normal profile, so the installed copy opened with the test profile.
+- Building from a fresh clone on Windows: the curl patch broke with `core.autocrlf=true`. The Android/Switch submodules are no longer fetched on clone, because their paths exceed MAX_PATH.
+- Build: curl's Schannel AIA patch was skipped silently when the build folder was inside another git repository.
+- **Crashes and freezes mid-stream, which made buttons stop responding at times.**
+  - Qt Quick sync ran across threads without blocking the GUI (upstream) and crashed in Qt6Gui; it now syncs in two steps.
+  - A libplacebo assert fired when a texture was still held by Qt.
+  - Rendering after a resize could loop forever.
+- Switching overlays while editing could leave the controller cut off from the game until the stream ended.
+- A click that only woke the window entered overlay edit mode. Switching to another app now ends edit mode, and a banner says controller input to the game is paused while editing.
+- After closing a menu or dialog during a stream, buttons did not work until every button was released (upstream). Now only buttons still held at that moment are blocked.
+- Facecam showed no picture after the file test mode was added.
+- Settings pages taller than the screen scrolled down on their own when opened.
+- Vulkan overlay texture validation errors on every frame.
+- Facecam went black after chroma key was added.
+- **Overlays and dialogs left ghost copies after resizing the window on Vulkan** (two PIN dialogs, two sets of stats or controller overlays). Upstream did not clear the QML layer texture on Vulkan.
+- Tray: a single click toggles hide/show and a double-click always shows; they used to fire together.
+- Shortcuts and the stream menu stopped responding after the console PIN dialog closed.
+- The stats overlay on Vulkan is drawn inside the window instead of upstream's separate window that floated over other apps.
+- Hiding to tray during a stream now minimizes instead of hiding, which fixes duplicated overlays after a double-click on the tray.
+- New Disconnect Session dialog whose default button is **Disconnect**, keeping the console on. Upstream focused Sleep, so a stray controller press could put the console to sleep.
+- The tray icon is always shown; it used to appear only with Hide To Tray on.
+- `scripts/deploy.ps1` writes `qt.conf` so the portable folder does not fall back to `C:\msys64`.
+- The main window remembers the maximized state without overwriting the normal size.
+- The streaming window size and position, and the controller overlay position, are remembered.
+- Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
+
+[0.3.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.0
+[0.2.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.2.0
+[0.1.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.1.1
+[0.1.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.1.0
