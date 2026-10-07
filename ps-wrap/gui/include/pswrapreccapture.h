@@ -57,6 +57,7 @@ private:
 	pl_renderer renderer = nullptr;
 	pl_tex tex_y = nullptr;
 	pl_tex tex_uv = nullptr;
+	pl_tex tex_vrgb = nullptr;   // แนวตั้ง Blur fill: วาด RGBA ก่อนแล้วค่อยแปลงเป็น NV12 (ดู capture)
 	Slot ring[kSlots];
 	std::deque<int> inflight;
 	int width = 0, height = 0;

@@ -80,6 +80,8 @@ void PsWrapRecCapture::releaseResources()
 		pl_tex_destroy(gpu, &tex_y);
 	if (tex_uv)
 		pl_tex_destroy(gpu, &tex_uv);
+	if (tex_vrgb)
+		pl_tex_destroy(gpu, &tex_vrgb);
 	width = height = 0;
 }
 
@@ -263,7 +265,49 @@ void PsWrapRecCapture::capture(PsWrapRecorder *rec, const pl_frame_mix *mix, con
 	bool ok = false;
 	if (vertical) {
 		// ภาพแนวตั้ง 9:16 — เลย์เอาต์เดียวกับหน้าต่าง preview (pswrapvertical.cpp)
-		ok = pswrapRenderVertical(renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, *vertical, t, nullptr);
+		if (vertical->mode != PsWrapVerticalLayout::Blur) {
+			ok = pswrapRenderVertical(gpu, renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, *vertical, t, nullptr);
+		} else {
+			// Blur fill: libplacebo วาดขอบเบลอ (PL_CLEAR_BLUR) เป็นค่า RGB ลงทุก plane ตรงๆ ไม่แปลงเป็น YCbCr
+			// (renderer.c clear_target) → ลง NV12 แล้วพื้นหลังเป็นสีเขียว · วาดลง RGBA สีเดียวกับไฟล์ก่อน
+			// แล้วค่อยแปลงทั้งภาพเป็น NV12 (รอบสองไม่มีขอบ → ใช้ทางแปลงสีปกติ)
+			if (!tex_vrgb || tex_vrgb->params.w != w || tex_vrgb->params.h != h) {
+				if (tex_vrgb)
+					pl_tex_destroy(gpu, &tex_vrgb);
+				pl_fmt fmt = pl_find_fmt(gpu, PL_FMT_UNORM, 4, 8, 8, static_cast<pl_fmt_caps>(PL_FMT_CAP_RENDERABLE | PL_FMT_CAP_SAMPLEABLE | PL_FMT_CAP_LINEAR));
+				if (fmt) {
+					pl_tex_params p = {};
+					p.w = w;
+					p.h = h;
+					p.format = fmt;
+					p.renderable = true;
+					p.sampleable = true;
+					p.blit_dst = (fmt->caps & PL_FMT_CAP_BLITTABLE) != 0;
+					p.debug_tag = PL_DEBUG_TAG;
+					tex_vrgb = pl_tex_create(gpu, &p);
+				}
+				if (!tex_vrgb)
+					qCWarning(pswrapRec) << "capture: vertical RGBA texture creation failed" << w << h;
+			}
+			if (tex_vrgb) {
+				pl_frame rgb = {};
+				rgb.num_planes = 1;
+				rgb.planes[0].texture = tex_vrgb;
+				rgb.planes[0].components = 4;
+				for (int c = 0; c < 4; c++)
+					rgb.planes[0].component_mapping[c] = c;   // R G B A
+				rgb.repr = pl_color_repr_rgb;
+				rgb.repr.alpha = PL_ALPHA_NONE;
+				rgb.color = t.color;
+				ok = pswrapRenderVertical(gpu, renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, *vertical, rgb, nullptr);
+				if (ok) {
+					rgb.crop = {};   // ทั้งภาพ
+					pl_render_params cp = pl_render_default_params;
+					cp.skip_anti_aliasing = true;
+					ok = pl_render_image(renderer, &rgb, &t, &cp);
+				}
+			}
+		}
 	} else {
 		// เอาเฉพาะ "กรอบวิดีโอบนจอ" (ตัดส่วนที่ล้นจอตอน Zoom) มาวางเต็มกรอบไฟล์แบบคงสัดส่วน
 		// → ไม่มีขอบดำของหน้าต่าง (จอ ultrawide / หน้าต่างไม่ใช่ 16:9) · Stretch/Zoom ที่สัดส่วนไม่ใช่ 16:9 → มีขอบในไฟล์
