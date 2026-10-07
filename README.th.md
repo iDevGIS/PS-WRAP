@@ -7,6 +7,10 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 ▶️ **Demo stream:** [youtube.com/live/8sWkgmj81Aw](https://www.youtube.com/live/8sWkgmj81Aw)
 
+**เล่นพร้อมเปิดหน้าต่าง 9:16** — overlay บนจอเกม และข้างๆ เป็นภาพแนวตั้งสำหรับ Shorts / TikTok / Reels มีรูปมีมด้านบน + facecam (เอฟเฟกต์หน้ากากซามูไร) ด้านล่าง เลย์เอาต์ Blur fill
+
+![สตรีมพร้อมหน้าต่าง 9:16](screenshots/stream-916.jpg)
+
 ![หน้าหลัก](screenshots/main.png)
 
 **ระหว่างสตรีม** — แชทไลฟ์, นาฬิกา/เวลาเล่น, mic visualizer, network stats และ overlay จอย ลากย้าย/ย่อขยายได้ทุกตัว (คลิกที่ overlay เพื่อแก้)

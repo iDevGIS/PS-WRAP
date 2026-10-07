@@ -7,6 +7,10 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 
 ▶️ **Demo stream:** [youtube.com/live/8sWkgmj81Aw](https://www.youtube.com/live/8sWkgmj81Aw).
 
+**Playing with the vertical 9:16 window open:** overlays on the game screen, and next to it the vertical picture for Shorts / TikTok / Reels with a meme image on top and the facecam (with the samurai face effect) below, in the Blur fill layout.
+
+![Stream with the 9:16 window](screenshots/stream-916.jpg)
+
 ![Home screen](screenshots/main.png)
 
 **While streaming:** live chat, clock and play time, mic visualizer, network stats and controller overlays. You can drag and resize each one; click an overlay to edit it.
