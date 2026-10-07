@@ -147,11 +147,13 @@ class PsWrapRecorder : public QObject
 	Q_PROPERTY(bool replayActive READ isReplayActive NOTIFY replayActiveChanged) // Instant Replay กำลังเก็บ buffer
 
 public:
-	explicit PsWrapRecorder(QObject *parent = nullptr);
+	// primary = ตัวหลัก (instance()) · false = ตัวที่ 2 สำหรับภาพแนวตั้ง 9:16 (secondary()) — เสียงเกม/ไมค์ป้อนให้ทั้งคู่
+	explicit PsWrapRecorder(QObject *parent = nullptr, bool primary = true);
 	~PsWrapRecorder() override;
 
-	// ตัวเดียวทั้งแอป (สร้างโดย QmlMainWindow) — StreamSession/render thread เข้าถึงผ่านตัวนี้
+	// ตัวหลักทั้งแอป (สร้างโดย QmlMainWindow) — StreamSession/render thread เข้าถึงผ่านตัวนี้
 	static PsWrapRecorder *instance();
+	static PsWrapRecorder *secondary();   // PS-WRAP: pipeline แนวตั้ง (อัดคลิป 9:16 / ไลฟ์แนวตั้ง) · nullptr = ไม่มี
 
 	// ---- GUI thread: ไฟล์อัด
 	// pipeline ทำงานอยู่แล้ว (replay) → ใช้ pipeline เดิม (ขนาด/fps ของ pipeline) ยกเว้น SDR/HDR ไม่ตรง = เริ่ม pipeline ใหม่ (buffer replay หาย)

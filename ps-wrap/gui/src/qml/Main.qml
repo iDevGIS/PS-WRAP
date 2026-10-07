@@ -722,6 +722,32 @@ Item {
             });
         }
     }
+    // PS-WRAP: คลิปแนวตั้ง 9:16 (recorder ตัวที่ 2 — VerticalPreviewWindow / tray)
+    Connections {
+        target: Chiaki.window ? Chiaki.window.verticalRecorder : null
+        ignoreUnknownSignals: true
+        function onSaved(path) {
+            recToast.show({
+                kind: "success",
+                title: qsTr("Vertical clip saved"),
+                detail: String(path).replace(/^.*[\\/]/, ""),
+                actionText: qsTr("Show in folder"),
+                action: function() { Chiaki.window.revealRecording(path); }
+            });
+        }
+        function onFailed(message) {
+            recToast.show({ kind: "error", title: qsTr("Vertical recording failed"), detail: message });
+        }
+        function onNotice(message, path) {
+            recToast.show({
+                kind: "info",
+                title: qsTr("Recording to backup folder"),
+                detail: message,
+                actionText: qsTr("Show in folder"),
+                action: function() { Chiaki.window.revealRecording(path); }
+            });
+        }
+    }
     // PS-WRAP: Go Live — C++ คัดมาแล้วเฉพาะเหตุการณ์สำคัญ (ขึ้นไลฟ์ / ต่อใหม่ / ปลายทางเลิกลอง / เริ่มไม่ได้ / หยุดเอง)
     Connections {
         target: Chiaki.goLive !== undefined ? Chiaki.goLive : null

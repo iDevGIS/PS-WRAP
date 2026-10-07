@@ -7,7 +7,12 @@
 
 #include <chiaki/time.h>
 
+#include <pswraprecorder.h>
+
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPointer>
@@ -28,6 +33,7 @@ struct VerticalShared
 	PsWrapVerticalLayout layout;
 	QRectF cam_logical;   // logical px ของหน้าต่าง
 	QImage latest;
+	QRectF game_n, cam_n; // กรอบล่าสุดใน preview (สัดส่วน 0..1) ให้ QML hit-test ตอนลาก
 };
 VerticalShared &shared()
 {
@@ -58,6 +64,28 @@ public:
 	}
 };
 
+// "cx,cy,w" → layout (ว่าง/เสีย = ค่าเริ่มต้นของเลย์เอาต์) · เรียกใต้ shared().mutex
+void applyCam(PsWrapVerticalLayout &l, const QString &v)
+{
+	const QStringList parts = v.split(QLatin1Char(','));
+	bool ok1 = false, ok2 = false, ok3 = false;
+	const float cx = parts.size() == 3 ? parts[0].toFloat(&ok1) : 0.0f;
+	const float cy = parts.size() == 3 ? parts[1].toFloat(&ok2) : 0.0f;
+	const float w = parts.size() == 3 ? parts[2].toFloat(&ok3) : 0.0f;
+	if (ok1 && ok2 && ok3 && w > 0.0f) {
+		l.cam_cx = cx;
+		l.cam_cy = cy;
+		l.cam_w = w;
+	} else {
+		l.cam_w = 0.0f;
+	}
+}
+
+QVariantMap rectMap(const QRectF &r)
+{
+	return {{QStringLiteral("x"), r.x()}, {QStringLiteral("y"), r.y()}, {QStringLiteral("w"), r.width()}, {QStringLiteral("h"), r.height()}};
+}
+
 } // namespace
 
 QQuickImageProvider *pswrapCreateVerticalProvider() { return new VerticalProvider; }
@@ -77,6 +105,7 @@ void QmlMainWindow::setVerticalPreview(bool on)
 		shared().enabled = on;
 		shared().layout.mode = settings->GetVerticalLayout();
 		shared().layout.crop_x = float(settings->GetVerticalCropX());
+		applyCam(shared().layout, settings->GetVerticalCam(shared().layout.mode));
 		if (!on)
 			shared().latest = QImage();
 	}
@@ -94,6 +123,7 @@ void QmlMainWindow::setVerticalLayout(int mode)
 	{
 		QMutexLocker locker(&shared().mutex);
 		shared().layout.mode = mode;
+		applyCam(shared().layout, settings->GetVerticalCam(mode));
 	}
 	emit verticalLayoutChanged();
 }
@@ -113,6 +143,25 @@ void QmlMainWindow::setVerticalCropX(qreal x)
 	emit verticalCropXChanged();
 }
 
+QVariantMap QmlMainWindow::verticalHitRects() const
+{
+	QMutexLocker locker(&shared().mutex);
+	QVariantMap m;
+	m[QStringLiteral("game")] = rectMap(shared().game_n);
+	m[QStringLiteral("cam")] = shared().cam_n.isEmpty() ? QVariant() : QVariant(rectMap(shared().cam_n));
+	return m;
+}
+
+void QmlMainWindow::setVerticalCam(qreal cx, qreal cy, qreal w)
+{
+	const int mode = settings->GetVerticalLayout();
+	const QString v = w > 0 ? QStringLiteral("%1,%2,%3").arg(qBound(0.0, cx, 1.0), 0, 'f', 4).arg(qBound(0.0, cy, 1.0), 0, 'f', 4).arg(qBound(0.05, w, 1.0), 0, 'f', 4)
+	                        : QString();
+	settings->SetVerticalCam(mode, v);
+	QMutexLocker locker(&shared().mutex);
+	applyCam(shared().layout, v);
+}
+
 void QmlMainWindow::setVerticalCamRect(qreal x, qreal y, qreal w, qreal h)
 {
 	QMutexLocker locker(&shared().mutex);
@@ -124,14 +173,10 @@ void QmlMainWindow::pswrapVerticalCapture(const pl_frame_mix *mix, const pl_fram
 {
 	Q_ASSERT(QThread::currentThread() == render_thread);
 	const qint64 now_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
-	PsWrapVerticalLayout layout;
-	QRectF cam_logical;
 	bool enabled;
 	{
 		QMutexLocker locker(&shared().mutex);
 		enabled = shared().enabled;
-		layout = shared().layout;
-		cam_logical = shared().cam_logical;
 	}
 	if (!enabled || !session) {
 		if (pswrap_vertical && pswrap_vertical->idle() && now_us - pswrap_vertical_last_us > kIdleReleaseUs) {
@@ -153,12 +198,8 @@ void QmlMainWindow::pswrapVerticalCapture(const pl_frame_mix *mix, const pl_fram
 	if (!pswrap_vertical->idle())
 		return;   // ภาพก่อนยัง download ไม่เสร็จ — ข้ามรอบนี้
 
-	// logical → pixel ของ swapchain (คิดจากขนาดหน้าต่างจริง ไม่ใช่ DPR ตายตัว)
 	const int sw = swapchain_size.width(), sh = swapchain_size.height();
-	if (!cam_logical.isEmpty() && width() > 0 && height() > 0) {
-		const qreal kx = qreal(sw) / width(), ky = qreal(sh) / height();
-		layout.cam = QRectF(cam_logical.x() * kx, cam_logical.y() * ky, cam_logical.width() * kx, cam_logical.height() * ky);
-	}
+	const PsWrapVerticalLayout layout = pswrapVerticalLayoutNow(sw, sh);
 
 	QPointer<QmlMainWindow> self(this);
 	const bool started = pswrap_vertical->capture(mix, single, params, screen_target, overlay, sw, sh, layout,
@@ -176,8 +217,83 @@ void QmlMainWindow::pswrapVerticalCapture(const pl_frame_mix *mix, const pl_fram
 			emit self->verticalFrameChanged();
 		}, Qt::QueuedConnection);
 	});
-	if (started)
+	if (started) {
 		pswrap_vertical_last_us = now_us;
+		// กรอบที่เพิ่งวาด → สัดส่วนของ canvas ให้ QML ลาก
+		const PsWrapVerticalGeometry &g = pswrap_vertical->lastGeometry();
+		auto norm = [](const pl_rect2df &r) {
+			return QRectF(r.x0 / kPreviewW, r.y0 / kPreviewH, (r.x1 - r.x0) / kPreviewW, (r.y1 - r.y0) / kPreviewH);
+		};
+		QMutexLocker locker(&shared().mutex);
+		shared().game_n = norm(g.game_dst);
+		shared().cam_n = g.cam_dst.x1 > g.cam_dst.x0 ? norm(g.cam_dst) : QRectF();
+	}
+}
+
+// render thread: เลย์เอาต์ล่าสุด + กรอบ facecam แปลง logical → pixel ของ swapchain (คิดจากขนาดหน้าต่างจริง)
+PsWrapVerticalLayout QmlMainWindow::pswrapVerticalLayoutNow(int sw, int sh) const
+{
+	PsWrapVerticalLayout layout;
+	QRectF cam_logical;
+	{
+		QMutexLocker locker(&shared().mutex);
+		layout = shared().layout;
+		cam_logical = shared().cam_logical;
+	}
+	if (!cam_logical.isEmpty() && width() > 0 && height() > 0) {
+		const qreal kx = qreal(sw) / width(), ky = qreal(sh) / height();
+		layout.cam = QRectF(cam_logical.x() * kx, cam_logical.y() * ky, cam_logical.width() * kx, cam_logical.height() * ky);
+	}
+	return layout;
+}
+
+void QmlMainWindow::pswrapLoadVerticalLayout()
+{
+	QMutexLocker locker(&shared().mutex);
+	shared().layout.mode = settings->GetVerticalLayout();
+	shared().layout.crop_x = float(settings->GetVerticalCropX());
+	applyCam(shared().layout, settings->GetVerticalCam(shared().layout.mode));
+}
+
+QObject *QmlMainWindow::verticalRecorderObject() const { return pswrap_vrec; }
+
+// อัดคลิปแนวตั้ง 1080x1920 SDR (Shorts/TikTok/Reels ไม่ต้องการ HDR) — pipeline แยกจากไฟล์อัดปกติ อัดพร้อมกันได้
+void QmlMainWindow::toggleVerticalRecording()
+{
+	if (!pswrap_vrec || pswrap_vrec->isBusy())
+		return;
+	if (pswrap_vrec->isRecording()) {
+		pswrap_vrec->stop();
+		return;
+	}
+	PsWrapRecConfig cfg;
+	QString err;
+	if (!pswrapBuildRecConfig(&cfg, &err)) {   // เช็คสตรีม + fps ของสตรีม
+		emit pswrap_vrec->failed(err);
+		return;
+	}
+	cfg.width = 1080;
+	cfg.height = 1920;
+	cfg.hdr = false;
+	cfg.hdr_info = PsWrapRecHdrInfo();
+	pswrapLoadVerticalLayout();
+	const QString folder = QDir::fromNativeSeparators(recordingFolder());
+	const QString name = QStringLiteral("PS-WRAP Vertical %1.mp4").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH-mm-ss")));
+	cfg.path = QDir(folder).filePath(name);
+	if (pswrap_vrec->start(cfg, &err))
+		return;
+	// เขียนโฟลเดอร์ที่ตั้งไว้ไม่ได้ (Controlled folder access) → โฟลเดอร์สำรองเดียวกับคลิปปกติ
+	const QString fallback = QDir(QDir::homePath()).filePath(QStringLiteral("PS-WRAP Recordings"));
+	if (pswrap_vrec->lastStartFileError() && QDir::cleanPath(folder) != QDir::cleanPath(fallback)) {
+		cfg.path = QDir(fallback).filePath(name);
+		QString err2;
+		if (pswrap_vrec->start(cfg, &err2)) {
+			emit pswrap_vrec->notice(tr("Windows blocked saving to %1, so this recording is saved to %2.")
+				.arg(QDir::toNativeSeparators(folder), QDir::toNativeSeparators(fallback)), cfg.path);
+			return;
+		}
+	}
+	emit pswrap_vrec->failed(err);
 }
 
 void QmlMainWindow::pswrapDestroyVertical()

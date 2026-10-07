@@ -83,7 +83,95 @@ PsWrapVerticalGeometry pswrapVerticalGeometry(const PsWrapVerticalLayout &layout
 		break;
 	}
 	}
+	// ผู้ใช้ลาก facecam เอง → ใช้ตำแหน่ง/ขนาดนั้น (คงสัดส่วน facecam, ไม่ให้หลุดขอบ canvas)
+	if (cam && layout.cam_w > 0.0f) {
+		float w = std::clamp(layout.cam_w, 0.08f, 1.0f) * W;
+		float h = w / cam_aspect;
+		if (h > H) {
+			h = H;
+			w = h * cam_aspect;
+		}
+		const float cx = std::clamp(layout.cam_cx * W, w * 0.5f, W - w * 0.5f);
+		const float cy = std::clamp(layout.cam_cy * H, h * 0.5f, H - h * 0.5f);
+		g.cam_dst = rect(cx - w * 0.5f, cy - h * 0.5f, cx + w * 0.5f, cy + h * 0.5f);
+	}
 	return g;
+}
+
+bool pswrapRenderVertical(pl_renderer renderer, const pl_frame_mix *mix, const pl_frame *single, const pl_render_params &params,
+                          const pl_frame &screen_target, const pl_overlay *overlay, int screen_w, int screen_h,
+                          const PsWrapVerticalLayout &layout, pl_frame &t, PsWrapVerticalGeometry *out)
+{
+	const pl_frame *src = single ? single : (mix && mix->num_frames > 0 ? mix->frames[0] : nullptr);
+	if (!renderer || !src || !t.planes[0].texture || screen_w <= 0 || screen_h <= 0)
+		return false;
+	const int W = t.planes[0].texture->params.w, H = t.planes[0].texture->params.h;
+
+	// กรอบ facecam บนจอ ∩ จอ — ใช้เป็นทั้งสัดส่วนและส่วนที่ตัดจาก quick_tex
+	const QRectF cam = layout.cam.intersected(QRectF(0, 0, screen_w, screen_h));
+	const bool has_cam = overlay && overlay->tex && overlay->num_parts > 0 && cam.width() >= 2 && cam.height() >= 2;
+	const PsWrapVerticalGeometry g = pswrapVerticalGeometry(layout, float(W), float(H), src->crop,
+	                                                        has_cam ? float(cam.width() / cam.height()) : 0.0f);
+	if (out)
+		*out = g;
+	t.crop = g.game_dst;
+
+	pl_overlay ov = {};
+	pl_overlay_part part = {};
+	t.overlays = nullptr;
+	t.num_overlays = 0;
+	if (has_cam && g.cam_dst.x1 > g.cam_dst.x0) {
+		ov = *overlay;
+		part = overlay->parts[0];
+		const pl_rect2df c = screen_target.crop;
+		if (c.y0 > c.y1)   // swapchain OpenGL กลับหัว
+			std::swap(part.src.y0, part.src.y1);
+		const pl_rect2df full = part.src;   // quick_tex ครอบทั้งจอ
+		part.src.x0 = full.x0 + (full.x1 - full.x0) * float(cam.left() / screen_w);
+		part.src.x1 = full.x0 + (full.x1 - full.x0) * float(cam.right() / screen_w);
+		part.src.y0 = full.y0 + (full.y1 - full.y0) * float(cam.top() / screen_h);
+		part.src.y1 = full.y0 + (full.y1 - full.y0) * float(cam.bottom() / screen_h);
+		part.dst = g.cam_dst;
+		ov.parts = &part;
+		ov.num_parts = 1;
+		t.overlays = &ov;
+		t.num_overlays = 1;
+	}
+
+	pl_render_params p = params;
+	p.hooks = nullptr;
+	p.num_hooks = 0;
+	p.info_callback = nullptr;
+	p.background_transparency = 0.0f;
+	p.border = g.blur_border ? PL_CLEAR_BLUR : PL_CLEAR_COLOR;
+	p.blur_radius = float(W) * 0.04f;
+	p.background_color[0] = p.background_color[1] = p.background_color[2] = 0.0f;
+
+	// ตัด source ตามเลย์เอาต์ — สำเนาเฟรม (signature ผสม crop กัน cache ของ renderer ใช้ภาพที่ตัดคนละแบบ)
+	bool ok = false;
+	const uint64_t salt = (uint64_t(g.src_crop.x0 * 16) << 32) ^ uint64_t(g.src_crop.x1 * 16) ^ (uint64_t(layout.mode) << 56);
+	if (single) {
+		pl_frame f = *single;
+		f.crop = g.src_crop;
+		ok = pl_render_image(renderer, &f, &t, &p);
+	} else {
+		std::vector<pl_frame> frames(size_t(mix->num_frames));
+		std::vector<const pl_frame *> ptrs(size_t(mix->num_frames));
+		std::vector<uint64_t> sigs(size_t(mix->num_frames));
+		for (int i = 0; i < mix->num_frames; i++) {
+			frames[size_t(i)] = *mix->frames[i];
+			frames[size_t(i)].crop = g.src_crop;
+			ptrs[size_t(i)] = &frames[size_t(i)];
+			sigs[size_t(i)] = mix->signatures[i] ^ salt;
+		}
+		pl_frame_mix m = *mix;
+		m.frames = ptrs.data();
+		m.signatures = sigs.data();
+		ok = pl_render_image_mix(renderer, &m, &t, &p);
+	}
+	t.overlays = nullptr;   // ชี้ stack ของฟังก์ชันนี้ — ไม่ให้ผู้เรียกใช้ต่อ
+	t.num_overlays = 0;
+	return ok;
 }
 
 // ---------------------------------------------------------------- preview
@@ -146,12 +234,6 @@ bool PsWrapVerticalPreview::capture(const pl_frame_mix *mix, const pl_frame *sin
 			return false;
 	}
 
-	// กรอบ facecam บนจอ ∩ จอ — ใช้เป็นทั้งสัดส่วนและส่วนที่ตัดจาก quick_tex
-	QRectF cam = layout.cam.intersected(QRectF(0, 0, screen_w, screen_h));
-	const bool has_cam = overlay && overlay->tex && overlay->num_parts > 0 && cam.width() >= 2 && cam.height() >= 2;
-	const PsWrapVerticalGeometry g = pswrapVerticalGeometry(layout, float(W), float(H), src->crop,
-	                                                        has_cam ? float(cam.width() / cam.height()) : 0.0f);
-
 	pl_frame t = {};
 	t.num_planes = 1;
 	t.planes[0].texture = tex;
@@ -165,59 +247,9 @@ bool PsWrapVerticalPreview::capture(const pl_frame_mix *mix, const pl_frame *sin
 	t.repr.bits.sample_depth = 8;
 	t.repr.bits.color_depth = 8;
 	t.color = pl_color_space_srgb;   // สตรีม HDR → tone-map ลง SDR
-	t.crop = g.game_dst;
-
-	pl_overlay ov = {};
-	pl_overlay_part part = {};
-	if (has_cam && g.cam_dst.x1 > g.cam_dst.x0) {
-		ov = *overlay;
-		part = overlay->parts[0];
-		const pl_rect2df c = screen_target.crop;
-		if (c.y0 > c.y1)   // swapchain OpenGL กลับหัว
-			std::swap(part.src.y0, part.src.y1);
-		const pl_rect2df full = part.src;   // quick_tex ครอบทั้งจอ
-		part.src.x0 = full.x0 + (full.x1 - full.x0) * float(cam.left() / screen_w);
-		part.src.x1 = full.x0 + (full.x1 - full.x0) * float(cam.right() / screen_w);
-		part.src.y0 = full.y0 + (full.y1 - full.y0) * float(cam.top() / screen_h);
-		part.src.y1 = full.y0 + (full.y1 - full.y0) * float(cam.bottom() / screen_h);
-		part.dst = g.cam_dst;
-		ov.parts = &part;
-		ov.num_parts = 1;
-		t.overlays = &ov;
-		t.num_overlays = 1;
-	}
-
-	pl_render_params p = params;
-	p.hooks = nullptr;
-	p.num_hooks = 0;
-	p.info_callback = nullptr;
-	p.background_transparency = 0.0f;
-	p.border = g.blur_border ? PL_CLEAR_BLUR : PL_CLEAR_COLOR;
-	p.blur_radius = float(W) * 0.04f;
-	p.background_color[0] = p.background_color[1] = p.background_color[2] = 0.0f;
-
-	// ตัด source ตามเลย์เอาต์ — สำเนาเฟรม (signature ผสม crop กัน cache ของ renderer ใช้ภาพที่ตัดคนละแบบ)
-	bool ok = false;
-	const uint64_t salt = (uint64_t(g.src_crop.x0 * 16) << 32) ^ uint64_t(g.src_crop.x1 * 16) ^ (uint64_t(layout.mode) << 56);
-	if (single) {
-		pl_frame f = *single;
-		f.crop = g.src_crop;
-		ok = pl_render_image(renderer, &f, &t, &p);
-	} else {
-		std::vector<pl_frame> frames(size_t(mix->num_frames));
-		std::vector<const pl_frame *> ptrs(size_t(mix->num_frames));
-		std::vector<uint64_t> sigs(size_t(mix->num_frames));
-		for (int i = 0; i < mix->num_frames; i++) {
-			frames[size_t(i)] = *mix->frames[i];
-			frames[size_t(i)].crop = g.src_crop;
-			ptrs[size_t(i)] = &frames[size_t(i)];
-			sigs[size_t(i)] = mix->signatures[i] ^ salt;
-		}
-		pl_frame_mix m = *mix;
-		m.frames = ptrs.data();
-		m.signatures = sigs.data();
-		ok = pl_render_image_mix(renderer, &m, &t, &p);
-	}
+	PsWrapVerticalGeometry g;
+	const bool ok = pswrapRenderVertical(renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, layout, t, &g);
+	last_geometry = g;
 	if (!ok) {
 		static bool warned = false;
 		if (!warned) {

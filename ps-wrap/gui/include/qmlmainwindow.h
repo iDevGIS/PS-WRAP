@@ -97,6 +97,7 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(int verticalLayout READ verticalLayout WRITE setVerticalLayout NOTIFY verticalLayoutChanged)   // 0 Split · 1 Center · 2 Blur
     Q_PROPERTY(qreal verticalCropX READ verticalCropX WRITE setVerticalCropX NOTIFY verticalCropXChanged)    // 0..1
     Q_PROPERTY(int verticalFrame READ verticalFrame NOTIFY verticalFrameChanged)
+    Q_PROPERTY(QObject *verticalRecorder READ verticalRecorderObject CONSTANT)   // PS-WRAP: อัดคลิปแนวตั้ง (recording/seconds/saved/failed)
     // PS-WRAP: Instant Replay (qmlmainwindow_pswraprec.cpp) — เดินเองระหว่างสตรีมเมื่อเปิด · saveReplay() → recorder.replaySaved
     Q_PROPERTY(bool replayEnabled READ replayEnabled WRITE setReplayEnabled NOTIFY replayEnabledChanged)
     Q_PROPERTY(int replaySeconds READ replaySeconds WRITE setReplaySeconds NOTIFY replaySecondsChanged)   // 30..120
@@ -219,7 +220,12 @@ public:
     qreal verticalCropX() const;
     void setVerticalCropX(qreal x);
     int verticalFrame() const { return pswrap_vertical_frame; }
+    QObject *verticalRecorderObject() const;
+    Q_INVOKABLE void toggleVerticalRecording();   // อัดคลิป 9:16 (1080x1920) ตามเลย์เอาต์ปัจจุบัน
     Q_INVOKABLE void setVerticalCamRect(qreal x, qreal y, qreal w, qreal h);   // logical px ของหน้าต่าง · w<=0 = ไม่มี facecam
+    // เฟส 2: ลากใน preview — กรอบล่าสุด (สัดส่วน 0..1 ของ canvas) {game:{x,y,w,h}, cam:{x,y,w,h}|null}
+    Q_INVOKABLE QVariantMap verticalHitRects() const;
+    Q_INVOKABLE void setVerticalCam(qreal cx, qreal cy, qreal w);   // ตำแหน่ง facecam ของเลย์เอาต์ปัจจุบัน · w<=0 = คืนค่าเริ่มต้น
     void setCaptureHeight(int height);
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void openRecordingsFolder();
@@ -467,6 +473,10 @@ private:
     PsWrapRecorder *pswrap_recorder = nullptr;     // GUI thread เป็นเจ้าของ
     PsWrapMicMeter *pswrap_mic_meter = nullptr;
     PsWrapRecCapture *pswrap_rec_capture = nullptr; // render thread เท่านั้น (ลบตอน destructor หลัง render thread จบ)
+    PsWrapRecorder *pswrap_vrec = nullptr;            // PS-WRAP: pipeline แนวตั้ง 9:16 (คลิป/ไลฟ์แนวตั้ง) — PsWrapRecorder::secondary()
+    PsWrapRecCapture *pswrap_vrec_capture = nullptr;  // render thread เท่านั้น
+    struct PsWrapVerticalLayout pswrapVerticalLayoutNow(int screen_w, int screen_h) const;   // render thread: เลย์เอาต์ + กรอบ facecam (px)
+    void pswrapLoadVerticalLayout();                  // GUI thread: settings → ค่าที่ render thread ใช้
     void pswrapInitRecording();
     void pswrapInitMic();              // PS-WRAP: ส่งค่า gain/gate ที่จำไว้เข้า PsWrapVoiceProc (qmlmainwindow_pswrapmic.cpp)
     void pswrapStopRecordingForTeardown();

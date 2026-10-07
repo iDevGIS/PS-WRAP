@@ -56,6 +56,7 @@ constexpr int64_t kMarkerMinGapMs = 1000;      // marker ห่างกัน�
 const char *const kTrackTitles[kAudioTracks] = {"Game + Mic", "Game", "Mic"};
 
 QAtomicPointer<PsWrapRecorder> g_instance;
+QAtomicPointer<PsWrapRecorder> g_secondary;   // pipeline แนวตั้ง 9:16
 
 QString avErr(int err)
 {
@@ -1188,10 +1189,10 @@ struct PsWrapRecorder::Impl
 
 // ---------------------------------------------------------------- PsWrapRecorder
 
-PsWrapRecorder::PsWrapRecorder(QObject *parent)
+PsWrapRecorder::PsWrapRecorder(QObject *parent, bool primary)
 	: QObject(parent)
 {
-	g_instance.storeRelease(this);
+	(primary ? g_instance : g_secondary).storeRelease(this);
 	tick_timer.setInterval(500);
 	connect(&tick_timer, &QTimer::timeout, this, [this]() {
 		const int s = static_cast<int>((QDateTime::currentMSecsSinceEpoch() - start_ms) / 1000);
@@ -1206,11 +1207,17 @@ PsWrapRecorder::~PsWrapRecorder()
 {
 	shutdown();
 	g_instance.testAndSetOrdered(this, nullptr);
+	g_secondary.testAndSetOrdered(this, nullptr);
 }
 
 PsWrapRecorder *PsWrapRecorder::instance()
 {
 	return g_instance.loadAcquire();
+}
+
+PsWrapRecorder *PsWrapRecorder::secondary()
+{
+	return g_secondary.loadAcquire();
 }
 
 bool PsWrapRecorder::ensurePipeline(const PsWrapRecConfig &config, QString *error)
@@ -1789,16 +1796,16 @@ void PsWrapRecorder::pushVideoFrame(AVFrame *frame, qint64 capture_us)
 
 void PsWrapRecorder::tapGameAudio(const int16_t *pcm, size_t frames, unsigned channels, unsigned rate)
 {
-	PsWrapRecorder *r = instance();
-	if (r && r->isCapturing())
-		r->pushAudio(false, pcm, frames, channels, rate);
+	for (PsWrapRecorder *r : {instance(), secondary()})
+		if (r && r->isCapturing())
+			r->pushAudio(false, pcm, frames, channels, rate);
 }
 
 void PsWrapRecorder::tapMicAudio(const int16_t *pcm, size_t frames, unsigned channels, unsigned rate)
 {
-	PsWrapRecorder *r = instance();
-	if (r && r->isCapturing())
-		r->pushAudio(true, pcm, frames, channels, rate);
+	for (PsWrapRecorder *r : {instance(), secondary()})
+		if (r && r->isCapturing())
+			r->pushAudio(true, pcm, frames, channels, rate);
 }
 
 void PsWrapRecorder::pushAudio(bool mic, const int16_t *pcm, size_t frames, unsigned channels, unsigned rate)

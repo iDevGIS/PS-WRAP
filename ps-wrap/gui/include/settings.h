@@ -280,6 +280,9 @@ class Settings : public QObject
 		void SetVerticalLayout(int v) { settings.setValue("pswrap/verticalLayout", qBound(0, v, 2)); }
 		double GetVerticalCropX() const { return qBound(0.0, settings.value("pswrap/verticalCropX", 0.5).toDouble(), 1.0); }
 		void SetVerticalCropX(double v) { settings.setValue("pswrap/verticalCropX", qBound(0.0, v, 1.0)); }
+		// ตำแหน่ง facecam ที่ลากเองต่อเลย์เอาต์ "cx,cy,w" (สัดส่วน canvas) · ว่าง = ค่าเริ่มต้น
+		QString GetVerticalCam(int mode) const { return settings.value(QStringLiteral("pswrap/verticalCam%1").arg(mode)).toString(); }
+		void SetVerticalCam(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalCam%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalCam%1").arg(mode), v); }
 		// PS-WRAP: Instant Replay — เก็บ N วินาทีล่าสุดไว้ในแรมระหว่างสตรีม (ดู PsWrapRecorder::startReplay)
 		bool GetReplayEnabled() const { return settings.value("pswrap/replayEnabled", false).toBool(); }
 		void SetReplayEnabled(bool v) { settings.setValue("pswrap/replayEnabled", v); }

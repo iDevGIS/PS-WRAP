@@ -12,6 +12,7 @@ Window {
     id: win
 
     property bool placed: false
+    function elapsed(s) { const m = Math.floor(s / 60); const ss = s % 60; return m + ":" + (ss < 10 ? "0" : "") + ss; }
 
     title: qsTr("PS-WRAP · Vertical 9:16")
     flags: Qt.Window
@@ -68,6 +69,76 @@ Window {
                     source: Chiaki.window ? "image://pswrapvertical/" + Chiaki.window.verticalFrame : ""
                 }
 
+                // เฟส 2: ลากในภาพ — facecam: ลาก = ย้าย · scroll = ย่อ/ขยาย · ดับเบิลคลิก = ค่าเริ่มต้น
+                //                   ส่วนเกม: ลากซ้าย-ขวา = เลื่อนตำแหน่งตัด (Cam + game / Center crop)
+                MouseArea {
+                    id: dragArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.LeftButton
+                    property string mode: ""        // "cam" | "crop" | ""
+                    property real startX: 0
+                    property real startY: 0
+                    property var startCam: null     // {cx, cy, w} ตอนเริ่มลาก
+                    property real startCrop: 0.5
+                    property bool overCam: false
+
+                    function rects() { return Chiaki.window ? Chiaki.window.verticalHitRects() : null }
+                    function inside(r, nx, ny) { return r && nx >= r.x && nx <= r.x + r.w && ny >= r.y && ny <= r.y + r.h }
+                    function camNow() {
+                        const r = rects();
+                        return r && r.cam ? { cx: r.cam.x + r.cam.w / 2, cy: r.cam.y + r.cam.h / 2, w: r.cam.w } : null;
+                    }
+
+                    cursorShape: mode === "cam" ? Qt.ClosedHandCursor
+                               : mode === "crop" ? Qt.SizeHorCursor
+                               : overCam ? Qt.OpenHandCursor
+                               : (Chiaki.window && Chiaki.window.verticalLayout !== 2 ? Qt.SizeHorCursor : Qt.ArrowCursor)
+
+                    onPositionChanged: (mouse) => {
+                        const nx = mouse.x / width, ny = mouse.y / height;
+                        if (mode === "") {
+                            const r = rects();
+                            overCam = !!r && inside(r.cam, nx, ny);
+                            return;
+                        }
+                        const dx = (mouse.x - startX) / width, dy = (mouse.y - startY) / height;
+                        if (mode === "cam" && startCam)
+                            Chiaki.window.setVerticalCam(startCam.cx + dx, startCam.cy + dy, startCam.w);
+                        else if (mode === "crop")
+                            Chiaki.window.verticalCropX = Math.max(0, Math.min(1, startCrop - dx * 1.6));
+                    }
+                    onPressed: (mouse) => {
+                        const nx = mouse.x / width, ny = mouse.y / height;
+                        const r = rects();
+                        startX = mouse.x;
+                        startY = mouse.y;
+                        if (r && inside(r.cam, nx, ny)) {
+                            mode = "cam";
+                            startCam = camNow();
+                        } else if (Chiaki.window.verticalLayout !== 2) {
+                            mode = "crop";
+                            startCrop = Chiaki.window.verticalCropX;
+                        } else {
+                            mode = "";
+                        }
+                    }
+                    onReleased: mode = ""
+                    onCanceled: mode = ""
+                    onDoubleClicked: (mouse) => {
+                        const r = rects();
+                        if (r && inside(r.cam, mouse.x / width, mouse.y / height))
+                            Chiaki.window.setVerticalCam(0, 0, 0);
+                    }
+                    onWheel: (wheel) => {
+                        const c = camNow();
+                        if (!c)
+                            return;
+                        const k = wheel.angleDelta.y > 0 ? 1.08 : 1 / 1.08;
+                        Chiaki.window.setVerticalCam(c.cx, c.cy, Math.max(0.1, Math.min(1, c.w * k)));
+                    }
+                }
+
                 Label {
                     anchors.centerIn: parent
                     visible: !Chiaki.session
@@ -76,6 +147,19 @@ Window {
                     font.pixelSize: Theme.fontCaption
                 }
             }
+        }
+
+        // เฟส 3: อัดคลิปแนวตั้ง 1080x1920 (pipeline แยก อัดพร้อมคลิปปกติได้)
+        Button {
+            id: vrecButton
+            readonly property QtObject rec: Chiaki.window ? Chiaki.window.verticalRecorder : null
+            readonly property bool on: !!rec && rec.recording
+            Layout.fillWidth: true
+            enabled: !!Chiaki.session && !!rec && !rec.busy
+            highlighted: on
+            Material.accent: on ? Theme.danger : Theme.accent
+            text: on ? qsTr("■  Stop  %1").arg(win.elapsed(rec.seconds)) : qsTr("●  Record 9:16")
+            onClicked: Chiaki.window.toggleVerticalRecording()
         }
 
         // เลย์เอาต์
@@ -122,6 +206,12 @@ Window {
                 font.pixelSize: Theme.fontCaption
                 onClicked: Chiaki.window.verticalCropX = 0.5
             }
+            Button {
+                text: qsTr("Reset cam")
+                flat: true
+                font.pixelSize: Theme.fontCaption
+                onClicked: Chiaki.window.setVerticalCam(0, 0, 0)
+            }
         }
 
         Label {
@@ -129,7 +219,7 @@ Window {
             wrapMode: Text.WordWrap
             color: Theme.textMuted
             font.pixelSize: Theme.fontCaption
-            text: qsTr("1080 × 1920 · facecam comes from the overlay on the game screen (turn it on and place it there).")
+            text: qsTr("Drag the facecam to move it, scroll to resize, double-click to reset · drag the game sideways to move the crop. The facecam comes from the overlay on the game screen.")
         }
     }
 }

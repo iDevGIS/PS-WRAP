@@ -70,6 +70,8 @@ int g_test_replay_s = -1;   // PSWRAP_TEST_REPLAY (อ่านครั้ง�
 void QmlMainWindow::pswrapInitRecording()
 {
 	pswrap_recorder = new PsWrapRecorder(this);
+	pswrap_vrec = new PsWrapRecorder(this, false);   // PS-WRAP: แนวตั้ง 9:16 (qmlmainwindow_pswrapvertical.cpp)
+	connect(pswrap_vrec, &PsWrapRecorder::recordingChanged, this, [this]() { pswrapRefreshTray(); });
 	pswrap_mic_meter = new PsWrapMicMeter(this);
 	pswrapInitMic();   // gain/noise gate ที่จำไว้ → PsWrapVoiceProc (qmlmainwindow_pswrapmic.cpp) · ไม่ขึ้นกับ speex
 	connect(pswrap_recorder, &PsWrapRecorder::recordingChanged, this, [this]() { pswrapRefreshTray(); });
@@ -90,6 +92,7 @@ void QmlMainWindow::pswrapInitRecording()
 		if (!s) {
 			pswrap_recorder->stop();
 			pswrap_recorder->stopReplay(); // pipeline ปิดเองเมื่อไม่มีผู้รับเหลือ
+			pswrap_vrec->stop();
 		}
 		pswrap_recorder->clearReplayFault(); // สตรีมใหม่ = ให้ replay ลองเริ่มใหม่ได้
 		g_replay_video_since.invalidate();
@@ -240,6 +243,8 @@ void QmlMainWindow::pswrapDestroyCapture()
 {
 	delete pswrap_rec_capture;
 	pswrap_rec_capture = nullptr;
+	delete pswrap_vrec_capture;
+	pswrap_vrec_capture = nullptr;
 	if (pl_gpu gpu = placeboGpu()) {
 		if (pswrap_rec_dot_tex)
 			pl_tex_destroy(gpu, &pswrap_rec_dot_tex);
@@ -253,7 +258,9 @@ void QmlMainWindow::pswrapDestroyCapture()
 void QmlMainWindow::pswrapDecorateScreen(pl_frame &target_frame)
 {
 	PsWrapRecorder *rec = PsWrapRecorder::instance();
-	if (!rec || !rec->isRecording() || target_frame.num_overlays > 1)
+	const bool main_rec = rec && rec->isRecording();
+	const bool v_rec = pswrap_vrec && pswrap_vrec->isRecording();   // PS-WRAP: คลิปแนวตั้ง 9:16
+	if (!(main_rec || v_rec) || target_frame.num_overlays > 1)
 		return;
 	pl_gpu gpu = placeboGpu();
 	if (!gpu)
@@ -309,14 +316,20 @@ void QmlMainWindow::pswrapDecorateScreen(pl_frame &target_frame)
 	// อัดแบบ upscale → ป้าย "4K" / "1440p" ต่อท้ายจุด (ไฟล์ที่ความละเอียดสตรีมไม่มีป้าย)
 	int vw = 0, vh = 0;
 	bool vhdr = false;
-	const int label_h = rec->videoSpec(&vw, &vh, &vhdr) && vh >= 1440 ? vh : 0;
+	const int up_h = main_rec && rec->videoSpec(&vw, &vh, &vhdr) && vh >= 1440 ? vh : 0;
+	const int label_h = up_h * 2 + (v_rec ? 1 : 0);   // key ของป้าย: ความสูง upscale + มีคลิปแนวตั้งไหม
 	if (label_h != pswrap_rec_label_height) {
 		if (pswrap_rec_label_tex)
 			pl_tex_destroy(gpu, &pswrap_rec_label_tex);
 		pswrap_rec_label_height = label_h;
 		if (label_h > 0) {
 			// mask ตัวอักษร (Grayscale8 = alpha) วาดด้วย QPainter บน QImage — ใช้นอก GUI thread ได้
-			const QString text = label_h >= 2160 ? QStringLiteral("4K") : QStringLiteral("%1p").arg(label_h);
+			QStringList parts;
+			if (up_h > 0)
+				parts << (up_h >= 2160 ? QStringLiteral("4K") : QStringLiteral("%1p").arg(up_h));
+			if (v_rec)
+				parts << QStringLiteral("9:16");
+			const QString text = parts.join(QStringLiteral(" + "));
 			QFont font;
 			font.setPixelSize(48);
 			font.setBold(true);
@@ -823,6 +836,20 @@ void QmlMainWindow::pswrapRecordCapture(const pl_frame_mix *mix, const pl_frame 
 	Q_ASSERT(QThread::currentThread() == render_thread);
 	if (hint)
 		PsWrapRecCapture::noteSource(hint);
+	// PS-WRAP: pipeline แนวตั้ง 9:16 — วาดแยกด้วยเลย์เอาต์ของหน้าต่าง preview
+	if (pswrap_vrec && pswrap_vrec->isCapturing()) {
+		if (!pswrap_vrec_capture)
+			if (pl_gpu gpu = placeboGpu())
+				pswrap_vrec_capture = new PsWrapRecCapture(gpu, placebo_log);
+		if (pswrap_vrec_capture) {
+			const int sw = swapchain_size.width(), sh = swapchain_size.height();
+			const PsWrapVerticalLayout vl = pswrapVerticalLayoutNow(sw, sh);
+			pswrap_vrec_capture->capture(pswrap_vrec, mix, single, params, screen_target, overlay, sw, sh, nullptr, &vl);
+		}
+	} else if (pswrap_vrec_capture && pswrap_vrec_capture->canDestroy()) {
+		delete pswrap_vrec_capture;
+		pswrap_vrec_capture = nullptr;
+	}
 	PsWrapRecorder *rec = PsWrapRecorder::instance();
 	if (!rec || !rec->isCapturing()) {   // อัดไฟล์ หรือ Instant Replay (pipeline เดียวกัน)
 		if (pswrap_rec_capture && pswrap_rec_capture->canDestroy()) {

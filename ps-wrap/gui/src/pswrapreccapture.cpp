@@ -196,7 +196,8 @@ void PsWrapRecCapture::collect(PsWrapRecorder *rec)
 
 void PsWrapRecCapture::capture(PsWrapRecorder *rec, const pl_frame_mix *mix, const pl_frame *single,
                                const pl_render_params &params, const pl_frame &screen_target,
-                               const pl_overlay *overlay, int screen_w, int screen_h, const pl_hook *upscaler)
+                               const pl_overlay *overlay, int screen_w, int screen_h, const pl_hook *upscaler,
+                               const PsWrapVerticalLayout *vertical)
 {
 	if (broken || !rec || screen_w <= 0 || screen_h <= 0)
 		return;
@@ -259,58 +260,64 @@ void PsWrapRecCapture::capture(PsWrapRecorder *rec, const pl_frame_mix *mix, con
 	}
 	pl_frame_set_chroma_location(&t, PL_CHROMA_LEFT);
 
-	// เอาเฉพาะ "กรอบวิดีโอบนจอ" (ตัดส่วนที่ล้นจอตอน Zoom) มาวางเต็มกรอบไฟล์แบบคงสัดส่วน
-	// → ไม่มีขอบดำของหน้าต่าง (จอ ultrawide / หน้าต่างไม่ใช่ 16:9) · Stretch/Zoom ที่สัดส่วนไม่ใช่ 16:9 → มีขอบในไฟล์
-	const pl_rect2df c = screen_target.crop;
-	const bool flipped = c.y0 > c.y1; // swapchain OpenGL กลับหัว — target ของเราไม่กลับ
-	const float vx0 = std::min(c.x0, c.x1), vx1 = std::max(c.x0, c.x1);
-	const float vy0 = std::min(c.y0, c.y1), vy1 = std::max(c.y0, c.y1);
-	const float rx0 = std::max(vx0, 0.0f), rx1 = std::min(vx1, float(screen_w));
-	const float ry0 = std::max(vy0, 0.0f), ry1 = std::min(vy1, float(screen_h));
-	if (rx1 - rx0 < 2.0f || ry1 - ry0 < 2.0f)
-		return; // วิดีโอไม่อยู่บนจอ (หน้าต่างย่อ/ยังไม่มีภาพ)
-	const float s = std::min(float(w) / (rx1 - rx0), float(h) / (ry1 - ry0));
-	const float ox = (float(w) - (rx1 - rx0) * s) * 0.5f;
-	const float oy = (float(h) - (ry1 - ry0) * s) * 0.5f;
-	t.crop.x0 = ox + (vx0 - rx0) * s;
-	t.crop.x1 = ox + (vx1 - rx0) * s;
-	t.crop.y0 = oy + (vy0 - ry0) * s;
-	t.crop.y1 = oy + (vy1 - ry0) * s;
+	bool ok = false;
+	if (vertical) {
+		// ภาพแนวตั้ง 9:16 — เลย์เอาต์เดียวกับหน้าต่าง preview (pswrapvertical.cpp)
+		ok = pswrapRenderVertical(renderer, mix, single, params, screen_target, overlay, screen_w, screen_h, *vertical, t, nullptr);
+	} else {
+		// เอาเฉพาะ "กรอบวิดีโอบนจอ" (ตัดส่วนที่ล้นจอตอน Zoom) มาวางเต็มกรอบไฟล์แบบคงสัดส่วน
+		// → ไม่มีขอบดำของหน้าต่าง (จอ ultrawide / หน้าต่างไม่ใช่ 16:9) · Stretch/Zoom ที่สัดส่วนไม่ใช่ 16:9 → มีขอบในไฟล์
+		const pl_rect2df c = screen_target.crop;
+		const bool flipped = c.y0 > c.y1; // swapchain OpenGL กลับหัว — target ของเราไม่กลับ
+		const float vx0 = std::min(c.x0, c.x1), vx1 = std::max(c.x0, c.x1);
+		const float vy0 = std::min(c.y0, c.y1), vy1 = std::max(c.y0, c.y1);
+		const float rx0 = std::max(vx0, 0.0f), rx1 = std::min(vx1, float(screen_w));
+		const float ry0 = std::max(vy0, 0.0f), ry1 = std::min(vy1, float(screen_h));
+		if (rx1 - rx0 < 2.0f || ry1 - ry0 < 2.0f)
+			return; // วิดีโอไม่อยู่บนจอ (หน้าต่างย่อ/ยังไม่มีภาพ)
+		const float s = std::min(float(w) / (rx1 - rx0), float(h) / (ry1 - ry0));
+		const float ox = (float(w) - (rx1 - rx0) * s) * 0.5f;
+		const float oy = (float(h) - (ry1 - ry0) * s) * 0.5f;
+		t.crop.x0 = ox + (vx0 - rx0) * s;
+		t.crop.x1 = ox + (vx1 - rx0) * s;
+		t.crop.y0 = oy + (vy0 - ry0) * s;
+		t.crop.y1 = oy + (vy1 - ry0) * s;
 
-	pl_overlay ov = {};
-	pl_overlay_part part = {};
-	if (overlay && overlay->tex && overlay->num_parts > 0) {
-		ov = *overlay;
-		part = overlay->parts[0];
-		if (flipped)
-			std::swap(part.src.y0, part.src.y1);
-		// quick_tex ครอบทั้งจอ → ตัดส่วนเดียวกับกรอบวิดีโอ (src มีเครื่องหมายได้ตอนกลับหัว — สูตรเดียวกัน)
-		const pl_rect2df full = part.src;
-		part.src.x0 = full.x0 + (full.x1 - full.x0) * (rx0 / screen_w);
-		part.src.x1 = full.x0 + (full.x1 - full.x0) * (rx1 / screen_w);
-		part.src.y0 = full.y0 + (full.y1 - full.y0) * (ry0 / screen_h);
-		part.src.y1 = full.y0 + (full.y1 - full.y0) * (ry1 / screen_h);
-		part.dst = {ox, oy, ox + (rx1 - rx0) * s, oy + (ry1 - ry0) * s};
-		ov.parts = &part;
-		ov.num_parts = 1;
-		t.overlays = &ov;
-		t.num_overlays = 1;
-	}
+		pl_overlay ov = {};
+		pl_overlay_part part = {};
+		if (overlay && overlay->tex && overlay->num_parts > 0) {
+			ov = *overlay;
+			part = overlay->parts[0];
+			if (flipped)
+				std::swap(part.src.y0, part.src.y1);
+			// quick_tex ครอบทั้งจอ → ตัดส่วนเดียวกับกรอบวิดีโอ (src มีเครื่องหมายได้ตอนกลับหัว — สูตรเดียวกัน)
+			const pl_rect2df full = part.src;
+			part.src.x0 = full.x0 + (full.x1 - full.x0) * (rx0 / screen_w);
+			part.src.x1 = full.x0 + (full.x1 - full.x0) * (rx1 / screen_w);
+			part.src.y0 = full.y0 + (full.y1 - full.y0) * (ry0 / screen_h);
+			part.src.y1 = full.y0 + (full.y1 - full.y0) * (ry1 / screen_h);
+			part.dst = {ox, oy, ox + (rx1 - rx0) * s, oy + (ry1 - ry0) * s};
+			ov.parts = &part;
+			ov.num_parts = 1;
+			t.overlays = &ov;
+			t.num_overlays = 1;
+		}
 
-	pl_render_params p = params;
-	p.hooks = nullptr;      // hook ของจอคิดจากขนาดจอ — ไฟล์เลือกเอง
-	p.num_hooks = 0;
-	// ไฟล์ใหญ่กว่า source (Output 1440p/4K) → upscaler ตามปุ่ม QUALITY (FSRCNNX/FSR) · ไม่ขยาย = ไม่ใช้
-	const pl_frame *src_frame = single ? single : mix->frames[0];
-	const float src_h = src_frame ? std::fabs(pl_rect_h(src_frame->crop)) : 0.0f;
-	if (upscaler && src_h > 0.0f && (vy1 - vy0) * s > src_h * 1.01f) {
-		p.hooks = &upscaler;
-		p.num_hooks = 1;
+		pl_render_params p = params;
+		p.hooks = nullptr;      // hook ของจอคิดจากขนาดจอ — ไฟล์เลือกเอง
+		p.num_hooks = 0;
+		// ไฟล์ใหญ่กว่า source (Output 1440p/4K) → upscaler ตามปุ่ม QUALITY (FSRCNNX/FSR) · ไม่ขยาย = ไม่ใช้
+		const pl_frame *src_frame = single ? single : mix->frames[0];
+		const float src_h = src_frame ? std::fabs(pl_rect_h(src_frame->crop)) : 0.0f;
+		if (upscaler && src_h > 0.0f && (vy1 - vy0) * s > src_h * 1.01f) {
+			p.hooks = &upscaler;
+			p.num_hooks = 1;
+		}
+		p.background_transparency = 0.0f;
+		p.info_callback = nullptr;
+		ok = single ? pl_render_image(renderer, single, &t, &p)
+		                       : pl_render_image_mix(renderer, mix, &t, &p);
 	}
-	p.background_transparency = 0.0f;
-	p.info_callback = nullptr;
-	const bool ok = single ? pl_render_image(renderer, single, &t, &p)
-	                       : pl_render_image_mix(renderer, mix, &t, &p);
 	if (!ok) {
 		static bool warned = false;
 		if (!warned) {

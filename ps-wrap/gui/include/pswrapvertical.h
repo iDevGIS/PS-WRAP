@@ -25,6 +25,8 @@ struct PsWrapVerticalLayout
 	int mode = Split;
 	float crop_x = 0.5f;   // 0..1 ตำแหน่งแนวนอนของส่วนเกมที่ตัด (Split/Center)
 	QRectF cam;            // กรอบ facecam บนจอ (pixel ของ swapchain) · ว่าง = ไม่มี facecam
+	// ตำแหน่ง facecam ที่ผู้ใช้ลากเอง (สัดส่วนของ canvas: จุดกึ่งกลาง + ความกว้าง) · cam_w <= 0 = ค่าเริ่มต้นของเลย์เอาต์
+	float cam_cx = 0.5f, cam_cy = 0.2f, cam_w = 0.0f;
 };
 
 // ผลคำนวณเลย์เอาต์บน canvas ขนาด w×h (พิกัด pixel ของ canvas)
@@ -39,6 +41,13 @@ struct PsWrapVerticalGeometry
 // src = crop ของเฟรมสตรีม · cam_aspect = กว้าง/สูงของกรอบ facecam (0 = ไม่มี)
 PsWrapVerticalGeometry pswrapVerticalGeometry(const PsWrapVerticalLayout &layout, float canvas_w, float canvas_h,
                                               const pl_rect2df &src, float cam_aspect);
+
+// วาด canvas แนวตั้งลง target (ตั้ง repr/color/planes ของ target มาแล้ว) ด้วย renderer ที่ให้มา — ใช้ทั้ง preview และไฟล์/ไลฟ์
+// คืนเรขาคณิตที่ใช้จริงใน *out (nullable) · false = render ล้มเหลว
+bool pswrapRenderVertical(pl_renderer renderer, const struct pl_frame_mix *mix, const struct pl_frame *single,
+                          const struct pl_render_params &params, const struct pl_frame &screen_target,
+                          const struct pl_overlay *overlay, int screen_w, int screen_h,
+                          const PsWrapVerticalLayout &layout, struct pl_frame &target, PsWrapVerticalGeometry *out);
 
 // render thread เท่านั้น — preview ขนาดเล็ก (RGBA8 sRGB) ดาวน์โหลดแบบ async ทีละภาพ
 class PsWrapVerticalPreview
@@ -55,9 +64,11 @@ public:
 	             const PsWrapVerticalLayout &layout, int out_w, int out_h, DoneFn done);
 
 	bool idle() const { return inflight.load(std::memory_order_acquire) == 0; }
+	const PsWrapVerticalGeometry &lastGeometry() const { return last_geometry; }   // pixel ของ canvas preview
 
 private:
 	struct Job;
+	PsWrapVerticalGeometry last_geometry;
 	pl_gpu gpu;
 	pl_log log;
 	pl_renderer renderer = nullptr;

@@ -9,6 +9,7 @@
 #define PSWRAP_RECCAPTURE_H
 
 #include <pswraprecorder.h>
+#include <pswrapvertical.h>
 
 #include <libplacebo/renderer.h>
 
@@ -28,9 +29,11 @@ public:
 	// render thread: เรียกหลัง pl_render_image(_mix) ลงจอสำเร็จ (ก่อน submit)
 	// mix หรือ single อย่างใดอย่างหนึ่ง · screen_target = target ของจอ (crop = กรอบวิดีโอบนจอ) · overlay = quick_tex (nullable)
 	// ไฟล์ = กรอบวิดีโอ (∩ จอ) วางเต็มกรอบไฟล์ + overlay ส่วนเดียวกัน · upscaler (nullable) ใช้เมื่อไฟล์ใหญ่กว่า source
+	// vertical (nullable) = วาดเป็นภาพแนวตั้ง 9:16 ตามเลย์เอาต์นั้นแทน (pipeline ของ PsWrapRecorder::secondary())
 	void capture(PsWrapRecorder *rec, const struct pl_frame_mix *mix, const struct pl_frame *single,
 	             const struct pl_render_params &params, const struct pl_frame &screen_target,
-	             const struct pl_overlay *overlay, int screen_w, int screen_h, const struct pl_hook *upscaler);
+	             const struct pl_overlay *overlay, int screen_w, int screen_h, const struct pl_hook *upscaler,
+	             const struct PsWrapVerticalLayout *vertical = nullptr);
 
 	// ไม่มีเฟรมไหนค้างอยู่ใน encoder → ลบได้
 	bool canDestroy() const;
