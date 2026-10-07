@@ -126,7 +126,7 @@ Item {
                 wrapMode: Text.WordWrap
                 text: page.api && !page.api.secureStoreAvailable
                       ? qsTr("Stream keys cannot be saved on this system — you will be asked for them each time you go live.")
-                      : qsTr("Every enabled destination gets the 16:9 H.264 game picture with your overlays, at the Output Resolution set in Settings › General (YouTube and Custom up to 4K; other platforms are scaled to 1080p). Start and stop from the stream menu (Live) or Ctrl+Shift+L. Stream keys are stored in Windows Credential Manager, never in the settings file.")
+                      : qsTr("Every enabled destination gets the 16:9 H.264 game picture with your overlays, at the Output Resolution set in Settings › General (YouTube and Custom up to 4K; other platforms are scaled to 1080p). Destinations marked Vertical 9:16 get the 1080 × 1920 picture from the 9:16 window instead. Start and stop from the stream menu (Live) or Ctrl+Shift+L. Stream keys are stored in Windows Credential Manager, never in the settings file.")
             }
 
             // สรุปแบนด์วิดท์ + คำเตือน (คำนวณฝั่ง C++ — engine ใช้ค่าเดียวกัน)
@@ -427,6 +427,20 @@ Item {
                                     color: Theme.text
                                     text: qsTr("%1 Mbps").arg((bitrateSlider.value / 1000).toFixed(1))
                                 }
+                            }
+
+                            // ---- PS-WRAP: ภาพแนวตั้ง 9:16 (เลย์เอาต์จากหน้าต่าง 9:16 ในเมนูสตรีม) ----
+                            Label {
+                                text: qsTr("Picture")
+                                font.pixelSize: Math.round(Theme.fontBody * page.uiScale)
+                                color: Theme.text
+                            }
+                            C.CheckBox {
+                                text: qsTr("Vertical 9:16 (1080 × 1920, layout from the 9:16 window)")
+                                checked: card.vertical
+                                enabled: !page.api.live
+                                onClicked: card.set("vertical", checked)
+                                onActiveFocusChanged: if (activeFocus) page.ensureVisible(this)
                             }
                         }
 

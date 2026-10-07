@@ -14,7 +14,10 @@ PsWrapGoLive *QmlMainWindow::goLive()
 		return g;
 	// สเปคภาพ = สเปคเดียวกับไฟล์อัด/replay (หน้าต่าง + สตรีม) · Settings ตาม profile ปัจจุบัน (--profile ทดสอบไม่ทับ key จริง)
 	g = new PsWrapGoLive(this, pswrap_recorder, [this]() { return settings; },
-	                     [this](PsWrapRecConfig *cfg, QString *error) { return pswrapBuildRecConfig(cfg, error); });
+	                     [this](PsWrapRecConfig *cfg, QString *error) {
+		                     pswrapLoadVerticalLayout();   // ปลายทางแนวตั้งใช้เลย์เอาต์ของหน้าต่าง 9:16 (pipeline ตัวที่ 2)
+		                     return pswrapBuildRecConfig(cfg, error);
+	                     });
 	if (backend) {
 		// สตรีมจบ = หยุดไลฟ์ (pipeline ปิดตามเมื่อไม่มีใครใช้)
 		connect(backend, &QmlBackend::sessionChanged, g, [g](StreamSession *s) {

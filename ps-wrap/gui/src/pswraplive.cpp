@@ -79,7 +79,7 @@ struct PlatformDef
 	const char *name;
 	int max_kbps;
 	int default_kbps;
-	bool vertical;          // แพลตฟอร์มนี้ "ควร" ได้ 9:16 (ยังไม่ทำ — ส่ง 16:9 ไปก่อน)
+	bool vertical;          // ค่าเริ่มต้นของปลายทางใหม่: ส่งภาพแนวตั้ง 9:16 (สลับได้ต่อปลายทางใน Settings › Go Live)
 	bool key_per_session;   // key ใหม่ทุกรอบไลฟ์
 	std::vector<PlatformServer> servers;
 	const char *note;
@@ -104,9 +104,9 @@ const std::vector<PlatformDef> &platformDefs()
 		{"kick", "Kick", 8000, 6000, false, false, {},
 			QT_TRANSLATE_NOOP("PsWrapGoLive", "Copy the Stream URL and Stream Key from Kick › Settings › Stream.")},
 		{"tiktok", "TikTok LIVE", 6000, 6000, true, true, {},
-			QT_TRANSLATE_NOOP("PsWrapGoLive", "TikTok gives a new server URL and key for every LIVE — paste both before going live. Sent as 16:9 for now; a 9:16 layout comes later.")},
+			QT_TRANSLATE_NOOP("PsWrapGoLive", "TikTok gives a new server URL and key for every LIVE — paste both before going live. Sent as vertical 9:16 using the layout from the 9:16 window.")},
 		{"instagram", "Instagram Live", 6000, 4500, true, true, {},
-			QT_TRANSLATE_NOOP("PsWrapGoLive", "Create the live video in Instagram's Live Producer first, then paste its server URL and key. Sent as 16:9 for now.")},
+			QT_TRANSLATE_NOOP("PsWrapGoLive", "Create the live video in Instagram's Live Producer first, then paste its server URL and key. Sent as vertical 9:16.")},
 		{"x", "X", 9000, 6000, false, false, {},
 			QT_TRANSLATE_NOOP("PsWrapGoLive", "Copy the RTMPS URL and stream key from X Media Studio › Producer.")},
 		{"custom", QT_TRANSLATE_NOOP("PsWrapGoLive", "Custom RTMP(S)"), 51000, 6000, false, false, {},
@@ -683,6 +683,7 @@ public:
 		int audio_kbps = 160;
 		int max_height = 1080;
 		int max_fps = 60;
+		bool vertical = false;   // PS-WRAP: 9:16 1080x1920 จาก pipeline แนวตั้ง (PsWrapRecorder::secondary())
 		// จุดต่อขยาย: canvas 9:16 (V1), codec hevc/av1, HDR (L2) — ดู docs/06 §3
 	};
 
@@ -711,9 +712,14 @@ public:
 	// GUI thread: เปิด encoder ตามสเปคภาพของ pipeline
 	bool open(int src_w, int src_h, int src_fps, QString *error)
 	{
-		out_h = std::min(spec.max_height, src_h) & ~1;
-		out_h = std::max(out_h, 360);
-		out_w = static_cast<int>(std::lround(out_h * 16.0 / 9.0)) & ~1;
+		if (spec.vertical) {
+			out_h = std::max(std::min(1920, src_h) & ~1, 640);
+			out_w = static_cast<int>(std::lround(out_h * 9.0 / 16.0)) & ~1;
+		} else {
+			out_h = std::min(spec.max_height, src_h) & ~1;
+			out_h = std::max(out_h, 360);
+			out_w = static_cast<int>(std::lround(out_h * 16.0 / 9.0)) & ~1;
+		}
 		out_fps = std::clamp(std::min(src_fps, spec.max_fps), 24, 60);
 		decimate = src_fps > out_fps;
 		pkt = av_packet_alloc();
@@ -799,6 +805,7 @@ public:
 			on_detached(this);
 	}
 	std::function<void(Rendition *)> on_detached;   // GUI thread
+	PsWrapRecorder *src_rec = nullptr;               // PS-WRAP: pipeline ที่ tap อยู่ (หลัก หรือแนวตั้ง)
 
 	// สถิติ
 	std::atomic<quint64> frames_encoded{0}, tap_video_dropped{0}, tap_audio_dropped{0}, wrong_format{0}, decimated{0};
@@ -1390,7 +1397,7 @@ void PsWrapGoLive::load()
 			r.video_kbps = std::clamp(o.value(QStringLiteral("videoKbps")).toInt(d->default_kbps), 1000, d->max_kbps);
 			r.audio_kbps = std::clamp(o.value(QStringLiteral("audioKbps")).toInt(160), 64, 320);
 			r.codec = QStringLiteral("h264");
-			r.vertical = false;   // ยังไม่มี 9:16
+			r.vertical = o.value(QStringLiteral("vertical")).toBool(d->vertical);
 			r.key_saved = PsWrapSecrets::exists(target(r.id));
 			rows.push_back(r);
 		}
@@ -1414,6 +1421,7 @@ void PsWrapGoLive::store()
 		o[QStringLiteral("videoKbps")] = r.video_kbps;
 		o[QStringLiteral("audioKbps")] = r.audio_kbps;
 		o[QStringLiteral("codec")] = r.codec;
+		o[QStringLiteral("vertical")] = r.vertical;
 		arr.append(o);
 	}
 	s->SetPsWrapLiveDestinations(QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
@@ -1439,6 +1447,7 @@ QString PsWrapGoLive::addDestination(const QString &platform_id)
 	r.platform = platform_id;
 	r.server = d->servers.empty() ? QString() : QString::fromLatin1(d->servers.front().url);
 	r.video_kbps = d->default_kbps;
+	r.vertical = d->vertical;
 	r.key_saved = false;
 	PsWrapSecrets::remove(target(id));   // กันของค้างจาก id ซ้ำในอดีต
 	model.append(r);
@@ -1478,7 +1487,7 @@ void PsWrapGoLive::setDestinationValue(const QString &dest_id, const QString &ke
 		else if (key == QLatin1String("codec"))
 			r.codec = QStringLiteral("h264");   // จุดต่อขยาย: hevc/av1 เมื่อมี rendition ให้
 		else if (key == QLatin1String("vertical"))
-			r.vertical = false;                 // จุดต่อขยาย: 9:16 (V1)
+			r.vertical = value.toBool();        // ภาพแนวตั้ง 9:16 จาก pipeline แนวตั้ง
 		if (r.status == PsWrapLiveState::Error) {
 			r.status = PsWrapLiveState::Idle;   // แก้ค่าแล้ว = ข้อความ error เก่าไม่เกี่ยวแล้ว
 			r.status_text.clear();
@@ -1566,6 +1575,7 @@ bool PsWrapGoLive::start()
 		int video_kbps;
 		int audio_kbps;
 		int max_height;
+		bool vertical;
 	};
 	std::vector<Pick> picks;
 	for (const auto &r : model.all()) {
@@ -1588,7 +1598,7 @@ bool PsWrapGoLive::start()
 			continue;
 		}
 		const PlatformDef *pd = platformDef(r.platform);
-		picks.push_back(Pick{r.id, r.platform, r.server.trimmed(), key, r.video_kbps, r.audio_kbps, pd ? pd->max_height : 1080});
+		picks.push_back(Pick{r.id, r.platform, r.server.trimmed(), key, r.video_kbps, r.audio_kbps, pd ? pd->max_height : 1080, r.vertical});
 	}
 	if (picks.empty())
 		return fail(enabledCount() == 0 ? tr("Add a destination in Settings › Go Live first.")
@@ -1602,13 +1612,32 @@ bool PsWrapGoLive::start()
 	bool hdr = cfg.hdr;
 	if (rec->videoSpec(&w, &h, &hdr))   // pipeline เดินอยู่แล้ว (อัด/replay) → ใช้สเปคของมัน
 		fps = rec->pipelineFps();
-	if (hdr)
+	bool any_landscape = false, any_vertical = false;
+	for (const auto &p : picks)
+		(p.vertical ? any_vertical : any_landscape) = true;
+	if (hdr && any_landscape)
 		return fail(tr("Go Live needs an SDR stream for now, and this stream is HDR. Turn off HDR on the PS5 (Settings › Screen and Video › Video Output › HDR) and try again."));
 
-	// ปลายทางที่ bitrate/เสียง/เพดานความสูงเท่ากัน = rendition เดียวกัน (encode ครั้งเดียว)
-	std::map<std::tuple<int, int, int>, std::vector<const Pick *>> groups;
+	// PS-WRAP: ปลายทางแนวตั้ง → pipeline ตัวที่ 2 (1080x1920 SDR เสมอ — tone-map จาก HDR ได้) เลย์เอาต์ตามหน้าต่าง 9:16
+	PsWrapRecorder *vrec = PsWrapRecorder::secondary();
+	PsWrapRecConfig vcfg = cfg;
+	vcfg.width = 1080;
+	vcfg.height = 1920;
+	vcfg.hdr = false;
+	vcfg.hdr_info = PsWrapRecHdrInfo();
+	int vw = 1080, vh = 1920, vfps = cfg.fps;
+	if (any_vertical) {
+		if (!vrec)
+			return fail(tr("Vertical live isn't available."));
+		bool vhdr = false;
+		if (vrec->videoSpec(&vw, &vh, &vhdr))   // กำลังอัดคลิปแนวตั้งอยู่ → ใช้สเปคเดิม
+			vfps = vrec->pipelineFps();
+	}
+
+	// ปลายทางที่ bitrate/เสียง/เพดานความสูง/แนวตั้ง เท่ากัน = rendition เดียวกัน (encode ครั้งเดียว)
+	std::map<std::tuple<int, int, int, bool>, std::vector<const Pick *>> groups;
 	for (const auto &p : picks)
-		groups[{p.video_kbps, p.audio_kbps, p.max_height}].push_back(&p);
+		groups[{p.video_kbps, p.audio_kbps, p.max_height, p.vertical}].push_back(&p);
 	if (static_cast<int>(groups.size()) > kMaxRenditions)
 		return fail(tr("Use at most %1 different bitrate and resolution combinations at once (each one is a separate encode).").arg(kMaxRenditions));
 
@@ -1618,8 +1647,10 @@ bool PsWrapGoLive::start()
 		spec.video_kbps = std::get<0>(g.first);
 		spec.audio_kbps = std::get<1>(g.first);
 		spec.max_height = std::get<2>(g.first);
+		spec.vertical = std::get<3>(g.first);
 		auto r = std::make_shared<Rendition>(spec);
-		if (!r->open(w, h, fps, &err))
+		r->src_rec = spec.vertical ? vrec : rec;
+		if (!(spec.vertical ? r->open(vw, vh, vfps, &err) : r->open(w, h, fps, &err)))
 			return fail(err);
 		for (const Pick *p : g.second) {
 			Active::Dest d;
@@ -1647,9 +1678,9 @@ bool PsWrapGoLive::start()
 			// recorder เรียกบน GUI thread ระหว่าง removeTap/shutdownPipeline → เลื่อนไปทำนอก call stack นั้น
 			QMetaObject::invokeMethod(self, [self, x]() { if (self) self->tapDetached(x); }, Qt::QueuedConnection);
 		};
-		if (!rec->addTap(cfg, r, &err)) {
+		if (!r->src_rec->addTap(r->src_rec == rec ? cfg : vcfg, r, &err)) {
 			for (size_t k = 0; k < i; k++)
-				rec->removeTap(a->renditions[k].get());
+				a->renditions[k]->src_rec->removeTap(a->renditions[k].get());
 			a->stopping = true;
 			for (auto &x : a->renditions)
 				x->stopThread();
@@ -1715,10 +1746,9 @@ void PsWrapGoLive::finishStop(bool notify_failure, const QString &reason)
 	poll_timer.stop();
 	if (a) {
 		a->stopping = true;
-		PsWrapRecorder *rec = recorder ? recorder : PsWrapRecorder::instance();
-		if (rec)
-			for (auto &r : a->renditions)
-				rec->removeTap(r.get());   // หลังจากนี้ worker ของ recorder ไม่เรียก tap อีก (pipeline ปิดเองถ้าไม่มีใครใช้)
+		for (auto &r : a->renditions)
+			if (r->src_rec)
+				r->src_rec->removeTap(r.get());   // หลังจากนี้ worker ของ recorder ไม่เรียก tap อีก (pipeline ปิดเองถ้าไม่มีใครใช้)
 		for (auto &r : a->renditions)
 			r->stopThread();
 		for (auto &d : a->dests)
