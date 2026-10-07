@@ -403,14 +403,22 @@ Item {
         }
     }
 
-    // ขอบบาง (ซ่อนเมื่อ chroma key เปิด — เหลือแต่ตัวคน)
+    // ขอบแบบเดียวกับการ์ด mic / stats / นาฬิกา / แชท: เส้นบาง 1px โปร่ง + เส้น accent ที่ขอบล่าง
+    // (เดิมขาวทึบ 2px เด่นกว่าการ์ดอื่น) · ซ่อนเมื่อ chroma key / AI ตัดพื้นหลัง — เหลือแต่ตัวคน
     Rectangle {
         anchors.fill: parent
         radius: root.cornerRadius
         color: "transparent"
-        border.width: 2
-        border.color: Qt.rgba(1, 1, 1, 0.55)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.09)
         opacity: root.frameOpacity
         visible: !root.cutout
+        Rectangle {
+            visible: !root.circle
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: parent.radius; rightMargin: parent.radius }
+            height: 1
+            color: Theme.accent
+            opacity: 0.45
+        }
     }
 }
