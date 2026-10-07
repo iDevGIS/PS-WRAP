@@ -4,6 +4,11 @@
 
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) · เวอร์ชันของ PS-WRAP เอง (0.x = pre-release) · ฐาน upstream: chiaki-ng `a9a2805`
 
+## [0.3.2] — 2026-10-07
+Go Live ส่งได้เต็มความเร็ว (ไลฟ์ 4K ใช้ได้จริง)
+### Fixed
+- 2026-10-07 **Go Live ส่งได้ไม่เกิน ~12–15 Mbps** แม้เน็ตเร็ว → ไลฟ์ 4K (และ 1440p bitrate สูง) ข้ามภาพ "slow upload" · สาเหตุ: send buffer ของ socket เป็นค่าเริ่มต้นของ Windows (~64 KB) จำกัดการเชื่อมต่อเดียวที่ buffer ÷ ping (≈ 15 Mbps ที่ 33 ms ไป YouTube) · ตอนนี้ 4 MB — ไลฟ์ 4K 51 Mbps ขึ้น YouTube ส่งได้เต็ม
+
 ## [0.3.1] — 2026-10-07
 รูป / GIF / แชทไลฟ์ในภาพแนวตั้ง 9:16 + แก้บั๊ก
 ### Added
@@ -136,6 +141,7 @@
 - 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
 - 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)
 
+[0.3.2]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.2
 [0.3.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.1
 [0.3.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.2.0

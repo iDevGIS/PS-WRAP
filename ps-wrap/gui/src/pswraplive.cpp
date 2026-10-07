@@ -510,6 +510,9 @@ private:
 		av_dict_set(&fmt->metadata, "encoder", "PS-WRAP", 0);
 		AVDictionary *opts = nullptr;
 		av_dict_set(&opts, "rw_timeout", "10000000", 0);   // ชั้น tcp/tls ใต้ rtmp ก็ได้ค่านี้ (ส่งต่อ options)
+		// send buffer ของ socket: Windows + socket แบบ blocking (FFmpeg) ค่าเริ่มต้น ~64 KB → ส่งได้ไม่เกิน buffer ÷ RTT
+		// (ไป YouTube สิงคโปร์ ~33 ms ≈ 12–15 Mbps ทั้งที่เน็ตอัปโหลดได้หลายร้อย) — 4 MB รองรับ 4K 50 Mbps แม้ RTT ~500 ms
+		av_dict_set(&opts, "send_buffer_size", "4194304", 0);
 		deadline_us = nowUs() + kOpenTimeoutUs;
 		err = avio_open2(&fmt->pb, url.constData(), AVIO_FLAG_WRITE, &fmt->interrupt_callback, &opts);
 		av_dict_free(&opts);

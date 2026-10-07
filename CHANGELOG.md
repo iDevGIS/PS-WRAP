@@ -4,6 +4,11 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
+## [0.3.2] — 2026-10-07
+Go Live sends at full speed (4K live works).
+### Fixed
+- **Go Live was capped at about 12–15 Mbps** even on fast connections, so 4K (and high-bitrate 1440p) streams skipped video with "slow upload". The socket send buffer was left at the Windows default (~64 KB), which limits a single connection to buffer ÷ ping (≈ 15 Mbps at 33 ms to YouTube). It is now 4 MB; a 4K stream at 51 Mbps to YouTube now sends at full speed.
+
 ## [0.3.1] — 2026-10-07
 Images, GIFs and live chat in the vertical 9:16 picture, plus fixes.
 ### Added
@@ -168,6 +173,7 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.3.2]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.2
 [0.3.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.1
 [0.3.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.0
 [0.2.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.2.0
