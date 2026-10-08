@@ -110,10 +110,10 @@ Window {
                         }
                         return null;
                     }
-                    function centerOf(h) { return h ? { cx: h.x + h.w / 2, cy: h.y + h.h / 2, w: h.w } : null }
-                    function apply(kind, id, cx, cy, w) {
+                    function centerOf(h) { return h ? { cx: h.x + h.w / 2, cy: h.y + h.h / 2, w: h.w, h: h.h } : null }
+                    function apply(kind, id, cx, cy, w, hh) {
                         if (kind === "cam") Chiaki.window.setVerticalCam(cx, cy, w);
-                        else if (kind === "chat") Chiaki.window.setVerticalChatPos(cx, cy, w);
+                        else if (kind === "chat") Chiaki.window.setVerticalChatArea(cx - w / 2, cy - hh / 2, w, hh);
                         else if (kind === "layer") { win.layers.move(id, cx, cy); win.layers.resize(id, w); }
                     }
 
@@ -132,7 +132,7 @@ Window {
                         if (mode === "crop") {
                             Chiaki.window.verticalCropX = Math.max(0, Math.min(1, startCrop - dx * 1.6));
                         } else if (start && hover) {
-                            apply(mode, hover.id, start.cx + dx, start.cy + dy, start.w);
+                            apply(mode, hover.id, start.cx + dx, start.cy + dy, start.w, start.h);
                             hover = Object.assign({}, hover, { x: start.cx + dx - hover.w / 2, y: start.cy + dy - hover.h / 2 });
                         }
                     }
@@ -167,7 +167,7 @@ Window {
                     onDoubleClicked: (mouse) => {
                         const h = pick(mouse.x / width, mouse.y / height);
                         if (h && h.kind === "cam") Chiaki.window.setVerticalCam(0, 0, 0);
-                        else if (h && h.kind === "chat") Chiaki.window.setVerticalChatPos(0, 0, 0);
+                        else if (h && h.kind === "chat") Chiaki.window.setVerticalChatArea(0, 0, 0, 0);
                     }
                     onWheel: (wheel) => {
                         const h = hover || pick(wheel.x / width, wheel.y / height);
@@ -175,8 +175,15 @@ Window {
                         if (!c)
                             return;
                         const k = wheel.angleDelta.y > 0 ? 1.08 : 1 / 1.08;
-                        const w = Math.max(0.08, Math.min(h.kind === "layer" ? 1.5 : 1, c.w * k));
-                        apply(h.kind, h.id, c.cx, c.cy, w);
+                        if (h.kind === "chat") {
+                            // การ์ดแชท: scroll = ย่อ/ขยายทั้งกรอบ · Shift+scroll = ปรับความสูงอย่างเดียว
+                            const shift = (wheel.modifiers & Qt.ShiftModifier) !== 0;
+                            const cw = shift ? c.w : Math.min(1, c.w * k), ch = Math.min(0.9, c.h * k);
+                            apply("chat", 0, c.cx, c.cy, cw, ch);
+                        } else {
+                            const w = Math.max(0.08, Math.min(h.kind === "layer" ? 1.5 : 1, c.w * k));
+                            apply(h.kind, h.id, c.cx, c.cy, w, c.h);
+                        }
                         hover = pick(wheel.x / width, wheel.y / height);
                     }
                 }
@@ -314,7 +321,7 @@ Window {
             wrapMode: Text.WordWrap
             color: Theme.textMuted
             font.pixelSize: Theme.fontCaption
-            text: qsTr("Drag images, chat and the facecam to move them, scroll to resize, right-click an image for more · drag the game sideways to move the crop. Images are saved per layout.")
+            text: qsTr("Drag images, chat and the facecam to move them, scroll to resize (Shift+scroll on chat changes its height), right-click for more · drag the game sideways to move the crop. Saved per layout.")
         }
     }
 
@@ -391,7 +398,7 @@ Window {
 
     Menu {
         id: chatMenu
-        MenuItem { text: qsTr("Reset position"); onTriggered: Chiaki.window.setVerticalChatPos(0, 0, 0) }
+        MenuItem { text: qsTr("Fill the free area"); onTriggered: Chiaki.window.setVerticalChatArea(0, 0, 0, 0) }
         MenuItem { text: qsTr("Hide chat in 9:16"); onTriggered: { Chiaki.window.verticalChat = false; dragArea.hover = null; } }
     }
 }

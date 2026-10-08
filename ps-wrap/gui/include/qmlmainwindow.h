@@ -237,8 +237,9 @@ public:
     Q_INVOKABLE void setVerticalCam(qreal cx, qreal cy, qreal w);   // ตำแหน่ง facecam ของเลย์เอาต์ปัจจุบัน · w<=0 = คืนค่าเริ่มต้น
     bool verticalChat() const;
     void setVerticalChat(bool on);   // เปิดแล้วเปิด overlay แชทบนจอให้ด้วย (ภาพตัดมาจากการ์ดบนจอ)
-    Q_INVOKABLE void setVerticalChatRect(qreal x, qreal y, qreal w, qreal h);   // logical px ของการ์ดแชทบนจอ · w<=0 = ไม่มี
-    Q_INVOKABLE void setVerticalChatPos(qreal cx, qreal cy, qreal w);           // ตำแหน่งการ์ดแชทในภาพแนวตั้ง · w<=0 = ค่าเริ่มต้น
+    Q_INVOKABLE void setVerticalChatArea(qreal x, qreal y, qreal w, qreal h);   // พื้นที่การ์ดแชทในภาพแนวตั้ง (สัดส่วน canvas) · w<=0 = ค่าเริ่มต้น
+    void pswrapScheduleVerticalChat();   // วาดการ์ดแชทแนวตั้งใหม่ (รวมหลายครั้งเป็นครั้งเดียว)
+    void pswrapPaintVerticalChat();
     class PsWrapVerticalLayers *verticalLayers();   // สร้างครั้งแรกที่เรียก (ลูกของ window)
     QObject *verticalLayersObject();
     void setCaptureHeight(int height);

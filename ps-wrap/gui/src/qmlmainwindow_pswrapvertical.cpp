@@ -6,6 +6,7 @@
 #include "pswrapvertical.h"
 #include "pswrapverticallayers.h"
 #include "qmlbackend.h"
+#include "pswrapchat.h"
 
 #include <chiaki/time.h>
 
@@ -18,7 +19,10 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPointer>
+#include <QPainter>
 #include <QQuickImageProvider>
+#include <QTextDocument>
+#include <QTimer>
 #include <QThread>
 
 namespace {
@@ -37,8 +41,7 @@ struct VerticalShared
 	QImage latest;
 	QRectF game_n, cam_n; // กรอบล่าสุดใน preview (สัดส่วน 0..1) ให้ QML hit-test ตอนลาก
 	bool chat_on = false; // การ์ดแชทในภาพแนวตั้ง (settings pswrap/verticalChat)
-	QRectF chat_logical;  // logical px ของการ์ดแชทบนจอ
-	QRectF chat_n;
+	QRectF chat_area;     // พื้นที่การ์ดแชท (สัดส่วน canvas) — วาดเองใน pswrapPaintVerticalChat
 };
 VerticalShared &shared()
 {
@@ -86,21 +89,31 @@ void applyCam(PsWrapVerticalLayout &l, const QString &v)
 	}
 }
 
-// "cx,cy,w" → ตำแหน่งการ์ดแชท (ว่าง/เสีย = ค่าเริ่มต้น) · เรียกใต้ shared().mutex
-void applyChat(PsWrapVerticalLayout &l, const QString &v)
+// พื้นที่การ์ดแชทเริ่มต้น: Blur = เต็มแถบว่างใต้เกม (เกม 16:9 กินแถบ 0.342..0.658) · เลย์เอาต์อื่น = ทับส่วนล่าง
+QRectF defaultChatArea(int mode)
+{
+	if (mode == PsWrapVerticalLayout::Blur)
+		return QRectF(0.03, 0.675, 0.94, 0.30);
+	return QRectF(0.03, 0.70, 0.94, 0.27);
+}
+
+QRectF clampChatArea(QRectF r)
+{
+	const qreal w = qBound(0.15, r.width(), 1.0), h = qBound(0.06, r.height(), 0.9);
+	return QRectF(qBound(0.0, r.x(), 1.0 - w), qBound(0.0, r.y(), 1.0 - h), w, h);
+}
+
+// "x,y,w,h" → พื้นที่ (ว่าง/เสีย = ค่าเริ่มต้นของเลย์เอาต์)
+QRectF parseChatArea(const QString &v, int mode)
 {
 	const QStringList parts = v.split(QLatin1Char(','));
-	bool ok1 = false, ok2 = false, ok3 = false;
-	const float cx = parts.size() == 3 ? parts[0].toFloat(&ok1) : 0.0f;
-	const float cy = parts.size() == 3 ? parts[1].toFloat(&ok2) : 0.0f;
-	const float w = parts.size() == 3 ? parts[2].toFloat(&ok3) : 0.0f;
-	if (ok1 && ok2 && ok3 && w > 0.0f) {
-		l.chat_cx = cx;
-		l.chat_cy = cy;
-		l.chat_w = w;
-	} else {
-		l.chat_w = 0.0f;
+	if (parts.size() == 4) {
+		bool ok[4];
+		const qreal x = parts[0].toDouble(&ok[0]), y = parts[1].toDouble(&ok[1]), w = parts[2].toDouble(&ok[2]), h = parts[3].toDouble(&ok[3]);
+		if (ok[0] && ok[1] && ok[2] && ok[3] && w > 0 && h > 0)
+			return clampChatArea(QRectF(x, y, w, h));
 	}
+	return defaultChatArea(mode);
 }
 
 QVariantMap rectMap(const QRectF &r)
@@ -130,11 +143,12 @@ void QmlMainWindow::setVerticalPreview(bool on)
 		shared().layout.mode = settings->GetVerticalLayout();
 		shared().layout.crop_x = float(settings->GetVerticalCropX());
 		applyCam(shared().layout, settings->GetVerticalCam(shared().layout.mode));
-		applyChat(shared().layout, settings->GetVerticalChatPos(shared().layout.mode));
+		shared().chat_area = parseChatArea(settings->GetVerticalChatArea(shared().layout.mode), shared().layout.mode);
 		shared().chat_on = settings->GetVerticalChat();
 		if (!on)
 			shared().latest = QImage();
 	}
+	pswrapScheduleVerticalChat();
 	emit verticalPreviewChanged();
 }
 
@@ -150,9 +164,10 @@ void QmlMainWindow::setVerticalLayout(int mode)
 		QMutexLocker locker(&shared().mutex);
 		shared().layout.mode = mode;
 		applyCam(shared().layout, settings->GetVerticalCam(mode));
-		applyChat(shared().layout, settings->GetVerticalChatPos(mode));
+		shared().chat_area = parseChatArea(settings->GetVerticalChatArea(mode), mode);
 	}
 	verticalLayers()->setMode(mode);   // รูป/GIF เก็บแยกต่อเลย์เอาต์
+	pswrapScheduleVerticalChat();
 	emit verticalLayoutChanged();
 }
 
@@ -177,7 +192,7 @@ QVariantMap QmlMainWindow::verticalHitRects() const
 	QVariantMap m;
 	m[QStringLiteral("game")] = rectMap(shared().game_n);
 	m[QStringLiteral("cam")] = shared().cam_n.isEmpty() ? QVariant() : QVariant(rectMap(shared().cam_n));
-	m[QStringLiteral("chat")] = shared().chat_n.isEmpty() ? QVariant() : QVariant(rectMap(shared().chat_n));
+	m[QStringLiteral("chat")] = shared().chat_on ? QVariant(rectMap(shared().chat_area)) : QVariant();
 	return m;
 }
 
@@ -256,7 +271,6 @@ void QmlMainWindow::pswrapVerticalCapture(const pl_frame_mix *mix, const pl_fram
 		QMutexLocker locker(&shared().mutex);
 		shared().game_n = norm(g.game_dst);
 		shared().cam_n = g.cam_dst.x1 > g.cam_dst.x0 ? norm(g.cam_dst) : QRectF();
-		shared().chat_n = g.chat_dst.x1 > g.chat_dst.x0 ? norm(g.chat_dst) : QRectF();
 	}
 }
 
@@ -264,21 +278,15 @@ void QmlMainWindow::pswrapVerticalCapture(const pl_frame_mix *mix, const pl_fram
 PsWrapVerticalLayout QmlMainWindow::pswrapVerticalLayoutNow(int sw, int sh) const
 {
 	PsWrapVerticalLayout layout;
-	QRectF cam_logical, chat_logical;
+	QRectF cam_logical;
 	{
 		QMutexLocker locker(&shared().mutex);
 		layout = shared().layout;
 		cam_logical = shared().cam_logical;
-		if (shared().chat_on)
-			chat_logical = shared().chat_logical;
 	}
-	if (width() > 0 && height() > 0) {
+	if (!cam_logical.isEmpty() && width() > 0 && height() > 0) {
 		const qreal kx = qreal(sw) / width(), ky = qreal(sh) / height();
-		auto toPx = [kx, ky](const QRectF &r) { return QRectF(r.x() * kx, r.y() * ky, r.width() * kx, r.height() * ky); };
-		if (!cam_logical.isEmpty())
-			layout.cam = toPx(cam_logical);
-		if (!chat_logical.isEmpty())
-			layout.chat = toPx(chat_logical);
+		layout.cam = QRectF(cam_logical.x() * kx, cam_logical.y() * ky, cam_logical.width() * kx, cam_logical.height() * ky);
 	}
 	return layout;
 }
@@ -286,12 +294,15 @@ PsWrapVerticalLayout QmlMainWindow::pswrapVerticalLayoutNow(int sw, int sh) cons
 void QmlMainWindow::pswrapLoadVerticalLayout()
 {
 	verticalLayers();   // GUI thread: โหลดรูป/GIF ของเลย์เอาต์ปัจจุบัน (อัด/ไลฟ์แนวตั้งโดยไม่เปิด preview ก็ได้รูป)
-	QMutexLocker locker(&shared().mutex);
-	shared().layout.mode = settings->GetVerticalLayout();
-	shared().layout.crop_x = float(settings->GetVerticalCropX());
-	applyCam(shared().layout, settings->GetVerticalCam(shared().layout.mode));
-	applyChat(shared().layout, settings->GetVerticalChatPos(shared().layout.mode));
-	shared().chat_on = settings->GetVerticalChat();
+	{
+		QMutexLocker locker(&shared().mutex);
+		shared().layout.mode = settings->GetVerticalLayout();
+		shared().layout.crop_x = float(settings->GetVerticalCropX());
+		applyCam(shared().layout, settings->GetVerticalCam(shared().layout.mode));
+		shared().chat_area = parseChatArea(settings->GetVerticalChatArea(shared().layout.mode), shared().layout.mode);
+		shared().chat_on = settings->GetVerticalChat();
+	}
+	pswrapScheduleVerticalChat();
 }
 
 bool QmlMainWindow::verticalChat() const { return settings->GetVerticalChat(); }
@@ -305,25 +316,145 @@ void QmlMainWindow::setVerticalChat(bool on)
 		QMutexLocker locker(&shared().mutex);
 		shared().chat_on = on;
 	}
-	if (on)
-		setChatOverlay(true);   // ภาพในแนวตั้งตัดมาจากการ์ดบนจอ — ต้องเปิดอยู่
+	pswrapSyncChat();   // แชทแนวตั้งดึงข้อความเองได้ แม้ปิดการ์ดบนจอเกม
+	pswrapScheduleVerticalChat();
 	emit verticalChatChanged();
 }
 
-void QmlMainWindow::setVerticalChatRect(qreal x, qreal y, qreal w, qreal h)
-{
-	QMutexLocker locker(&shared().mutex);
-	shared().chat_logical = (w > 0 && h > 0) ? QRectF(x, y, w, h) : QRectF();
-}
-
-void QmlMainWindow::setVerticalChatPos(qreal cx, qreal cy, qreal w)
+void QmlMainWindow::setVerticalChatArea(qreal x, qreal y, qreal w, qreal h)
 {
 	const int mode = settings->GetVerticalLayout();
-	const QString v = w > 0 ? QStringLiteral("%1,%2,%3").arg(qBound(0.0, cx, 1.0), 0, 'f', 4).arg(qBound(0.0, cy, 1.0), 0, 'f', 4).arg(qBound(0.08, w, 1.0), 0, 'f', 4)
-	                        : QString();
-	settings->SetVerticalChatPos(mode, v);
-	QMutexLocker locker(&shared().mutex);
-	applyChat(shared().layout, v);
+	QRectF area = defaultChatArea(mode);
+	QString v;
+	if (w > 0 && h > 0) {
+		area = clampChatArea(QRectF(x, y, w, h));
+		v = QStringLiteral("%1,%2,%3,%4").arg(area.x(), 0, 'f', 4).arg(area.y(), 0, 'f', 4).arg(area.width(), 0, 'f', 4).arg(area.height(), 0, 'f', 4);
+	}
+	settings->SetVerticalChatArea(mode, v);
+	{
+		QMutexLocker locker(&shared().mutex);
+		shared().chat_area = area;
+	}
+	pswrapScheduleVerticalChat();
+}
+
+void QmlMainWindow::pswrapScheduleVerticalChat()
+{
+	auto *t = findChild<QTimer *>(QStringLiteral("pswrapVerticalChatTimer"), Qt::FindDirectChildrenOnly);
+	if (!t) {
+		t = new QTimer(this);
+		t->setObjectName(QStringLiteral("pswrapVerticalChatTimer"));
+		t->setSingleShot(true);
+		t->setInterval(60);
+		connect(t, &QTimer::timeout, this, &QmlMainWindow::pswrapPaintVerticalChat);
+	}
+	t->start();
+}
+
+// การ์ดแชทในภาพแนวตั้ง — วาดเองตามขนาดพื้นที่จริง (ไม่ตัดจากการ์ดบนจอเกม): เต็มพื้นที่ว่างได้ทุกสัดส่วน ตัวหนังสือคม
+// ขนาดภาพ = พื้นที่ × canvas 1080×1920 (preview ย่อเอง) · ข้อความใหม่อยู่ล่าง ของเก่าเลื่อนขึ้นแล้วจาง (แบบ ChatOverlay.qml)
+void QmlMainWindow::pswrapPaintVerticalChat()
+{
+	QRectF area;
+	bool on;
+	{
+		QMutexLocker locker(&shared().mutex);
+		area = shared().chat_area;
+		on = shared().chat_on;
+	}
+	PsWrapVerticalLayers *layers = verticalLayers();
+	if (!on || area.isEmpty()) {
+		layers->setChatImage(QImage(), QRectF());
+		return;
+	}
+	const int W = qMax(64, qRound(area.width() * 1080.0)), H = qMax(64, qRound(area.height() * 1920.0));
+	QImage img(W, H, QImage::Format_ARGB32_Premultiplied);
+	img.fill(Qt::transparent);
+	QPainter p(&img);
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setRenderHint(QPainter::TextAntialiasing);
+	const qreal radius = 28, pad = 28;
+
+	// การ์ดกระจก + เส้น accent ล่าง (ชุดเดียวกับการ์ดบนจอ)
+	p.setPen(QPen(QColor(255, 255, 255, 23), 2));
+	p.setBrush(QColor(8, 12, 18, 158));
+	p.drawRoundedRect(QRectF(1, 1, W - 2, H - 2), radius, radius);
+	p.setPen(Qt::NoPen);
+	p.setBrush(QColor(0, 167, 255, 115));
+	p.drawRect(QRectF(radius, H - 4, W - 2 * radius, 2));
+
+	PsWrapLiveChat *chat = liveChat();
+	QFont head = p.font();
+	head.setPixelSize(22);
+	head.setWeight(QFont::DemiBold);
+	head.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+	p.setBrush(chat->isRunning() ? QColor(0xff, 0x4e, 0x45) : QColor(0x8b, 0x97, 0xa5));
+	p.drawEllipse(QPointF(pad + 6, pad + 13), 7, 7);
+	p.setFont(head);
+	p.setPen(QColor(0xe8, 0xed, 0xf2));
+	p.drawText(QPointF(pad + 24, pad + 21), tr("LIVE CHAT"));
+
+	const qreal top = pad + 44;
+	qreal bottom = H - pad;
+	const QString status = chat->status();
+	if (!status.isEmpty()) {
+		QFont sf = head;
+		sf.setPixelSize(19);
+		sf.setWeight(QFont::Normal);
+		sf.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+		p.setFont(sf);
+		p.setPen(QColor(0x8b, 0x97, 0xa5));
+		p.drawText(QRectF(pad, H - pad - 24, W - 2 * pad, 24), Qt::AlignLeft | Qt::AlignVCenter,
+		           QFontMetrics(sf).elidedText(status, Qt::ElideRight, int(W - 2 * pad)));
+		bottom -= 34;
+	}
+
+	QFont body = head;
+	body.setPixelSize(30);
+	body.setWeight(QFont::Normal);
+	body.setLetterSpacing(QFont::AbsoluteSpacing, 0);
+	const QVariantList msgs = chat->messages();
+	if (msgs.isEmpty()) {
+		p.setFont(body);
+		p.setPen(QColor(0x8b, 0x97, 0xa5));
+		p.drawText(QRectF(pad, top, W - 2 * pad, bottom - top), Qt::AlignCenter | Qt::TextWordWrap, tr("Waiting for chat messages…"));
+	} else if (bottom > top) {
+		p.save();
+		p.setClipRect(QRectF(0, top, W, bottom - top));
+		qreal y = bottom;
+		const int n = int(msgs.size());
+		for (int i = n - 1; i >= 0 && y > top; --i) {
+			const QVariantMap m = msgs[i].toMap();
+			const QString badge = m.value(QStringLiteral("badge")).toString();
+			const QString mark = badge == QLatin1String("owner") ? QStringLiteral("★ ")
+			                   : badge == QLatin1String("mod") ? QStringLiteral("MOD ")
+			                   : badge == QLatin1String("super") ? QStringLiteral("$ ") : QString();
+			QColor color(m.value(QStringLiteral("color")).toString());
+			if (!color.isValid())
+				color = QColor(0xe8, 0xed, 0xf2);
+			const QString html = QStringLiteral("<span style='color:%1'>&#9679;</span> <b><span style='color:%2'>%3%4</span></b>&nbsp; <span style='color:#e8edf2'>%5</span>")
+				.arg(m.value(QStringLiteral("platform")).toString() == QLatin1String("twitch") ? QStringLiteral("#a970ff") : QStringLiteral("#ff4e45"),
+				     color.name(), mark.toHtmlEscaped(), m.value(QStringLiteral("author")).toString().toHtmlEscaped(),
+				     m.value(QStringLiteral("text")).toString().toHtmlEscaped());
+			QTextDocument doc;
+			doc.setDefaultFont(body);
+			doc.setDocumentMargin(0);
+			doc.setTextWidth(W - 2 * pad);
+			doc.setHtml(html);
+			if (y - doc.size().height() < top)
+				break;   // ไม่พอทั้งข้อความ — ไม่วาดครึ่งบรรทัดใต้หัวการ์ด
+			y -= doc.size().height();
+			p.setOpacity(qMax(0.35, 1.0 - qMax(0, n - 1 - i - 11) * 0.08));
+			p.save();
+			p.translate(pad, y);
+			doc.drawContents(&p);
+			p.restore();
+			y -= 10;
+		}
+		p.restore();
+	}
+	p.end();
+	layers->setChatImage(img.convertToFormat(QImage::Format_RGBA8888_Premultiplied), area);
 }
 
 PsWrapVerticalLayers *QmlMainWindow::verticalLayers()
@@ -338,6 +469,12 @@ PsWrapVerticalLayers *QmlMainWindow::verticalLayers()
 			QMetaObject::invokeMethod(l, [this, l]() { l->setAnimating(session != nullptr); }, Qt::QueuedConnection);
 		});
 	l->setAnimating(session != nullptr);
+	// แชทแนวตั้ง: ข้อความ/สถานะใหม่ → วาดการ์ดใหม่
+	PsWrapLiveChat *chat = liveChat();
+	connect(chat, &PsWrapLiveChat::messagesChanged, this, &QmlMainWindow::pswrapScheduleVerticalChat);
+	connect(chat, &PsWrapLiveChat::statusChanged, this, &QmlMainWindow::pswrapScheduleVerticalChat);
+	connect(chat, &PsWrapLiveChat::runningChanged, this, &QmlMainWindow::pswrapScheduleVerticalChat);
+	pswrapScheduleVerticalChat();
 	return l;
 }
 

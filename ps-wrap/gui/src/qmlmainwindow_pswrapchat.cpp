@@ -42,7 +42,7 @@ QObject *QmlMainWindow::liveChatObject() { return liveChat(); }
 void QmlMainWindow::pswrapSyncChat()
 {
 	PsWrapLiveChat *c = liveChat();
-	const bool want = settings->GetChatOverlay() && session;
+	const bool want = (settings->GetChatOverlay() || settings->GetVerticalChat()) && session;   // การ์ดบนจอ หรือแชทในภาพแนวตั้ง
 	if (want && !c->isRunning()) {
 		c->clear();
 		c->start();

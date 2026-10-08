@@ -295,8 +295,9 @@ class Settings : public QObject
 		void SetVerticalLayers(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalLayers%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalLayers%1").arg(mode), v); }
 		bool GetVerticalChat() const { return settings.value("pswrap/verticalChat", false).toBool(); }
 		void SetVerticalChat(bool v) { settings.setValue("pswrap/verticalChat", v); }
-		QString GetVerticalChatPos(int mode) const { return settings.value(QStringLiteral("pswrap/verticalChat%1").arg(mode)).toString(); }
-		void SetVerticalChatPos(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalChat%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalChat%1").arg(mode), v); }
+		// พื้นที่การ์ดแชทในภาพแนวตั้งต่อเลย์เอาต์ "x,y,w,h" (สัดส่วน canvas) · ว่าง = ค่าเริ่มต้น (เต็มพื้นที่ว่างใต้เกม)
+		QString GetVerticalChatArea(int mode) const { return settings.value(QStringLiteral("pswrap/verticalChatArea%1").arg(mode)).toString(); }
+		void SetVerticalChatArea(int mode, const QString &v) { if (v.isEmpty()) settings.remove(QStringLiteral("pswrap/verticalChatArea%1").arg(mode)); else settings.setValue(QStringLiteral("pswrap/verticalChatArea%1").arg(mode), v); }
 		// PS-WRAP: Instant Replay — เก็บ N วินาทีล่าสุดไว้ในแรมระหว่างสตรีม (ดู PsWrapRecorder::startReplay)
 		bool GetReplayEnabled() const { return settings.value("pswrap/replayEnabled", false).toBool(); }
 		void SetReplayEnabled(bool v) { settings.setValue("pswrap/replayEnabled", v); }

@@ -39,6 +39,8 @@ public:
 
 	void setMode(int mode);          // เปลี่ยนเลย์เอาต์ → โหลดชุดของเลย์เอาต์นั้น
 	void setAnimating(bool on);      // GIF เล่นเฉพาะตอนมีสตรีม (ไม่กิน CPU ตอนอยู่หน้าแรก)
+	// การ์ดแชทที่วาดแล้ว (RGBA premultiplied, ขนาดตามพื้นที่) วางที่ area (สัดส่วน canvas) บนสุดของรูปทั้งหมด · null = ไม่วาด
+	void setChatImage(const QImage &img, const QRectF &area);
 
 	Q_INVOKABLE QString addImage(const QUrl &file);   // "" = สำเร็จ · ไม่งั้นข้อความ error
 	// ลิงก์ http(s) (เช่น Giphy) → ดาวน์โหลดแบบ async แล้วเพิ่ม · ผลแจ้งทาง addFinished(error) ("" = สำเร็จ)
@@ -77,6 +79,9 @@ private:
 	bool animating = false;
 	QNetworkAccessManager nam;
 	int pending_downloads = 0;
+	QImage chat_img;
+	QRectF chat_area;
+	quint64 chat_version = 0;
 	QString addFile(const QString &path, const QString &display_name);
 
 	bool loadLayer(Layer &l, QString *err);

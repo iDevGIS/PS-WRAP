@@ -4,6 +4,11 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
+## [0.3.3] — 2026-10-08
+The chat card in the vertical 9:16 picture can fill any area.
+### Changed
+- **The chat card in the vertical 9:16 picture is now drawn at its own size** instead of being copied from the chat card on the game screen. By default it fills the free area below the game (Blur fill), and you can resize it to any shape: scroll to resize, **Shift+scroll** to change only the height, drag to move, double-click or right-click › *Fill the free area* to reset. The text stays sharp at any size, the chat no longer disappears from the vertical picture while the stream menu is open, and you can hide the chat card on the game screen while still showing chat in the vertical picture.
+
 ## [0.3.2] — 2026-10-07
 Go Live sends at full speed (4K live works).
 ### Fixed
@@ -173,6 +178,7 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.3.3]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.3
 [0.3.2]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.2
 [0.3.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.1
 [0.3.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.0

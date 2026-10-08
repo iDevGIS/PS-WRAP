@@ -224,8 +224,28 @@ void PsWrapVerticalLayers::publish()
 		s.w = l.w;
 		snaps.push_back(std::move(s));
 	}
+	if (!chat_img.isNull()) {
+		Snap s;
+		s.id = -1;   // การ์ดแชท — วาดหลังรูปทั้งหมด
+		s.version = chat_version;
+		s.img = chat_img;
+		s.cx = float(chat_area.center().x());
+		s.cy = float(chat_area.center().y());
+		s.w = float(chat_area.width());
+		snaps.push_back(std::move(s));
+	}
 	QMutexLocker locker(&shared().mutex);
 	shared().snaps = std::move(snaps);
+}
+
+void PsWrapVerticalLayers::setChatImage(const QImage &img, const QRectF &area)
+{
+	if (img.isNull() && chat_img.isNull())
+		return;
+	chat_img = img;
+	chat_area = area;
+	chat_version++;
+	publish();
 }
 
 void PsWrapVerticalLayers::save()
