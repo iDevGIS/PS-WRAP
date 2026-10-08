@@ -359,6 +359,7 @@ void PsWrapRecCapture::capture(PsWrapRecorder *rec, const pl_frame_mix *mix, con
 		}
 		p.background_transparency = 0.0f;
 		p.info_callback = nullptr;
+		p.border = PL_CLEAR_COLOR;   // Ambient light ของจอตั้ง PL_CLEAR_BLUR — บน NV12 ขอบเบลอเป็นสีเขียว (ดู 0.3.1)
 		ok = single ? pl_render_image(renderer, single, &t, &p)
 		                       : pl_render_image_mix(renderer, mix, &t, &p);
 	}

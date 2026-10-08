@@ -507,6 +507,9 @@ Item {
             onMicEditRequested: { menuController.close(); view.startMicEdit(); }
             onClockEditRequested: { menuController.close(); view.startClockEdit(); }
             onChatEditRequested: { menuController.close(); view.startChatEdit(); }
+            dockEnabled: view.dockOn
+            onDockToggled: view.setDock(!view.dockOn)
+            onDockEditRequested: { menuController.close(); view.startDockEdit(); }
         }
     }
 
@@ -579,12 +582,19 @@ Item {
         property real chatX: -1         // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น ซ้ายกลาง)
         property real chatY: -1
         property real chatW: 0.18       // ≈345px ที่ 1920
+        // PS-WRAP: Stack — overlay ทุกตัวเรียงเป็นคอลัมน์เดียว กว้างเท่ากัน (ตำแหน่งอิสระด้านบนยังเก็บไว้ ปิด Stack แล้วกลับมา)
+        property bool dockOn: false
+        property bool dockRight: true
+        property real dockW: 0.14        // ความกว้างคอลัมน์ เป็นสัดส่วนของกรอบวิดีโอ
+        property real dockY: 0.03        // ขอบบนของคอลัมน์ เป็นสัดส่วนของความสูงกรอบวิดีโอ
+        property string dockOrder: "clock,mic,stats,chat,cam,pad"
     }
 
     // ---- edit mode ของ overlay: ขอ input คืนจากเกมชั่วคราว ลากด้วยเมาส์/ลูกศร/จอย, มุมขวาล่างย่อขยาย, L1/R1 หรือ +/- ย่อขยาย, Esc/◯ หรือ Enter/✕ เสร็จ ----
     property bool overlayEditMode: false
     function startOverlayEdit() {
         console.log("PSWRAP startOverlayEdit sep=", useSeparateMenuWindow, "session=", !!Chiaki.session, "edit=", overlayEditMode, "pref=", Chiaki.window.padOverlay);
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack
         if (useSeparateMenuWindow || !Chiaki.session || overlayEditMode)
             return;
         Chiaki.window.padOverlay = true;
@@ -623,6 +633,7 @@ Item {
     // ---- stats: edit mode (ลาก/ย่อขยาย) — เหมือน pad/cam ----
     property bool statsEditMode: false
     function startStatsEdit() {
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack
         if (useSeparateMenuWindow || !Chiaki.session || statsEditMode)
             return;
         if (overlayEditMode) view.stopOverlayEdit();
@@ -644,8 +655,9 @@ Item {
     }
     onStatsEditModeChanged: if (statsEditMode) statsFrame.forceActiveFocus(Qt.TabFocusReason)
     // คลิกที่ overlay = เข้าโหมดแก้ตัวนั้น (สลับจากตัวอื่นได้ทันที) · คลิกที่ว่าง = จบโหมดแก้
-    readonly property bool anyOverlayEdit: overlayEditMode || camEditMode || statsEditMode || micEditMode || clockEditMode || chatEditMode
+    readonly property bool anyOverlayEdit: overlayEditMode || camEditMode || statsEditMode || micEditMode || clockEditMode || chatEditMode || dockEditMode
     function editOverlay(which) {
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack = แก้ทั้งคอลัมน์ทีเดียว
         if (which !== "pad" && overlayEditMode) { overlayEditMode = false; }
         if (which !== "cam" && camEditMode) { camEditMode = false; camFrame.save(); }
         if (which !== "stats" && statsEditMode) { statsEditMode = false; statsFrame.save(); }
@@ -667,6 +679,7 @@ Item {
         if (micEditMode) view.stopMicEdit();
         if (clockEditMode) view.stopClockEdit();
         if (chatEditMode) view.stopChatEdit();
+        if (dockEditMode) view.stopDockEdit();
     }
     // grab input ครั้งเดียวต่อช่วงแก้ (สลับตัวที่แก้ไม่ grab ซ้อน) แล้วโฟกัสตัวใหม่
     property bool editInputGrabbed: false
@@ -686,10 +699,68 @@ Item {
     function rectOf(item) { return item.visible ? Qt.rect(item.x, item.y, item.width, item.height) : Qt.rect(0, 0, 0, 0) }
     function pushOverlayHitRects() {
         if (!Chiaki.window) return;
-        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast)]);
+        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor)]);
         // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
         const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
         Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
+    }
+    // PS-WRAP: Lightbar halo — แสงเรืองด้านในขอบภาพเกมตามสีไฟจอยที่เครื่องสั่ง (อยู่ใต้ overlay อื่นทั้งหมด)
+    // สีเปลี่ยน = กระพริบสว่างขึ้นแวบหนึ่ง ให้เห็นว่าเกมเปลี่ยนสถานะ (เช่น เลือดน้อย / โดนตำรวจไล่)
+    Item {
+        id: lightbarHalo
+        readonly property color c: Chiaki.session ? Chiaki.session.lightbarColor : "transparent"
+        readonly property bool hasColor: c.a > 0 && (c.r + c.g + c.b) > 0.3   // PS5 ส่ง 13,13,13 = ไฟดับ
+        readonly property real thickness: Math.max(12, Math.round(view.videoH * 0.045))
+        property real strength: 0.5
+        x: view.videoX
+        y: view.videoY
+        width: view.videoW
+        height: view.videoH
+        visible: !!Chiaki.window.lightbarHalo && hasColor && !!Chiaki.session && !sessionLoading && !sessionError
+                 && !(Chiaki.settings.audioVideoDisabled & 0x02)
+        opacity: strength
+        onCChanged: if (visible) flash.restart()
+        SequentialAnimation {
+            id: flash
+            NumberAnimation { target: lightbarHalo; property: "strength"; to: 1.0; duration: 120; easing.type: Easing.OutQuad }
+            NumberAnimation { target: lightbarHalo; property: "strength"; to: 0.5; duration: 700; easing.type: Easing.InOutQuad }
+        }
+        readonly property color edge: Qt.rgba(c.r, c.g, c.b, 0.85)
+        readonly property color clear: Qt.rgba(c.r, c.g, c.b, 0.0)
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: lightbarHalo.thickness
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: lightbarHalo.edge }
+                GradientStop { position: 1.0; color: lightbarHalo.clear }
+            }
+        }
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: lightbarHalo.thickness
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: lightbarHalo.clear }
+                GradientStop { position: 1.0; color: lightbarHalo.edge }
+            }
+        }
+        Rectangle {
+            anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+            width: lightbarHalo.thickness
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: lightbarHalo.edge }
+                GradientStop { position: 1.0; color: lightbarHalo.clear }
+            }
+        }
+        Rectangle {
+            anchors { top: parent.top; bottom: parent.bottom; right: parent.right }
+            width: lightbarHalo.thickness
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: lightbarHalo.clear }
+                GradientStop { position: 1.0; color: lightbarHalo.edge }
+            }
+        }
     }
     Timer { interval: 200; repeat: true; running: !!Chiaki.session; onTriggered: view.pushOverlayHitRects() }
     Component.onDestruction: { if (Chiaki.window) Chiaki.window.setOverlayHitRects([]); root.toastBottomInset = 0; }
@@ -709,7 +780,9 @@ Item {
             anchors.centerIn: parent
             font.pixelSize: Theme.fontCaption
             color: Theme.text
-            text: qsTr("Editing overlay · controller paused · click empty space or press ◯ / ✕ to resume")
+            text: view.dockEditMode
+                  ? qsTr("Arranging overlays · drag to move · drag to the other side to switch · ◢ or L1/R1 resizes all · ▲▼ reorder · ◯ / ✕ to finish")
+                  : qsTr("Editing overlay · controller paused · click empty space or press ◯ / ✕ to resume")
         }
     }
     MouseArea {
@@ -732,6 +805,7 @@ Item {
     // ---- facecam: edit mode แยกจาก overlay จอย (ใช้ grabInput เหมือนกัน) ----
     property bool camEditMode: false
     function startCamEdit() {
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack
         if (useSeparateMenuWindow || !Chiaki.session || camEditMode)
             return;
         if (overlayEditMode) view.stopOverlayEdit();
@@ -769,6 +843,7 @@ Item {
     // ---- mic spectrum: edit mode (ลาก/ย่อขยาย) — เหมือน pad/cam/stats ----
     property bool micEditMode: false
     function startMicEdit() {
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack
         if (useSeparateMenuWindow || !Chiaki.session || micEditMode)
             return;
         if (overlayEditMode) view.stopOverlayEdit();
@@ -807,6 +882,7 @@ Item {
     // ---- clock overlay: Ctrl+Shift+T เปิด/ปิด · edit mode (ลาก/ย่อขยาย) เหมือน mic ----
     property bool clockEditMode: false
     function startClockEdit() {
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack
         if (useSeparateMenuWindow || !Chiaki.session || clockEditMode)
             return;
         if (overlayEditMode) view.stopOverlayEdit();
@@ -834,6 +910,7 @@ Item {
     // ---- chat overlay: Ctrl+Shift+H เปิด/ปิด · edit mode (ลาก/ย่อขยาย) เหมือนนาฬิกา ----
     property bool chatEditMode: false
     function startChatEdit() {
+        if (view.dockOn) { view.startDockEdit(); return; }   // PS-WRAP: Stack
         if (useSeparateMenuWindow || !Chiaki.session || chatEditMode)
             return;
         if (overlayEditMode) view.stopOverlayEdit();
@@ -929,6 +1006,244 @@ Item {
         }
     }
 
+    // ---- PS-WRAP: Stack — overlay ที่เปิดอยู่เรียงเป็นคอลัมน์เดียว ชิดขอบซ้าย/ขวาของภาพ กว้างเท่ากัน ระยะห่างเท่ากัน ----
+    // ปรับทีเดียวทั้งชุด (dockEditMode): ลากขึ้นลง · ลากข้ามกลางภาพ = สลับข้าง · ◢ / L1 R1 / +- = กว้างทุกตัว · ▲▼ = สลับลำดับ
+    readonly property bool dockOn: pswrapPrefs.dockOn && !useSeparateMenuWindow
+    // กว้างตามที่ตั้ง แต่หดเองถ้าคอลัมน์สูงเกินจอ (dockFitPx คำนวณใน dockLayout)
+    readonly property real dockWpx: Math.max(120, Math.min(Math.round(videoW * pswrapPrefs.dockW), dockFitPx))
+    property real dockFitPx: 100000
+    readonly property real dockGap: Math.max(6, Math.round(10 * overlayScale))
+    readonly property real dockMargin: Math.max(10, Math.round(20 * overlayScale))
+    readonly property real dockX: pswrapPrefs.dockRight ? videoX + videoW - dockMargin - dockWpx : videoX + dockMargin
+    property real dockTop: 0
+    property real dockBottom: 0
+    property var dockShown: []            // ชื่อ overlay ที่อยู่ในคอลัมน์ตอนนี้ (ตามลำดับ)
+    property bool dockEditMode: false
+    function dockFrame(name) {
+        switch (name) {
+        case "pad": return overlayFrame;
+        case "cam": return camFrame;
+        case "stats": return statsFrame;
+        case "mic": return micFrame;
+        case "clock": return clockFrame;
+        case "chat": return chatFrame;
+        }
+        return null;
+    }
+    function dockOrderList() {
+        const all = ["clock", "mic", "stats", "chat", "cam", "pad"];
+        const order = pswrapPrefs.dockOrder.split(",").filter(n => all.indexOf(n) >= 0);
+        for (const n of all)
+            if (order.indexOf(n) < 0)
+                order.push(n);
+        return order;
+    }
+    property bool dockLayoutQueued: false
+    function scheduleDockLayout() {
+        if (dockLayoutQueued) return;
+        dockLayoutQueued = true;
+        Qt.callLater(dockLayout);
+    }
+    function dockLayout() {
+        dockLayoutQueued = false;
+        if (!dockOn) { dockShown = []; return; }
+        const top = videoY + Math.round(Math.min(0.9, Math.max(0, pswrapPrefs.dockY)) * videoH);
+        let y = top;
+        const shown = [];
+        for (const n of dockOrderList()) {
+            const f = dockFrame(n);
+            if (!f || !f.visible)
+                continue;
+            f.x = dockX;
+            f.y = y;
+            y += f.height + dockGap;
+            shown.push(n);
+        }
+        dockTop = top;
+        dockBottom = shown.length ? y - dockGap : top;
+        dockShown = shown;
+        // ความสูงแต่ละตัว ∝ ความกว้าง → ความกว้างที่ทำให้ทั้งคอลัมน์พอดีพื้นที่ใต้ขอบบนถึงล่างกรอบวิดีโอ
+        let ratio = 0;
+        for (const n of shown) {
+            const f = dockFrame(n);
+            if (f.width > 0) ratio += f.height / f.width;
+        }
+        const avail = videoY + videoH - dockMargin - top - dockGap * Math.max(0, shown.length - 1);
+        const fit = ratio > 0 ? Math.floor(avail / ratio) : 100000;
+        if (Math.abs(fit - dockFitPx) >= 2)
+            dockFitPx = fit;
+    }
+    function relayoutAllFrames() {
+        for (const n of ["pad", "cam", "stats", "mic", "clock", "chat"]) {
+            const f = dockFrame(n);
+            if (f) f.layout();
+        }
+    }
+    function setDock(on) {
+        if (on === pswrapPrefs.dockOn) return;
+        if (!on && dockEditMode) stopDockEdit();
+        pswrapPrefs.dockOn = on;
+        Qt.callLater(function() { view.relayoutAllFrames(); view.dockLayout(); });
+    }
+    function moveInDock(name, delta) {
+        const order = dockOrderList();
+        const shown = dockShown;
+        const i = shown.indexOf(name), j = i + delta;
+        if (i < 0 || j < 0 || j >= shown.length) return;
+        // สลับกับตัวที่มองเห็นถัดไป (ข้ามตัวที่ปิดอยู่)
+        const a = order.indexOf(name), b = order.indexOf(shown[j]);
+        order[a] = shown[j];
+        order[b] = name;
+        pswrapPrefs.dockOrder = order.join(",");
+        dockLayout();
+    }
+    function dockResize(delta) {
+        pswrapPrefs.dockW = Math.min(0.35, Math.max(0.07, pswrapPrefs.dockW + delta));
+        scheduleDockLayout();
+    }
+    function dockMoveY(dy) {
+        pswrapPrefs.dockY = Math.min(0.9, Math.max(0, pswrapPrefs.dockY + dy / Math.max(1, videoH)));
+        scheduleDockLayout();
+    }
+    function startDockEdit() {
+        if (useSeparateMenuWindow || !Chiaki.session || !dockOn || dockEditMode)
+            return;
+        if (overlayEditMode) overlayEditMode = false;
+        if (camEditMode) { camEditMode = false; }
+        if (statsEditMode) { statsEditMode = false; }
+        if (micEditMode) { micEditMode = false; }
+        if (clockEditMode) { clockEditMode = false; }
+        if (chatEditMode) { chatEditMode = false; }
+        dockEditMode = true;
+        dockLayout();
+        updateOverlayInteractionActive();
+        view.grabInputOnce(dockEditor);
+    }
+    function stopDockEdit() {
+        if (!dockEditMode)
+            return;
+        dockEditMode = false;
+        releaseAfterEdit.restart();
+    }
+    onDockEditModeChanged: if (dockEditMode) dockEditor.forceActiveFocus(Qt.TabFocusReason)
+    onDockXChanged: scheduleDockLayout()
+    onDockGapChanged: scheduleDockLayout()
+    Connections {
+        target: pswrapPrefs
+        function onDockOrderChanged() { view.scheduleDockLayout() }
+        function onDockYChanged() { view.scheduleDockLayout() }
+    }
+
+    // กรอบแก้ทั้งคอลัมน์ (อยู่เหนือ overlay) — ลาก = ย้ายทั้งชุด · ข้ามกลางภาพ = สลับข้าง
+    FocusScope {
+        id: dockEditor
+        z: 62
+        visible: view.dockOn && view.dockEditMode && view.dockShown.length > 0
+        x: view.dockX - 8
+        y: view.dockTop - 8
+        width: view.dockWpx + 16
+        height: Math.max(40, view.dockBottom - view.dockTop) + 16
+        Keys.onPressed: (event) => {
+            if (!view.dockEditMode) return;
+            switch (event.key) {
+            case Qt.Key_Up:    view.dockMoveY(-12); break;
+            case Qt.Key_Down:  view.dockMoveY(12); break;
+            case Qt.Key_Left:  pswrapPrefs.dockRight = false; break;
+            case Qt.Key_Right: pswrapPrefs.dockRight = true; break;
+            case Qt.Key_PageUp: case Qt.Key_Minus: view.dockResize(-0.01); break;
+            case Qt.Key_PageDown: case Qt.Key_Plus: case Qt.Key_Equal: view.dockResize(0.01); break;
+            case Qt.Key_Escape: case Qt.Key_Return: case Qt.Key_Enter: case Qt.Key_Backspace: view.stopDockEdit(); break;
+            default: return;
+            }
+            event.accepted = true;
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0.655, 1, 0.06)
+            radius: Theme.radiusControl
+            border.width: 2
+            border.color: Theme.accent
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.SizeAllCursor
+            property real pressY: 0
+            property real startDockY: 0
+            onPressed: (mouse) => { pressY = mapToItem(view, mouse.x, mouse.y).y; startDockY = pswrapPrefs.dockY; }
+            onPositionChanged: (mouse) => {
+                if (!pressed) return;
+                const p = mapToItem(view, mouse.x, mouse.y);
+                pswrapPrefs.dockY = Math.min(0.9, Math.max(0, startDockY + (p.y - pressY) / Math.max(1, view.videoH)));
+                const right = p.x > view.videoX + view.videoW / 2;
+                if (right !== pswrapPrefs.dockRight)
+                    pswrapPrefs.dockRight = right;
+            }
+        }
+        // ปุ่ม ▲▼ ข้างละตัว (ฝั่งที่หันเข้ากลางภาพ)
+        Repeater {
+            model: view.dockShown
+            delegate: Column {
+                id: arrowCol
+                required property string modelData
+                required property int index
+                readonly property string name: modelData
+                readonly property int pos: index
+                readonly property Item target: view.dockFrame(modelData)
+                spacing: 4
+                x: pswrapPrefs.dockRight ? -width - 6 : dockEditor.width + 6
+                y: target ? target.y - dockEditor.y + Math.max(0, (target.height - height) / 2) : 0
+                Repeater {
+                    model: [-1, 1]
+                    delegate: Rectangle {
+                        id: arrowBtn
+                        required property int modelData
+                        readonly property bool can: modelData < 0 ? arrowCol.pos > 0 : arrowCol.pos < view.dockShown.length - 1
+                        width: 30; height: 26; radius: 6
+                        color: arrowMouse.containsMouse && can ? Theme.accent : Theme.surfaceRaised
+                        border.width: 1
+                        border.color: Theme.accent
+                        opacity: can ? 1 : 0.35
+                        Label {
+                            anchors.centerIn: parent
+                            text: arrowBtn.modelData < 0 ? "▲" : "▼"
+                            color: Theme.text
+                            font.pixelSize: 13
+                        }
+                        MouseArea {
+                            id: arrowMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: arrowBtn.can
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: view.moveInDock(arrowCol.name, arrowBtn.modelData)
+                        }
+                    }
+                }
+            }
+        }
+        // ◢ ย่อขยายทุกตัวพร้อมกัน (มุมล่างฝั่งที่หันเข้ากลางภาพ)
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: -10
+            x: pswrapPrefs.dockRight ? -10 : parent.width - 18
+            width: 28; height: 28; radius: 14
+            color: Theme.accent
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.SizeHorCursor
+                property real startX: 0
+                property real startW: 0
+                onPressed: (mouse) => { startX = mapToItem(view, mouse.x, 0).x; startW = view.dockWpx; }
+                onPositionChanged: (mouse) => {
+                    if (!pressed) return;
+                    const dx = mapToItem(view, mouse.x, 0).x - startX;
+                    const w = pswrapPrefs.dockRight ? startW - dx : startW + dx;   // ลากออกจากขอบ = กว้างขึ้น
+                    pswrapPrefs.dockW = Math.min(0.35, Math.max(0.07, w / Math.max(1, view.videoW)));
+                }
+            }
+        }
+    }
+
     // overlay inline (backend Vulkan: QML วาดทับวิดีโอได้) — ลาก/ย่อขยายได้ใน edit mode ตำแหน่งจำเป็นสัดส่วนของ view
     FocusScope {
         id: overlayFrame
@@ -936,16 +1251,18 @@ Item {
         readonly property real aspect: 1138 / 765
         visible: !useSeparateMenuWindow && Chiaki.session && (controllerOverlayVisible || overlayEditMode)
         onVisibleChanged: if (visible) layout()   // คืนตำแหน่งที่จำไว้ทุกครั้งที่โผล่ (เริ่มสตรีมใหม่)
-        width: Math.max(80, Math.round(overlayBaseW * pswrapPrefs.overlayW))
+        width: view.dockOn ? view.dockWpx : Math.max(80, Math.round(overlayBaseW * pswrapPrefs.overlayW))
         height: Math.round(width / aspect)
 
         function layout() {
+            if (view.dockOn) { view.scheduleDockLayout(); return; }   // PS-WRAP: Stack จัดตำแหน่งให้
             const maxX = Math.max(0, videoW - width);
             const maxY = Math.max(0, videoH - height);
             x = videoX + (pswrapPrefs.overlayX < 0 ? maxX - 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.overlayX * videoW))));
             y = videoY + (pswrapPrefs.overlayY < 0 ? maxY - 24 : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.overlayY * videoH))));
         }
         function save() {
+            if (view.dockOn) return;
             pswrapPrefs.overlayX = videoW > 0 ? (x - videoX) / videoW : -1;
             pswrapPrefs.overlayY = videoH > 0 ? (y - videoY) / videoH : -1;
         }
@@ -967,6 +1284,7 @@ Item {
             function onVideoYChanged() { overlayFrame.layout() }
         }
         onWidthChanged: layout()
+        onHeightChanged: layout()
 
         Keys.onPressed: (event) => {
             if (!overlayEditMode) return;
@@ -1046,15 +1364,17 @@ Item {
         id: statsFrame
         z: 60
         visible: !useSeparateMenuWindow && (streamStatsVisible || statsEditMode)
-        readonly property real sc: overlayScale * pswrapPrefs.statsScale
+        readonly property real sc: view.dockOn ? view.dockWpx / Math.max(1, statsCard.implicitWidth) : overlayScale * pswrapPrefs.statsScale
         width: statsCard.implicitWidth * sc
         height: statsCard.implicitHeight * sc
         function layout() {
+            if (view.dockOn) { view.scheduleDockLayout(); return; }   // PS-WRAP: Stack จัดตำแหน่งให้
             const maxX = Math.max(0, videoW - width), maxY = Math.max(0, videoH - height);
             x = videoX + (pswrapPrefs.statsX < 0 ? maxX - 12 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.statsX * videoW))));
             y = videoY + (pswrapPrefs.statsY < 0 ? Math.round(maxY / 2) : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.statsY * videoH))));
         }
         function save() {
+            if (view.dockOn) return;
             pswrapPrefs.statsX = videoW > 0 ? (x - videoX) / videoW : -1;
             pswrapPrefs.statsY = videoH > 0 ? (y - videoY) / videoH : -1;
         }
@@ -1066,6 +1386,7 @@ Item {
         function resizeBy(d) { pswrapPrefs.statsScale = Math.min(2.0, Math.max(0.5, pswrapPrefs.statsScale + d)); Qt.callLater(function() { layout(); save(); }); }
         onVisibleChanged: if (visible) layout()
         onWidthChanged: layout()
+        onHeightChanged: layout()
         Component.onCompleted: layout()
         Connections {
             target: view
@@ -1149,16 +1470,18 @@ Item {
         readonly property real aspect: pswrapPrefs.camCircle ? 1.0 : 16 / 9
         visible: !useSeparateMenuWindow && Chiaki.session && (webcamVisible || camEditMode)
         onVisibleChanged: if (visible) layout()
-        width: Math.max(70, Math.round(overlayBaseW * pswrapPrefs.camW))
+        width: view.dockOn ? view.dockWpx : Math.max(70, Math.round(overlayBaseW * pswrapPrefs.camW))
         height: Math.round(width / aspect)
 
         function layout() {
+            if (view.dockOn) { view.scheduleDockLayout(); return; }   // PS-WRAP: Stack จัดตำแหน่งให้
             const maxX = Math.max(0, videoW - width);
             const maxY = Math.max(0, videoH - height);
             x = videoX + (pswrapPrefs.camX < 0 ? 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.camX * videoW))));
             y = videoY + (pswrapPrefs.camY < 0 ? maxY - 24 : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.camY * videoH))));
         }
         function save() {
+            if (view.dockOn) return;
             pswrapPrefs.camX = videoW > 0 ? (x - videoX) / videoW : -1;
             pswrapPrefs.camY = videoH > 0 ? (y - videoY) / videoH : -1;
         }
@@ -1180,6 +1503,7 @@ Item {
             function onVideoYChanged() { camFrame.layout() }
         }
         onWidthChanged: layout()
+        onHeightChanged: layout()
 
         Keys.onPressed: (event) => {
             if (!camEditMode) return;
@@ -1282,16 +1606,18 @@ Item {
         readonly property real aspect: 320 / 110
         visible: !useSeparateMenuWindow && Chiaki.session && (micOverlayVisible || micEditMode)
         onVisibleChanged: if (visible) layout()
-        width: Math.max(160, Math.round(overlayBaseW * pswrapPrefs.micW))
+        width: view.dockOn ? view.dockWpx : Math.max(160, Math.round(overlayBaseW * pswrapPrefs.micW))
         height: Math.round(width / aspect)
 
         function layout() {
+            if (view.dockOn) { view.scheduleDockLayout(); return; }   // PS-WRAP: Stack จัดตำแหน่งให้
             const maxX = Math.max(0, videoW - width);
             const maxY = Math.max(0, videoH - height);
             x = videoX + (pswrapPrefs.micX < 0 ? Math.round(maxX / 2) : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.micX * videoW))));
             y = videoY + (pswrapPrefs.micY < 0 ? maxY - 24 : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.micY * videoH))));
         }
         function save() {
+            if (view.dockOn) return;
             pswrapPrefs.micX = videoW > 0 ? (x - videoX) / videoW : -1;
             pswrapPrefs.micY = videoH > 0 ? (y - videoY) / videoH : -1;
         }
@@ -1313,6 +1639,7 @@ Item {
             function onVideoYChanged() { micFrame.layout() }
         }
         onWidthChanged: layout()
+        onHeightChanged: layout()
 
         Keys.onPressed: (event) => {
             if (!micEditMode) return;
@@ -1404,16 +1731,18 @@ Item {
         readonly property real aspect: clockCard.implicitWidth / clockCard.implicitHeight
         visible: !useSeparateMenuWindow && Chiaki.session && (clockOverlayVisible || clockEditMode)
         onVisibleChanged: if (visible) layout()
-        width: Math.max(140, Math.round(overlayBaseW * pswrapPrefs.clockW))
+        width: view.dockOn ? view.dockWpx : Math.max(140, Math.round(overlayBaseW * pswrapPrefs.clockW))
         height: Math.round(width / aspect)
 
         function layout() {
+            if (view.dockOn) { view.scheduleDockLayout(); return; }   // PS-WRAP: Stack จัดตำแหน่งให้
             const maxX = Math.max(0, videoW - width);
             const maxY = Math.max(0, videoH - height);
             x = videoX + (pswrapPrefs.clockX < 0 ? maxX - 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.clockX * videoW))));
             y = videoY + (pswrapPrefs.clockY < 0 ? 24 : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.clockY * videoH))));
         }
         function save() {
+            if (view.dockOn) return;
             pswrapPrefs.clockX = videoW > 0 ? (x - videoX) / videoW : -1;
             pswrapPrefs.clockY = videoH > 0 ? (y - videoY) / videoH : -1;
         }
@@ -1435,6 +1764,7 @@ Item {
             function onVideoYChanged() { clockFrame.layout() }
         }
         onWidthChanged: layout()
+        onHeightChanged: layout()
 
         Keys.onPressed: (event) => {
             if (!clockEditMode) return;
@@ -1518,16 +1848,18 @@ Item {
         readonly property real aspect: chatCard.implicitWidth / chatCard.implicitHeight
         visible: !useSeparateMenuWindow && Chiaki.session && (chatOverlayVisible || chatEditMode)
         onVisibleChanged: if (visible) layout()
-        width: Math.max(140, Math.round(overlayBaseW * pswrapPrefs.chatW))
+        width: view.dockOn ? view.dockWpx : Math.max(140, Math.round(overlayBaseW * pswrapPrefs.chatW))
         height: Math.round(width / aspect)
 
         function layout() {
+            if (view.dockOn) { view.scheduleDockLayout(); return; }   // PS-WRAP: Stack จัดตำแหน่งให้
             const maxX = Math.max(0, videoW - width);
             const maxY = Math.max(0, videoH - height);
             x = videoX + (pswrapPrefs.chatX < 0 ? 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.chatX * videoW))));
             y = videoY + (pswrapPrefs.chatY < 0 ? Math.round(maxY * 0.45) : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.chatY * videoH))));
         }
         function save() {
+            if (view.dockOn) return;
             pswrapPrefs.chatX = videoW > 0 ? (x - videoX) / videoW : -1;
             pswrapPrefs.chatY = videoH > 0 ? (y - videoY) / videoH : -1;
         }
@@ -1549,6 +1881,7 @@ Item {
             function onVideoYChanged() { chatFrame.layout() }
         }
         onWidthChanged: layout()
+        onHeightChanged: layout()
 
         Keys.onPressed: (event) => {
             if (!chatEditMode) return;

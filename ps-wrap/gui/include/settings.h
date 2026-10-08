@@ -263,6 +263,13 @@ class Settings : public QObject
 		void SetMicOverlay(bool v) { settings.setValue("pswrap/micOverlay", v); }
 		bool GetClockOverlay() const { return settings.value("pswrap/clockOverlay", false).toBool(); }   // PS-WRAP: นาฬิกา + เวลาเล่น
 		void SetClockOverlay(bool v) { settings.setValue("pswrap/clockOverlay", v); }
+		// PS-WRAP: ภาพสวยขึ้นตอนสตรีม (qmlmainwindow_pswrapvisual.cpp) — ค่าเริ่มต้นปิดทั้งหมด
+		bool GetAmbientLight() const { return settings.value("pswrap/ambientLight", false).toBool(); }   // ขอบว่างรอบภาพ = แสงเบลอจากขอบเกม
+		void SetAmbientLight(bool v) { settings.setValue("pswrap/ambientLight", v); }
+		bool GetFrameGen() const { return settings.value("pswrap/frameGen", false).toBool(); }           // เฟรมกลางระหว่างเฟรมจริง (60 → 120)
+		void SetFrameGen(bool v) { settings.setValue("pswrap/frameGen", v); }
+		bool GetLightbarHalo() const { return settings.value("pswrap/lightbarHalo", false).toBool(); }   // แสงเรืองขอบจอตามสีไฟจอย
+		void SetLightbarHalo(bool v) { settings.setValue("pswrap/lightbarHalo", v); }
 		// PS-WRAP: แชทไลฟ์บนจอ (pswrapchat.cpp) — แหล่ง YouTube (@handle / channel / ลิงก์) + ช่อง Twitch · API key อยู่ Credential Manager
 		bool GetChatOverlay() const { return settings.value("pswrap/chatOverlay", false).toBool(); }
 		void SetChatOverlay(bool v) { settings.setValue("pswrap/chatOverlay", v); }

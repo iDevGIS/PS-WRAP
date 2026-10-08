@@ -414,6 +414,9 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 	input_block = 0;
 	player_index = 0;
 	memset(led_color, 0, sizeof(led_color));
+	// PS-WRAP: ทดสอบ halo/แถบไฟโดยไม่ต้องรอเกมสั่งสี — PSWRAP_TEST_LIGHTBAR=#rrggbb
+	if(qEnvironmentVariableIsSet("PSWRAP_TEST_LIGHTBAR"))
+		lightbar_color = QColor(qEnvironmentVariable("PSWRAP_TEST_LIGHTBAR"));
 	packet_loss_max = connect_info.packet_loss_max;
 	ChiakiErrorCode err;
 #if CHIAKI_LIB_ENABLE_PI_DECODER
@@ -2384,6 +2387,16 @@ void StreamSession::Event(ChiakiEvent *event)
 			QMetaObject::invokeMethod(this, [this, led_state]() {
 				for(auto controller : controllers)
 					controller->ChangeLEDColor(led_state);
+				// PS-WRAP: halo บนจอ (StreamView.qml) · PSWRAP_TEST_LIGHTBAR ชนะสีจากเครื่อง (ทดสอบ)
+				QColor c(led_state[0], led_state[1], led_state[2]);
+				CHIAKI_LOGI(GetChiakiLog(), "PSWRAP lightbar color %u,%u,%u", led_state[0], led_state[1], led_state[2]);
+				if(qEnvironmentVariableIsSet("PSWRAP_TEST_LIGHTBAR"))
+					c = QColor(qEnvironmentVariable("PSWRAP_TEST_LIGHTBAR"));
+				if(c != lightbar_color)
+				{
+					lightbar_color = c;
+					emit LightbarColorChanged();
+				}
 			});
 			break;
 		}

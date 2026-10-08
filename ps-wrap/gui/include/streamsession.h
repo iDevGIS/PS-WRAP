@@ -33,6 +33,7 @@
 #include "settings.h"
 
 #include <QObject>
+#include <QColor>
 #include <QImage>
 #include <QMouseEvent>
 #include <QMutex>
@@ -162,6 +163,7 @@ class StreamSession : public QObject
 	Q_PROPERTY(int framesLost READ GetFramesLost NOTIFY FramesLostChanged)
 	Q_PROPERTY(double rttMs READ GetRttMs NOTIFY ConnectedChanged)   // PS-WRAP: RTT ที่วัดตอนเชื่อมต่อ (senkusha)
 	Q_PROPERTY(QString audioInDevice READ GetAudioInDevice WRITE SetAudioInDevice NOTIFY AudioInDeviceChanged)   // PS-WRAP: "" = Auto · สลับได้กลางสตรีม
+	Q_PROPERTY(QColor lightbarColor READ GetLightbarColor NOTIFY LightbarColorChanged)   // PS-WRAP: สีไฟจอยที่เครื่องสั่ง (ยังไม่มี = โปร่งใส)
 
 	private:
 		SessionLog log;
@@ -198,6 +200,7 @@ class StreamSession : public QObject
 		int ps5_rumble_intensity;
 		int ps5_trigger_intensity;
 		uint8_t led_color[3];
+		QColor lightbar_color = QColor(Qt::transparent);   // PS-WRAP: สำเนาฝั่ง GUI thread ของ led_color
 		uint8_t player_index;
 		QHash<int, Controller *> controllers;
 #if CHIAKI_GUI_ENABLE_SETSU
@@ -361,6 +364,7 @@ class StreamSession : public QObject
 		quint64 DecoderFlushGeneration() const { return decoder_flush_generation.loadRelaxed(); }
 		int GetFramesLost()		{ return frames_lost; }
 		double GetRttMs()		{ return session.rtt_us / 1000.0; }   // PS-WRAP
+		QColor GetLightbarColor() const	{ return lightbar_color; }   // PS-WRAP: GUI thread
 		bool GetMuted()	{ return muted; }
 		void SetMuted(bool enable)	{ if (enable != muted) ToggleMute(); }
 		QString GetAudioInDevice() const { return audio_in_device_name == QLatin1String("Auto") ? QString() : audio_in_device_name; }   // PS-WRAP
@@ -409,6 +413,7 @@ class StreamSession : public QObject
 		void FramesLostChanged();
 		void MutedChanged();
 		void AudioInDeviceChanged();   // PS-WRAP
+		void LightbarColorChanged();   // PS-WRAP
 		void CantDisplayChanged(bool cant_display);
 		void FecFailure();
 

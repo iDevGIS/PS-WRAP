@@ -86,6 +86,27 @@ Settings › Keys: every PlayStation button mapped to a keyboard key, grouped in
 Get the latest zip from [Releases](https://github.com/iDevGIS/PS-WRAP/releases), unzip it anywhere and run `PS-WRAP.exe`. You don't need to install anything.
 If you used chiaki-ng on the same PC, PS-WRAP copies its settings and registered consoles on first launch (chiaki-ng's data is left untouched).
 
+## Best tested settings
+
+These settings gave the sharpest and smoothest picture in our tests: PS5 on ordinary home Wi-Fi 5 (802.11ac, about 1.5 ms ping), NVIDIA RTX 4090, 165 Hz display, playing Ghost of Yōtei. The picture looked sharper than playing on the TV connected to the console.
+
+| Setting | Where | Value | Why |
+|---|---|---|---|
+| Resolution | Settings › Stream › Local | **1080p** | The highest Remote Play allows |
+| FPS | Settings › Stream › Local | **60 fps** | 30 fps is clearly less smooth |
+| Bitrate | Settings › Stream › Local | **100 Mbps** (max) | Worked on Wi-Fi 5 in our test; lower it if Stats shows packet loss |
+| Codec | Settings › Stream › Local | **H.265** | Better picture than H.264 at the same bitrate |
+| Hardware Decoder | Settings › Video | **cuda** on NVIDIA (auto picks a GPU decoder on others) | Decodes on the graphics card |
+| Render Preset | Settings › Video (or stream menu › QUALITY) | **HQ + Advanced Spatial Upscaling** | Upscales 1080p with an AI upscaler (FSRCNNX) instead of a plain stretch; this is what makes it look sharper than the console |
+| Frame Delivery | Settings › Video | **Direct Mapping** (default) | Lowest delay; Frame Gen needs it |
+
+**Playing over the internet** (Settings › Stream › Remote): keep 1080p / 60 fps but set the bitrate to about **20–30 Mbps**. Remote Play uses your home upload speed, and 100 Mbps will stutter or drop on most connections.
+
+**Optional, in the stream menu (Ctrl+O):**
+- **Frame Gen** (QUALITY): 60 → 120 fps on a display faster than 60 Hz. Smoothest with G-SYNC / FreeSync (VRR) or a 120 Hz display; on a fixed 144/165 Hz display without VRR, frame timing can feel uneven, so compare it on and off. Adds about 8 ms of delay.
+- **Glow** (FIT): fills black bars with a soft glow from the game. Useful on ultrawide screens.
+- **Light** (OVERLAY): a glow around the picture in the controller light color, when the game sets one.
+
 ## Reporting problems
 
 PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please report PS-WRAP bugs and ideas in this repository's [Issues](https://github.com/iDevGIS/PS-WRAP/issues), not to chiaki-ng. Attach the session log from `%APPDATA%\PS-WRAP\PS-WRAP\log` if you can. Stream keys and API keys are never written to it.
@@ -97,7 +118,12 @@ PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please re
   - A redesigned stream menu and a new Keys page.
   - Responsive at any window size.
   - Every screen works with a controller (Steam Deck / TV friendly).
-- **Overlays while streaming**: controller, network stats, facecam, mic visualizer, clock and **live chat (YouTube + Twitch)**. You can move, resize and place each one.
+- **Overlays while streaming**: controller, network stats, facecam, mic visualizer, clock and **live chat (YouTube + Twitch)**. Place each one freely, or turn on **Stack** to line them all up in one column at the same width and move, resize and reorder the whole column at once.
+- **Picture**:
+  - **Frame Gen**: an in-between frame for every stream frame, 60 → 120 fps on fast displays (motion estimated on the GPU).
+  - **Glow**: black bars around the picture become a soft glow from the game (great on ultrawide screens).
+  - **Light**: the controller light color set by the game glows around the picture and on the controller overlay.
+  - AI upscaling (FSRCNNX) from the QUALITY presets — see [Best tested settings](#best-tested-settings).
 - **Facecam**:
   - Any camera, including DirectShow virtual cameras.
   - Zoom, pan, mirror and circle.

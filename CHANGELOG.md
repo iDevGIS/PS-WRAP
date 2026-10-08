@@ -4,6 +4,14 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
+## [0.4.0] — 2026-10-09
+Frame Gen (60 → 120 fps), Glow, controller light on screen, and one-click overlay Stack.
+### Added
+- **Frame Gen (stream menu › QUALITY).** Adds an in-between frame for every stream frame, so a 60 fps stream plays at 120 fps on a display faster than the stream (needs Frame Delivery = Direct Mapping and the Vulkan renderer, which are the defaults). Motion is estimated on the GPU; still parts such as the HUD stay sharp, and areas that can't be matched use one side instead of a double image. It adds about half a frame of delay (~8 ms at 60 fps). Recordings, screenshots and the 9:16 picture still use the real frames only. Off by default.
+- **Glow (stream menu › FIT).** The empty bars around the picture (wide screens, windows that aren't 16:9) are filled with a soft, darkened blur of the game's edges instead of black. Off by default.
+- **Light (stream menu › OVERLAY).** A glow around the edge of the picture in the controller light color set by the game, with a short flash when the color changes. The same color is shown on the light bars of the controller overlay (Pad). Off by default.
+- **Stack (stream menu › OVERLAY).** Lines up every overlay that is on (clock, mic, stats, chat, facecam, controller) in one column at the same width with even gaps, on the left or right edge of the picture. **Arrange** (or click any overlay) edits the whole column at once: drag to move it up or down, drag it past the middle to switch sides, ◢ or L1/R1 to resize all of them, and ▲▼ to reorder. The column shrinks by itself so it never runs off the screen. Turning Stack off puts every overlay back where you placed it before.
+
 ## [0.3.3] — 2026-10-08
 The chat card in the vertical 9:16 picture can fill any area.
 ### Changed

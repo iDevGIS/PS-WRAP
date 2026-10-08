@@ -90,6 +90,9 @@ set(SOURCE_FILES
 	include/pswraplive.h
 	src/pswraplive.cpp
 	src/qmlmainwindow_pswraplive.cpp
+	include/pswrapframegen.h
+	src/pswrapframegen.cpp
+	src/qmlmainwindow_pswrapvisual.cpp
 	)
 set(RESOURCE_FILES "")
 

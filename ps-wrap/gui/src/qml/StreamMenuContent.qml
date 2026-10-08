@@ -7,7 +7,7 @@ import org.streetpea.chiaking
 
 // PS-WRAP: เนื้อหาเมนูระหว่างสตรีม (v3 "control deck") ใช้ร่วมกันทั้ง inline (Vulkan) และ StreamMenuWindow (OpenGL)
 //  แถว 1: [⏻ End Stream] [● Record] [🎤 Mic] 🔊 ━━━ 100%                       3.2 Mbps · 0.0% loss · 3 dropped · host
-//  แถว 2 (Flow — ห่อบรรทัดเมื่อแคบ ไม่เลื่อนแนวนอน): FIT (Zoom|Stretch) · QUALITY (Default|HQ|HQ+S|HQ+A|Custom) · Display · Renderer · OVERLAY (Pad|Cam|Spectrum|Clock|Move…|Stats) · CAPTURE (Replay|60s|Save|Screenshot)
+//  แถว 2 (Flow — ห่อบรรทัดเมื่อแคบ ไม่เลื่อนแนวนอน): FIT (Zoom|Stretch|Glow|Size) · QUALITY (Default|HQ|HQ+S|HQ+A|Custom|Frame Gen) · Display · Renderer · OVERLAY (Pad|Cam|Spectrum|Clock|Chat|Stack|Move…/Arrange|Stats|Light) · CAPTURE (Replay|60s|Save|Screenshot)
 //  แถว 3: hotkey hint (ซ่อนเมื่อแคบ)
 //  ความสูงเมนู = implicitHeight (StreamView/StreamMenuWindow ผูกตามนี้) · คง id/signals/KeyNavigation ของ upstream
 FocusScope {
@@ -15,6 +15,7 @@ FocusScope {
     property Item initialFocusItem: closeButton
     property bool overlayEnabled: true
     property bool webcamEnabled: false
+    property bool dockEnabled: false   // PS-WRAP: Stack — overlay เรียงคอลัมน์เดียว (StreamView จัดให้)
     // PS-WRAP: อัดคลิป + mic spectrum — ผูกกับ Chiaki.window ตรงๆ (เหมือนปุ่ม Mic/Stats) จึงใช้ได้ทั้ง inline และ window แยก
     readonly property QtObject recorder: Chiaki.window ? Chiaki.window.recorder : null
     readonly property bool recording: !!recorder && recorder.recording
@@ -55,6 +56,8 @@ FocusScope {
     signal micEditRequested()
     signal clockEditRequested()
     signal chatEditRequested()
+    signal dockToggled()          // PS-WRAP: Stack
+    signal dockEditRequested()
 
     // ภาพหน้าจอรวม overlay QML ด้วย → รอเมนูเลื่อนลงจบ (250ms) ก่อนถ่าย
     Timer {
@@ -434,9 +437,26 @@ FocusScope {
                     onToggled: Chiaki.window.videoMode = Chiaki.window.videoMode == ChiakiWindow.VideoMode.Stretch ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Stretch
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? zoomFactor : zoomButton
+                    KeyNavigation.right: glowButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: Ambient light — ขอบว่างรอบภาพเป็นแสงเบลอจากขอบเกม (เห็นผลเมื่อมีขอบ เช่น จอกว้าง / หน้าต่างไม่ใช่ 16:9)
+                MenuButton {
+                    id: glowButton
+                    segmented: true
+                    text: qsTr("Glow")
+                    checkable: true
+                    checked: !!Chiaki.window.ambientLight
+                    onToggled: Chiaki.window.ambientLight = !Chiaki.window.ambientLight
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: stretchButton
                     KeyNavigation.right: sizeButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("Ambient light: fill the empty bars around the picture with a soft glow from the game")
                 }
                 // PS-WRAP: ขนาดพื้นที่ภาพ 16:9 ตาม preset (ไม่มีขอบดำ คลิปอัดได้ขนาดตามชื่อ) — ✕/Enter เปิดรายการ
                 MenuButton {
@@ -446,7 +466,7 @@ FocusScope {
                     text: qsTr("Size")
                     onClicked: sizePopup.open()
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: stretchButton
+                    KeyNavigation.left: glowButton
                     KeyNavigation.right: defaultButton
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
@@ -535,9 +555,29 @@ FocusScope {
                     }
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: highQualityAdvancedSpatialButton
+                    KeyNavigation.right: frameGenButton.enabled ? frameGenButton : displaySettingsButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: Frame generation — เฟรมกลางระหว่างเฟรมจริง (60 → 120) · ต้อง Direct Mapping + Vulkan + จอเร็วกว่าสตรีม
+                MenuButton {
+                    id: frameGenButton
+                    segmented: true
+                    text: content.narrow ? qsTr("FG") : (Chiaki.window.frameGenActive ? qsTr("Frame Gen · 120") : qsTr("Frame Gen"))
+                    checkable: true
+                    enabled: !!Chiaki.window.frameGenSupported
+                    checked: !!Chiaki.window.frameGen && !!Chiaki.window.frameGenSupported
+                    onToggled: Chiaki.window.frameGen = !Chiaki.window.frameGen
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: customButton
                     KeyNavigation.right: displaySettingsButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: !Chiaki.window.frameGenSupported
+                        ? qsTr("Frame generation needs Frame Delivery = Direct Mapping and the Vulkan renderer (Settings › Video)")
+                        : qsTr("Frame generation: adds an in-between frame for each stream frame (60 → 120 fps) on displays faster than the stream. Adds about half a frame of delay.")
                 }
             }
 
@@ -549,7 +589,7 @@ FocusScope {
                     text: qsTr("Display")
                     onClicked: content.displaySettingsRequested()
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: customButton
+                    KeyNavigation.left: frameGenButton.enabled ? frameGenButton : customButton
                     KeyNavigation.right: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom ? placeboSettingsButton : overlayButton
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
@@ -640,20 +680,37 @@ FocusScope {
                     onToggled: Chiaki.window.chatOverlay = !Chiaki.window.chatOverlay
                     KeyNavigation.up: muteButton
                     KeyNavigation.left: clockButton
+                    KeyNavigation.right: stackButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: Stack — overlay ที่เปิดอยู่ทั้งหมดเรียงเป็นคอลัมน์เดียว กว้างเท่ากัน · ปุ่มถัดไปกลายเป็น Arrange (แก้ทั้งชุด)
+                MenuButton {
+                    id: stackButton
+                    segmented: true
+                    text: qsTr("Stack")
+                    checkable: true
+                    checked: content.dockEnabled
+                    onToggled: content.dockToggled()
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: chatButton
                     KeyNavigation.right: editOverlayButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("Stack: line up every overlay in one column at the same width — move and resize them all at once")
                 }
                 MenuButton {
                     id: editOverlayButton
                     segmented: true
                     iconSource: "qrc:/icons/menu/move.svg"
-                    text: qsTr("Move")
+                    text: content.dockEnabled ? qsTr("Arrange") : qsTr("Move")
                     enabled: Chiaki.session
-                    onClicked: content.overlayEditRequested()
+                    onClicked: content.dockEnabled ? content.dockEditRequested() : content.overlayEditRequested()
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: chatButton
-                    KeyNavigation.right: content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton)))
+                    KeyNavigation.left: stackButton
+                    KeyNavigation.right: content.dockEnabled ? statsButton : (content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton))))
                     Keys.onReturnPressed: clicked()
                     Keys.onEscapePressed: content.closeRequested()
                 }
@@ -662,7 +719,7 @@ FocusScope {
                     segmented: true
                     iconSource: "qrc:/icons/menu/move.svg"
                     text: qsTr("Move cam")
-                    visible: content.webcamEnabled
+                    visible: content.webcamEnabled && !content.dockEnabled
                     enabled: Chiaki.session
                     onClicked: content.webcamEditRequested()
                     KeyNavigation.up: muteButton
@@ -676,7 +733,7 @@ FocusScope {
                     segmented: true
                     iconSource: "qrc:/icons/menu/move.svg"
                     text: qsTr("Move mic")
-                    visible: content.micOverlayEnabled
+                    visible: content.micOverlayEnabled && !content.dockEnabled
                     enabled: Chiaki.session
                     onClicked: content.micEditRequested()
                     KeyNavigation.up: muteButton
@@ -690,7 +747,7 @@ FocusScope {
                     segmented: true
                     iconSource: "qrc:/icons/menu/move.svg"
                     text: qsTr("Move clock")
-                    visible: content.clockOverlayEnabled
+                    visible: content.clockOverlayEnabled && !content.dockEnabled
                     enabled: Chiaki.session
                     onClicked: content.clockEditRequested()
                     KeyNavigation.up: muteButton
@@ -704,7 +761,7 @@ FocusScope {
                     segmented: true
                     iconSource: "qrc:/icons/menu/move.svg"
                     text: qsTr("Move chat")
-                    visible: content.chatOverlayEnabled
+                    visible: content.chatOverlayEnabled && !content.dockEnabled
                     enabled: Chiaki.session
                     onClicked: content.chatEditRequested()
                     KeyNavigation.up: muteButton
@@ -722,10 +779,27 @@ FocusScope {
                     checked: Chiaki.settings.showStreamStats
                     onToggled: Chiaki.settings.showStreamStats = !Chiaki.settings.showStreamStats
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.chatOverlayEnabled ? chatEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton)))
+                    KeyNavigation.left: content.dockEnabled ? editOverlayButton : (content.chatOverlayEnabled ? chatEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton))))
+                    KeyNavigation.right: haloButton
+                    Keys.onReturnPressed: toggled()
+                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // PS-WRAP: Lightbar halo — แสงเรืองขอบภาพตามสีไฟจอยที่เกมสั่ง (สีเดียวกับแถบไฟบน Pad overlay)
+                MenuButton {
+                    id: haloButton
+                    segmented: true
+                    text: qsTr("Light")
+                    checkable: true
+                    checked: !!Chiaki.window.lightbarHalo
+                    onToggled: Chiaki.window.lightbarHalo = !Chiaki.window.lightbarHalo
+                    KeyNavigation.up: muteButton
+                    KeyNavigation.left: statsButton
                     KeyNavigation.right: replayButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("Lightbar halo: glow around the picture in the controller light color set by the game")
                 }
             }
 
@@ -741,7 +815,7 @@ FocusScope {
                     checked: content.replayEnabled
                     onToggled: Chiaki.window.replayEnabled = !content.replayEnabled
                     KeyNavigation.up: muteButton
-                    KeyNavigation.left: statsButton
+                    KeyNavigation.left: haloButton
                     KeyNavigation.right: replayLengthButton
                     Keys.onReturnPressed: toggled()
                     Keys.onEscapePressed: content.closeRequested()

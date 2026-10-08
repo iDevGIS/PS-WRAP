@@ -81,6 +81,12 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool micOverlay READ micOverlay WRITE setMicOverlay NOTIFY micOverlayChanged)
     Q_PROPERTY(bool clockOverlay READ clockOverlay WRITE setClockOverlay NOTIFY clockOverlayChanged)   // PS-WRAP: นาฬิกา + เวลาเล่น (qmlmainwindow_pswrapclock.cpp)
     Q_PROPERTY(bool chatOverlay READ chatOverlay WRITE setChatOverlay NOTIFY chatOverlayChanged)       // PS-WRAP: แชทไลฟ์บนจอ (qmlmainwindow_pswrapchat.cpp)
+    // PS-WRAP: ภาพสวยขึ้นตอนสตรีม (qmlmainwindow_pswrapvisual.cpp)
+    Q_PROPERTY(bool ambientLight READ ambientLight WRITE setAmbientLight NOTIFY ambientLightChanged)   // ขอบว่าง = แสงเบลอจากขอบเกม
+    Q_PROPERTY(bool lightbarHalo READ lightbarHalo WRITE setLightbarHalo NOTIFY lightbarHaloChanged)   // แสงเรืองขอบจอตามสีไฟจอย
+    Q_PROPERTY(bool frameGen READ frameGen WRITE setFrameGen NOTIFY frameGenChanged)                   // เฟรมกลาง 60 → 120
+    Q_PROPERTY(bool frameGenSupported READ frameGenSupported NOTIFY frameGenChanged)                    // Direct Mapping + Vulkan
+    Q_PROPERTY(bool frameGenActive READ frameGenActive NOTIFY frameGenActiveChanged)                   // กำลังสร้างเฟรมจริงอยู่ (จอเร็วพอ + มีสตรีม)
     Q_PROPERTY(QObject *liveChat READ liveChatObject CONSTANT)                                         // PS-WRAP: PsWrapLiveChat (ข้อความ/สถานะ/แหล่ง)
     Q_PROPERTY(int camFx READ camFx WRITE setCamFx NOTIFY camFxChanged)                          // PS-WRAP: 0..13 (ดู WebcamOverlay.fx)
     Q_PROPERTY(int camBackground READ camBackground WRITE setCamBackground NOTIFY camBackgroundChanged) // 0 keep · 1 green · 2 blue · 3 AI
@@ -208,6 +214,14 @@ public:
     void setMicOverlay(bool v);
     bool clockOverlay() const;          // PS-WRAP: qmlmainwindow_pswrapclock.cpp
     void setClockOverlay(bool v);
+    bool ambientLight() const;          // PS-WRAP: qmlmainwindow_pswrapvisual.cpp
+    void setAmbientLight(bool v);
+    bool lightbarHalo() const;
+    void setLightbarHalo(bool v);
+    bool frameGen() const;
+    void setFrameGen(bool v);
+    bool frameGenSupported() const;
+    bool frameGenActive() const { return pswrap_fg_active_reported; }
     bool chatOverlay() const;           // PS-WRAP: qmlmainwindow_pswrapchat.cpp
     void setChatOverlay(bool v);
     class PsWrapLiveChat *liveChat();   // สร้างครั้งแรกที่เรียก (ลูกของ window)
@@ -316,6 +330,10 @@ signals:
     void micOverlayChanged();          // PS-WRAP
     void clockOverlayChanged();        // PS-WRAP
     void chatOverlayChanged();         // PS-WRAP
+    void ambientLightChanged();        // PS-WRAP
+    void lightbarHaloChanged();        // PS-WRAP
+    void frameGenChanged();            // PS-WRAP
+    void frameGenActiveChanged();      // PS-WRAP
     void captureHeightChanged();       // PS-WRAP
     void verticalPreviewChanged();     // PS-WRAP
     void verticalLayoutChanged();
@@ -506,7 +524,28 @@ private:
     pl_tex pswrap_rec_dot_tex = nullptr;
     pl_tex pswrap_rec_label_tex = nullptr;     // ป้าย "4K" / "1440p" ต่อท้ายจุด REC (อัดแบบ upscale)
     int pswrap_rec_label_height = 0;           // ความสูงไฟล์ที่ป้ายปัจจุบันวาดไว้
-    pl_overlay pswrap_screen_overlays[3] = {};
+    pl_overlay pswrap_screen_overlays[5] = {};
+    // PS-WRAP: Ambient light + frame generation (qmlmainwindow_pswrapvisual.cpp) — render thread เท่านั้น ยกเว้น atomic
+    QAtomicInteger<int> pswrap_ambient_on = 0;
+    QAtomicInteger<int> pswrap_fg_on = 0;
+    void pswrapAmbientParams(struct pl_render_params &params, const struct pl_frame &target_frame) const;
+    void pswrapAmbientDecorate(struct pl_frame &target_frame, const struct pl_rect2df &video_rect);
+    // true = วาดลงจอแล้ว (ข้าม pl_render_image ปกติ) · false = ใช้ทางปกติ
+    bool pswrapFrameGenRender(const struct pl_frame *direct_frame, bool new_frame, const struct pl_render_params &params,
+                              struct pl_frame &target_frame, const struct pl_rect2df &video_rect, double stream_interval_s,
+                              double refresh_interval_s);
+    double pswrapFrameGenPresentInterval(double stream_interval_s) const;   // ช่วง throttle ระหว่าง present (ครึ่งเฟรมตอนสร้างเฟรมกลาง)
+    void pswrapFrameGenSetActive(bool active);
+    void pswrapDestroyVisual();
+    void pswrapInitVisual();                   // GUI thread ตอน init: settings → atomic
+    class PsWrapFrameGen *pswrap_fg = nullptr;
+    QAtomicInteger<int> pswrap_fg_pending = 0; // 1 = แสดงเฟรมกลางแล้ว รอแสดงเฟรมจริง (hasBufferedWork ดูค่านี้)
+    qint64 pswrap_fg_mid_us = 0;               // เวลาที่แสดงเฟรมกลางล่าสุด
+    bool pswrap_fg_active_render = false;      // ค่าฝั่ง render thread
+    bool pswrap_fg_active_reported = false;    // ค่าฝั่ง GUI thread
+    pl_tex pswrap_ambient_tex_x = nullptr;     // ไล่เงา แนวนอน (แถบซ้าย/ขวา)
+    pl_tex pswrap_ambient_tex_y = nullptr;     // ไล่เงา แนวตั้ง (แถบบน/ล่าง)
+    pl_overlay_part pswrap_ambient_parts[4] = {};
     pl_overlay_part pswrap_rec_dot_part = {};
     pl_overlay_part pswrap_rec_label_part = {};
     void pswrapSetupTrayRecording(class QMenu *menu);

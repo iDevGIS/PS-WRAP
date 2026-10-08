@@ -252,6 +252,7 @@ void QmlMainWindow::pswrapDestroyCapture()
 			pl_tex_destroy(gpu, &pswrap_rec_label_tex);
 	}
 	pswrap_rec_label_height = 0;
+	pswrapDestroyVisual();   // PS-WRAP: ambient / frame gen (qmlmainwindow_pswrapvisual.cpp)
 }
 
 // จุดแดงกระพริบมุมซ้ายบนของวิดีโอ วาดเป็น overlay ของ "จอ" เท่านั้น — target ของไฟล์ใช้ quick_tex อย่างเดียว เลยไม่ติดคลิป
@@ -260,7 +261,9 @@ void QmlMainWindow::pswrapDecorateScreen(pl_frame &target_frame)
 	PsWrapRecorder *rec = PsWrapRecorder::instance();
 	const bool main_rec = rec && rec->isRecording();
 	const bool v_rec = pswrap_vrec && pswrap_vrec->isRecording();   // PS-WRAP: คลิปแนวตั้ง 9:16
-	if (!(main_rec || v_rec) || target_frame.num_overlays > 1)
+	// overlay ชุดเดิมของจอ = quick_tex (+ เงา ambient ที่ pswrapAmbientDecorate ใส่ไว้ก่อนใน pswrap_screen_overlays)
+	const bool own_list = target_frame.overlays == pswrap_screen_overlays;
+	if (!(main_rec || v_rec) || target_frame.num_overlays > (own_list ? 3 : 1))
 		return;
 	pl_gpu gpu = placeboGpu();
 	if (!gpu)
@@ -301,7 +304,7 @@ void QmlMainWindow::pswrapDecorateScreen(pl_frame &target_frame)
 	pswrap_rec_dot_part.color[1] = 0.23f;
 	pswrap_rec_dot_part.color[2] = 0.23f;
 	pswrap_rec_dot_part.color[3] = alpha;
-	if (target_frame.num_overlays == 1)
+	if (!own_list && target_frame.num_overlays == 1)
 		pswrap_screen_overlays[0] = target_frame.overlays[0];
 	int n = target_frame.num_overlays;
 	pl_overlay &dot = pswrap_screen_overlays[n++];

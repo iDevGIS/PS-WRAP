@@ -86,6 +86,27 @@ Settings › Keys: ผูกปุ่ม PlayStation ทุกปุ่มกั
 โหลด zip ล่าสุดที่ [Releases](https://github.com/iDevGIS/PS-WRAP/releases) แตกไฟล์ไว้ที่ไหนก็ได้ แล้วเปิด `PS-WRAP.exe` — ไม่ต้องติดตั้งอะไรเพิ่ม
 ถ้าเคยใช้ chiaki-ng ในเครื่องนี้ PS-WRAP จะคัดลอก settings และเครื่องที่ลงทะเบียนไว้มาให้ตอนเปิดครั้งแรก (ของ chiaki-ng ไม่ถูกแตะ)
 
+## ค่าที่ทดสอบแล้วดีที่สุด
+
+ชุดนี้ให้ภาพคมและลื่นที่สุดในการทดสอบของเรา: PS5 ต่อ Wi-Fi 5 บ้านๆ (802.11ac, ping ราว 1.5 ms), NVIDIA RTX 4090, จอ 165 Hz, เล่น Ghost of Yōtei — ภาพคมกว่าเล่นหน้าเครื่องผ่านทีวีด้วยซ้ำ
+
+| ค่า | อยู่ที่ | ตั้งเป็น | ทำไม |
+|---|---|---|---|
+| Resolution | Settings › Stream › Local | **1080p** | สูงสุดที่ Remote Play ให้ |
+| FPS | Settings › Stream › Local | **60 fps** | 30 fps ไม่ลื่นอย่างเห็นได้ชัด |
+| Bitrate | Settings › Stream › Local | **100 Mbps** (สูงสุด) | Wi-Fi 5 ก็รับไหวในการทดสอบ · ถ้า Stats ขึ้น packet loss ให้ลดลง |
+| Codec | Settings › Stream › Local | **H.265** | ภาพดีกว่า H.264 ที่ bitrate เท่ากัน |
+| Hardware Decoder | Settings › Video | **cuda** บนการ์ด NVIDIA (การ์ดอื่น auto จะเลือกตัวถอดรหัสบน GPU ให้) | ถอดรหัสบนการ์ดจอ |
+| Render Preset | Settings › Video (หรือเมนูสตรีม › QUALITY) | **HQ + Advanced Spatial Upscaling** | ขยายภาพ 1080p ด้วย AI upscaler (FSRCNNX) แทนการยืดธรรมดา — ตัวนี้แหละที่ทำให้คมกว่าหน้าเครื่อง |
+| Frame Delivery | Settings › Video | **Direct Mapping** (ค่าเริ่มต้น) | หน่วงน้อยสุด · Frame Gen ต้องใช้ |
+
+**เล่นผ่านเน็ตนอกบ้าน** (Settings › Stream › Remote): 1080p / 60 fps เหมือนเดิม แต่ตั้ง bitrate ราว **20–30 Mbps** — Remote Play ใช้ความเร็ว upload ของเน็ตบ้าน 100 Mbps จะกระตุกหรือหลุดในเน็ตส่วนใหญ่
+
+**เสริม (เมนูสตรีม Ctrl+O):**
+- **Frame Gen** (QUALITY): 60 → 120 fps บนจอที่เร็วกว่า 60 Hz · ลื่นสุดเมื่อเปิด G-SYNC / FreeSync (VRR) หรือจอ 120 Hz · จอ 144/165 Hz ที่ไม่มี VRR จังหวะเฟรมอาจไม่สม่ำเสมอ ลองเปิด-ปิดเทียบดู · หน่วงเพิ่มราว 8 ms
+- **Glow** (FIT): แถบดำรอบภาพเป็นแสงเบลอจากเกม เหมาะกับจอ ultrawide
+- **Light** (OVERLAY): แสงเรืองรอบภาพตามสีไฟจอย เมื่อเกมสั่งสี
+
 ## แจ้งปัญหา
 
 PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทางการ** เจอบั๊กหรือมีไอเดีย แจ้งที่ [Issues](https://github.com/iDevGIS/PS-WRAP/issues) ของ repo นี้ ไม่ใช่ที่ chiaki-ng · แนบ session log จาก `%APPDATA%\PS-WRAP\PS-WRAP\log` มาด้วยถ้าได้ (log ไม่มี stream key หรือ API key)
@@ -93,7 +114,8 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 ## มีอะไรใหม่จาก chiaki-ng
 
 - **UI ใหม่ทั้งชุด** — หน้าหลักแบบ console card, Settings แบบ sidebar, เมนูสตรีมใหม่, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า (Steam Deck / TV)
-- **Overlay ระหว่างสตรีม** — จอย, network stats, facecam, mic visualizer, นาฬิกา และ **แชทไลฟ์ (YouTube + Twitch)** ย้าย/ย่อขยาย/จำตำแหน่งได้ทุกตัว
+- **Overlay ระหว่างสตรีม** — จอย, network stats, facecam, mic visualizer, นาฬิกา และ **แชทไลฟ์ (YouTube + Twitch)** วางอิสระได้ทุกตัว หรือเปิด **Stack** ให้เรียงเป็นคอลัมน์เดียวกว้างเท่ากัน แล้วย้าย/ย่อขยาย/สลับลำดับทั้งชุดทีเดียว
+- **ภาพ** — **Frame Gen** สร้างเฟรมกลาง 60 → 120 fps บนจอเร็ว (หา motion บน GPU) · **Glow** แถบดำรอบภาพเป็นแสงเบลอจากเกม (เหมาะจอ ultrawide) · **Light** สีไฟจอยที่เกมสั่งเรืองรอบภาพและบนรูปจอย · AI upscale (FSRCNNX) จาก preset QUALITY — ดู [ค่าที่ทดสอบแล้วดีที่สุด](#ค่าที่ทดสอบแล้วดีที่สุด)
 - **Facecam** — กล้องทุกตัวรวมกล้องเสมือน DirectShow, zoom/pan/mirror/วงกลม, ตัดพื้นหลังด้วย chroma key หรือ AI (ไม่ต้องใช้ฉากเขียว), face effects 3D ที่เกาะหน้า (MediaPipe Face Landmarker)
 - **อัดคลิป** พร้อม overlay ทุกตัว (H.264 / HDR HEVC, เสียง 3 แทร็ก), **Instant Replay**, marker เป็น chapter, **ภาพหน้าจอปุ่มเดียว** (HDR ได้ PNG HDR ด้วย) · ความละเอียดตามสตรีม / 1440p / **4K (upscale)**
 - **Go Live** — ไลฟ์ไป YouTube / Twitch / Facebook / Kick / Custom RTMP(S) พร้อมกัน ถึง 4K (YouTube/Custom) และปลายทาง **แนวตั้ง 9:16** สำหรับ TikTok / Shorts / Reels · stream key เก็บใน Windows Credential Manager

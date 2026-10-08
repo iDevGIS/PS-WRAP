@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 
 import org.streetpea.chiaking
 
@@ -13,6 +14,9 @@ Item {
     readonly property real unit: width / 1138          // 1 หน่วย viewBox = กี่ px
     readonly property real maxOffset: 15                // จาก JS ของ tracker (หน่วย viewBox)
     readonly property int buttons: controller ? controller.buttons : 0   // QML ไม่มี type uint; mask สูงสุด 1<<17 พอใน int
+    // PS-WRAP: สีไฟจอยที่เครื่องสั่ง (เกมเปลี่ยนสีได้ เช่น เลือด/ตำรวจ) · ยังไม่มีสี/ไม่ได้สตรีม = ซ่อน
+    readonly property color lightbarColor: Chiaki.session ? Chiaki.session.lightbarColor : "transparent"
+    readonly property bool lightbarOn: lightbarColor.a > 0 && (lightbarColor.r + lightbarColor.g + lightbarColor.b) > 0.3   // PS5 ส่ง 13,13,13 = ไฟดับ
 
     implicitWidth: 320
     implicitHeight: implicitWidth / aspect
@@ -47,6 +51,50 @@ Item {
         sourceSize: Qt.size(width, height)
         fillMode: Image.PreserveAspectFit
         smooth: true
+    }
+
+    // PS-WRAP: แถบไฟ 2 ข้าง touchpad (ตำแหน่งตาม viewBox ของ ds-B17.svg: ขอบ touchpad x 343..795, y 28..287)
+    // ชั้นล่าง = แสงฟุ้งเส้นหนาโปร่ง · ชั้นบน = เส้นไฟ
+    Shape {
+        id: lightbar
+        anchors.fill: parent
+        visible: overlay.lightbarOn
+        preferredRendererType: Shape.CurveRenderer
+        readonly property real u: overlay.unit
+        readonly property color glow: Qt.rgba(overlay.lightbarColor.r, overlay.lightbarColor.g, overlay.lightbarColor.b, 0.35)
+
+        ShapePath {
+            strokeColor: lightbar.glow
+            strokeWidth: 28 * lightbar.u
+            fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            startX: 339 * lightbar.u; startY: 74 * lightbar.u
+            PathLine { x: 362 * lightbar.u; y: 236 * lightbar.u }
+        }
+        ShapePath {
+            strokeColor: lightbar.glow
+            strokeWidth: 28 * lightbar.u
+            fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            startX: 799 * lightbar.u; startY: 74 * lightbar.u
+            PathLine { x: 779 * lightbar.u; y: 230 * lightbar.u }
+        }
+        ShapePath {
+            strokeColor: overlay.lightbarColor
+            strokeWidth: 11 * lightbar.u
+            fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            startX: 339 * lightbar.u; startY: 74 * lightbar.u
+            PathLine { x: 362 * lightbar.u; y: 236 * lightbar.u }
+        }
+        ShapePath {
+            strokeColor: overlay.lightbarColor
+            strokeWidth: 11 * lightbar.u
+            fillColor: "transparent"
+            capStyle: ShapePath.RoundCap
+            startX: 799 * lightbar.u; startY: 74 * lightbar.u
+            PathLine { x: 779 * lightbar.u; y: 230 * lightbar.u }
+        }
     }
 
     // ปุ่มดิจิทัล: โชว์ชิ้นสี pressed ซ้อนทับเมื่อ bit ติด

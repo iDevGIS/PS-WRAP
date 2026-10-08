@@ -4825,6 +4825,8 @@ bool QmlMainWindow::pendingFrameOverflowEnabled() const
 bool QmlMainWindow::hasBufferedWork()
 {
     if (bypass_frame_queue) {
+        if (pswrap_fg_pending.loadAcquire() != 0)   // PS-WRAP: เฟรมจริงที่รอแสดงต่อจากเฟรมกลาง
+            return true;
         QMutexLocker locker(&direct_frame_mutex);
         return direct_pending_frame != nullptr;
     }
@@ -5325,6 +5327,7 @@ renderer_backend_ready:
 
     backend = new QmlBackend(settings, this);
     pswrapInitRecording();   // PS-WRAP: อัดวิดีโอ + spectrum ไมค์ (qmlmainwindow_pswraprec.cpp)
+    pswrapInitVisual();      // PS-WRAP: ambient / frame gen (qmlmainwindow_pswrapvisual.cpp)
     stats_overlay_widget = new StatsOverlayWidget(this, backend);
     connect(backend, &QmlBackend::sessionChanged, this, [this, exit_app_on_stream_exit](StreamSession *s) {
         const bool preserve_startup_warmup = s && startup_warmup_preserve_next_session_change;
@@ -6945,7 +6948,7 @@ void QmlMainWindow::render()
     const bool timer_owned_playback = stream_active && mixer_active;
     const double present_submit_interval_s = timer_owned_playback
         ? present_interval_s
-        : stream_interval_s;
+        : pswrapFrameGenPresentInterval(stream_interval_s);   // PS-WRAP: frame gen = ครึ่งช่วง (เฟรมกลาง + เฟรมจริง)
     const qint64 present_interval_us = static_cast<qint64>(qMax(1.0, vsync_duration * 1000000.0) + 0.5);
     const bool pending_overflow_waiting = hasPendingFrameOverflow();
     const bool pending_frame_waiting = snapshotQueueDepth() >= effectiveQueueDepthLimit() || hasPendingFrame();
@@ -6966,6 +6969,7 @@ void QmlMainWindow::render()
     const qint64 queue_update_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
     int queue_depth_before_update = -1;
     struct pl_frame direct_render_frame = {};
+    bool pswrap_direct_new = false;   // PS-WRAP: frame gen — รอบนี้มีเฟรมใหม่
     const struct pl_frame *direct_frames[] = { &direct_render_frame };
     const float direct_timestamps[] = { 0.0f };
     if (bypass_frame_queue) {
@@ -6979,6 +6983,7 @@ void QmlMainWindow::render()
         if (reset_direct_frame) {
             pl_unmap_avframe(placeboGpu(), &direct_frame);
             direct_frame = {};
+            pswrap_fg_pending.storeRelease(0);   // PS-WRAP
         }
         if (incoming) {
             pl_unmap_avframe(placeboGpu(), &direct_frame);
@@ -6992,6 +6997,8 @@ void QmlMainWindow::render()
                 direct_frame = {};
                 if (backend && backend->zeroCopy())
                     backend->disableZeroCopy();
+            } else {
+                pswrap_direct_new = true;
             }
             av_frame_free(&incoming);
         }
@@ -7677,6 +7684,8 @@ void QmlMainWindow::render()
             break;
         }
     }
+    const pl_rect2df pswrap_video_rect = target_frame.crop;   // PS-WRAP: กรอบภาพเกมบนจอ (ก่อน frame gen ตั้งเต็มจอ)
+    pswrapAmbientParams(params, target_frame);                // PS-WRAP: ขอบว่าง = แสงเบลอจากขอบเกม
     // Disable background transparency by default if the swapchain does not
     // appear to support alpha transaprency
     if (sw_frame.color_repr.alpha == PL_ALPHA_NONE)
@@ -7764,13 +7773,18 @@ void QmlMainWindow::render()
         startup_video_visible_pending.storeRelease(1);
     }
 
+    pswrapAmbientDecorate(target_frame, pswrap_video_rect);   // PS-WRAP: เงาไล่บนแถบ ambient (อยู่ใต้ QML)
     pswrapDecorateScreen(target_frame);   // PS-WRAP: จุด REC บนจอเท่านั้น (ไฟล์อัดใช้ overlay QML อย่างเดียว)
     const qint64 render_call_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
     if (render_entry_us_local > 0 && render_call_begin_us >= render_entry_us_local)
         logLatencyStats("render_prep", render_call_begin_us - render_entry_us_local);
     if (render_call_begin_us >= render_setup_begin_us)
         logRenderSetupStats(render_call_begin_us, render_call_begin_us - render_setup_begin_us);
-    if (!(bypass_frame_queue
+    // PS-WRAP: frame gen (direct mode) วาดเองแล้ว → ข้ามทางปกติ · ไม่ได้ (ปิด/ไม่รองรับ/พัง) → ทางปกติ
+    const bool pswrap_fg_drawn = bypass_frame_queue &&
+        pswrapFrameGenRender(&direct_render_frame, pswrap_direct_new, params, target_frame, pswrap_video_rect,
+                             stream_interval_s, refresh_interval_s);
+    if (!pswrap_fg_drawn && !(bypass_frame_queue
         ? pl_render_image(placebo_renderer, &direct_render_frame, &target_frame, &params)
         : pl_render_image_mix(placebo_renderer, &frame_mix, &target_frame, &params)))
     {
