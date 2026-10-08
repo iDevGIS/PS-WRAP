@@ -7,27 +7,79 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 
 ▶️ **Demo stream:** [youtube.com/live/8sWkgmj81Aw](https://www.youtube.com/live/8sWkgmj81Aw).
 
-**Playing with the vertical 9:16 window open:** overlays on the game screen, and next to it the vertical picture for Shorts / TikTok / Reels with a meme image on top and the facecam (with the samurai face effect) below, in the Blur fill layout.
+![Playing with the vertical 9:16 window open](screenshots/stream-916.jpg)
 
-![Stream with the 9:16 window](screenshots/stream-916.jpg)
+*Playing with the 9:16 window open: overlays on the game screen, and next to it the vertical picture for Shorts / TikTok / Reels with an image on top and the facecam below (Blur fill layout).*
+
+## Screenshots
+
+### Home screen
 
 ![Home screen](screenshots/main.png)
 
-**While streaming:** live chat, clock and play time, mic visualizer, network stats and controller overlays. You can drag and resize each one; click an overlay to edit it.
+- One card per console: PS5 / PS4 art by model, a status chip (Ready / Standby / Remote) and a big **Play** button.
+- The bottom bar has controller hints on the left and status chips on the right: microphone, camera, controller, **Recordings**, **Screenshots**, Discovery and **ⓘ About**. Click a chip to open its page.
+- Everything works with a controller: ✕ Play, △ wake up, □ hide, L1 PIN, R3 add console, ☰ Settings.
+
+| ⓘ About and credits | Controller status | Microphone test |
+|---|---|---|
+| ![About](screenshots/about.png) | ![Controllers](screenshots/controllers.png) | ![Microphone test](screenshots/mic-test.png) |
+| Version, credits for chiaki-ng and Chiaki, every bundled library with its license, and a **Licenses** button. | Connected controllers, connection type and battery, plus a live preview that lights up as you press buttons. | Pick the microphone and set noise reduction, speaker echo removal, mic boost and noise gate while you hear the result. |
+
+### While streaming
 
 ![Stream with overlays](screenshots/stream-overlay.jpg)
 
-**Stream menu** (Ctrl+O, L1+R1+L3+R3, or the tray): End Stream, recording, microphone, volume, picture size and quality, overlays, Instant Replay, screenshots, Go Live and 9:16.
+The game with every overlay turned on. Each one can be dragged and resized (click it to edit, or use **Move …** in the stream menu with a controller):
+
+- **Live chat** (left): YouTube and Twitch messages, with colored names and badges.
+- **Clock and play time** (top right).
+- **Mic visualizer**: shows that you are muted or speaking; click it to mute.
+- **Network stats**: bitrate, ping at connect, packet loss and dropped/lost frames.
+- **Controller overlay** (bottom right): buttons light up and sticks move as you play.
 
 ![Stream menu](screenshots/stream-menu.jpg)
 
-| Vertical 9:16 for Shorts / TikTok / Reels | Settings › Go Live and chat on screen |
+The stream menu (Ctrl+O, L1+R1+L3+R3, or the tray), in rows:
+
+1. **End Stream**, **Record**, microphone on/off and device, volume, and live stream stats.
+2. **FIT** (Zoom / Stretch / **Size ▾** for exact 16:9 window sizes), **QUALITY** (Default → HQ + Spatial upscaling) and Display settings.
+3. **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats, and a **Move** button for each overlay.
+4. **CAPTURE**: Instant Replay (on/off, length, Save), Screenshot, **Live** and **9:16**.
+5. The keyboard shortcut list.
+
+![Picture size](screenshots/picture-size.jpg)
+
+**Size ▾** sets the window so the video area is exactly 720p, 900p, 1080p or 1440p (16:9, no black bars, real pixels even at 150 % display scaling). The **STREAM** tag marks the size that matches the stream resolution, and sizes larger than your screen are hidden.
+
+### Vertical 9:16 and Go Live
+
+| Vertical 9:16 window | Settings › Go Live and chat on screen |
 |---|---|
 | ![9:16 window](screenshots/vertical-916.png) | ![Go Live settings](screenshots/go-live.png) |
+| A live vertical picture for Shorts / TikTok / Reels, here in Blur fill with a banner image, an animated "LIVE" GIF and the chat card. Choose Cam + game, Center crop or Blur fill; drag the facecam, the crop, your images and the chat card; add PNG/JPG/GIF images from a file or a link (Giphy); and record 1080 × 1920 clips. | Add YouTube, Twitch, Facebook, Kick or custom RTMP(S) destinations with their own bitrate, mark any of them Vertical 9:16, and set up the on-screen chat (YouTube source, API key, Twitch channel). Keys stay in Windows Credential Manager. |
 
-| System tray menu | Disconnect (does not sleep the console by default) | Settings › Keys |
-|---|---|---|
-| ![Tray menu](screenshots/tray-menu.png) | ![Disconnect dialog](screenshots/disconnect.png) | ![Keys page](screenshots/settings-keys.png) |
+![Recording a vertical clip](screenshots/recording-916.jpg)
+
+Recording a 9:16 clip while playing: the button turns into **■ Stop** with the elapsed time, and a blinking REC dot labelled **9:16** appears at the top left of the game screen (on screen only, not in the file).
+
+### Settings
+
+| Video | Stream |
+|---|---|
+| ![Settings › Video](screenshots/settings-video.png) | ![Settings › Stream](screenshots/settings-stream.png) |
+| Decoder, window type, render preset (up to HQ + Spatial upscaling), frame delivery and more. | Resolution, frame rate, bitrate and codec, separately for PS5 / PS4 and for home (local) and remote play. |
+
+![Settings › Keys](screenshots/settings-keys.png)
+
+Settings › Keys: every PlayStation button mapped to a keyboard key, grouped into cards (face buttons, D-pad, shoulders and triggers, system, sticks), all reachable with a controller. The sidebar groups the pages into Basics, Advanced, Games (game presets) and Broadcast (Go Live).
+
+### System tray and disconnect
+
+| System tray menu | Disconnect |
+|---|---|
+| ![Tray menu](screenshots/tray-menu.png) | ![Disconnect dialog](screenshots/disconnect.png) |
+| Open the stream menu or Settings, set the picture size, open the 9:16 window, record, toggle overlays, choose the facecam effect and background, switch the microphone, record presets, Instant Replay, screenshots, Go Live and always on top, all without touching the game window. | Ending a stream asks whether to keep the console on. **Disconnect** is the default, so a stray button press can't put your PS5 to sleep. |
 
 ## Download
 

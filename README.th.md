@@ -7,27 +7,79 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 ▶️ **Demo stream:** [youtube.com/live/8sWkgmj81Aw](https://www.youtube.com/live/8sWkgmj81Aw)
 
-**เล่นพร้อมเปิดหน้าต่าง 9:16** — overlay บนจอเกม และข้างๆ เป็นภาพแนวตั้งสำหรับ Shorts / TikTok / Reels มีรูปมีมด้านบน + facecam (เอฟเฟกต์หน้ากากซามูไร) ด้านล่าง เลย์เอาต์ Blur fill
+![เล่นพร้อมเปิดหน้าต่าง 9:16](screenshots/stream-916.jpg)
 
-![สตรีมพร้อมหน้าต่าง 9:16](screenshots/stream-916.jpg)
+*เล่นพร้อมเปิดหน้าต่าง 9:16 — overlay บนจอเกม และข้างๆ เป็นภาพแนวตั้งสำหรับ Shorts / TikTok / Reels มีรูปด้านบน + facecam ด้านล่าง (เลย์เอาต์ Blur fill)*
+
+## ภาพหน้าจอ
+
+### หน้าแรก
 
 ![หน้าหลัก](screenshots/main.png)
 
-**ระหว่างสตรีม** — แชทไลฟ์, นาฬิกา/เวลาเล่น, mic visualizer, network stats และ overlay จอย ลากย้าย/ย่อขยายได้ทุกตัว (คลิกที่ overlay เพื่อแก้)
+- การ์ดเครื่องละใบ: รูป PS5 / PS4 ตามรุ่น, ชิปสถานะ (Ready / Standby / Remote) และปุ่ม **Play** ใหญ่
+- แถบล่าง: ซ้ายเป็นคำใบ้ปุ่มจอย ขวาเป็นชิปสถานะ — ไมค์, กล้อง, จอย, **Recordings**, **Screenshots**, Discovery และ **ⓘ About** คลิกชิปเพื่อเปิดหน้านั้น
+- ใช้จอยได้ทั้งหน้า: ✕ Play, △ ปลุกเครื่อง, □ ซ่อน, L1 ใส่ PIN, R3 เพิ่มเครื่อง, ☰ Settings
+
+| ⓘ About และเครดิต | สถานะจอย | ทดสอบไมค์ |
+|---|---|---|
+| ![About](screenshots/about.png) | ![Controllers](screenshots/controllers.png) | ![ทดสอบไมค์](screenshots/mic-test.png) |
+| เวอร์ชัน, เครดิต chiaki-ng และ Chiaki, library ทุกตัวพร้อม license และปุ่ม **Licenses** | จอยที่ต่ออยู่ ชนิดการต่อ/แบต และภาพจอยที่สว่างตามปุ่มที่กดจริง | เลือกไมค์ ปรับลดเสียงรบกวน ตัดเสียงลำโพง mic boost และ noise gate พร้อมดูผลสด |
+
+### ระหว่างสตรีม
 
 ![สตรีมพร้อม overlay](screenshots/stream-overlay.jpg)
 
-**เมนูระหว่างสตรีม** — Ctrl+O, L1+R1+L3+R3 หรือจาก tray · End Stream, อัดคลิป, ไมค์, เสียง, ขนาด/คุณภาพภาพ, overlay, Instant Replay, ภาพหน้าจอ, Go Live, 9:16
+เกมพร้อม overlay ครบทุกตัว ลากย้าย/ย่อขยายได้ทุกตัว (คลิกที่ overlay เพื่อแก้ หรือใช้ปุ่ม **Move …** ในเมนูสตรีมด้วยจอย)
+
+- **แชทไลฟ์** (ซ้าย): ข้อความ YouTube และ Twitch พร้อมสีชื่อและป้าย
+- **นาฬิกา + เวลาเล่น** (ขวาบน)
+- **mic visualizer**: บอกว่าปิดไมค์อยู่หรือกำลังพูด คลิกเพื่อ mute
+- **network stats**: bitrate, ping ตอนเชื่อมต่อ, packet loss, เฟรมที่ทิ้ง/หาย
+- **overlay จอย** (ขวาล่าง): ปุ่มสว่างและสติ๊กขยับตามที่เล่น
 
 ![เมนูสตรีม](screenshots/stream-menu.jpg)
 
-| แนวตั้ง 9:16 สำหรับ Shorts / TikTok / Reels | Settings › Go Live + แชทบนจอ |
+เมนูสตรีม (Ctrl+O, L1+R1+L3+R3 หรือจาก tray) เรียงเป็นแถว:
+
+1. **End Stream**, **Record**, เปิด/ปิดไมค์ + เลือกไมค์, เสียง และสถิติสตรีมสด
+2. **FIT** (Zoom / Stretch / **Size ▾** ขนาดหน้าต่าง 16:9 พอดี), **QUALITY** (Default → HQ + Spatial upscale) และ Display
+3. **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats และปุ่ม **Move** ของแต่ละตัว
+4. **CAPTURE**: Instant Replay (เปิด/ปิด, ความยาว, Save), Screenshot, **Live** และ **9:16**
+5. รายการคีย์ลัด
+
+![ขนาดภาพ](screenshots/picture-size.jpg)
+
+**Size ▾** ตั้งหน้าต่างให้พื้นที่ภาพเป็น 720p, 900p, 1080p หรือ 1440p พอดี (16:9 ไม่มีขอบดำ pixel จริงแม้จอ scale 150%) ป้าย **STREAM** บอกขนาดที่ตรงกับความละเอียดสตรีม และซ่อนขนาดที่ใหญ่กว่าจอ
+
+### แนวตั้ง 9:16 และ Go Live
+
+| หน้าต่าง 9:16 | Settings › Go Live + แชทบนจอ |
 |---|---|
 | ![หน้าต่าง 9:16](screenshots/vertical-916.png) | ![ตั้งค่า Go Live](screenshots/go-live.png) |
+| ภาพแนวตั้งสดสำหรับ Shorts / TikTok / Reels (ในภาพเป็น Blur fill + แบนเนอร์, GIF "LIVE" และการ์ดแชท) เลือก Cam + game, Center crop หรือ Blur fill · ลาก facecam, ตำแหน่งตัด, รูปและการ์ดแชทได้ · ใส่รูป PNG/JPG/GIF จากไฟล์หรือลิงก์ (Giphy) · อัดคลิป 1080 × 1920 | เพิ่มปลายทาง YouTube, Twitch, Facebook, Kick หรือ Custom RTMP(S) ตั้ง bitrate แยกกัน ติ๊ก Vertical 9:16 ได้ทีละปลายทาง และตั้งแชทบนจอ (แหล่ง YouTube, API key, ช่อง Twitch) · key เก็บใน Windows Credential Manager |
 
-| เมนู system tray | Disconnect (ค่าเริ่มต้นไม่สั่งเครื่องหลับ) | Settings › Keys |
-|---|---|---|
-| ![Tray menu](screenshots/tray-menu.png) | ![Disconnect dialog](screenshots/disconnect.png) | ![หน้า Keys](screenshots/settings-keys.png) |
+![อัดคลิปแนวตั้ง](screenshots/recording-916.jpg)
+
+อัดคลิป 9:16 ระหว่างเล่น: ปุ่มเปลี่ยนเป็น **■ Stop** พร้อมเวลา และมีจุด REC กระพริบป้าย **9:16** ที่มุมซ้ายบนของจอเกม (บนจอเท่านั้น ไม่ติดในไฟล์)
+
+### Settings
+
+| Video | Stream |
+|---|---|
+| ![Settings › Video](screenshots/settings-video.png) | ![Settings › Stream](screenshots/settings-stream.png) |
+| ตัวถอดรหัส, ชนิดหน้าต่าง, render preset (ถึง HQ + Spatial upscale), frame delivery ฯลฯ | ความละเอียด, fps, bitrate และ codec แยก PS5 / PS4 และเล่นในบ้าน (local) / นอกบ้าน (remote) |
+
+![Settings › Keys](screenshots/settings-keys.png)
+
+Settings › Keys: ผูกปุ่ม PlayStation ทุกปุ่มกับคีย์บอร์ด จัดเป็นการ์ดตามหมวด (ปุ่มหน้า, D-pad, ไหล่/ไก, ระบบ, สติ๊ก) ใช้จอยเลื่อนได้ทั้งหน้า · sidebar จัดหน้าเป็น Basics, Advanced, Games (game presets) และ Broadcast (Go Live)
+
+### เมนู tray และ Disconnect
+
+| เมนู system tray | Disconnect |
+|---|---|
+| ![Tray menu](screenshots/tray-menu.png) | ![Disconnect dialog](screenshots/disconnect.png) |
+| เปิดเมนูสตรีมหรือ Settings, ตั้งขนาดภาพ, เปิดหน้าต่าง 9:16, อัดคลิป, เปิด/ปิด overlay, เลือกเอฟเฟกต์/พื้นหลัง facecam, เปลี่ยนไมค์, record preset, Instant Replay, ภาพหน้าจอ, Go Live และ always on top ได้โดยไม่ต้องแตะหน้าต่างเกม | ตอนจบสตรีมจะถามว่าจะให้เครื่องเปิดอยู่ไหม ปุ่มเริ่มต้นคือ **Disconnect** กดจอยพลาดก็ไม่ทำให้ PS5 หลับ |
 
 ## ดาวน์โหลด
 
