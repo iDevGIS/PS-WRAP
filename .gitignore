@@ -42,3 +42,7 @@ logs/
 *.log
 .DS_Store
 Thumbs.db
+
+# upstream contribution worktree / patches (local only)
+/upstream-pr/
+/upstream-patches/

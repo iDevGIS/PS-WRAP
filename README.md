@@ -86,6 +86,10 @@ Settings › Keys: every PlayStation button mapped to a keyboard key, grouped in
 Get the latest zip from [Releases](https://github.com/iDevGIS/PS-WRAP/releases), unzip it anywhere and run `PS-WRAP.exe`. You don't need to install anything.
 If you used chiaki-ng on the same PC, PS-WRAP copies its settings and registered consoles on first launch (chiaki-ng's data is left untouched).
 
+## Reporting problems
+
+PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please report PS-WRAP bugs and ideas in this repository's [Issues](https://github.com/iDevGIS/PS-WRAP/issues), not to chiaki-ng. Attach the session log from `%APPDATA%\PS-WRAP\PS-WRAP\log` if you can. Stream keys and API keys are never written to it.
+
 ## What's new compared to chiaki-ng
 
 - **A new interface throughout**:

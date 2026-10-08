@@ -86,6 +86,10 @@ Settings › Keys: ผูกปุ่ม PlayStation ทุกปุ่มกั
 โหลด zip ล่าสุดที่ [Releases](https://github.com/iDevGIS/PS-WRAP/releases) แตกไฟล์ไว้ที่ไหนก็ได้ แล้วเปิด `PS-WRAP.exe` — ไม่ต้องติดตั้งอะไรเพิ่ม
 ถ้าเคยใช้ chiaki-ng ในเครื่องนี้ PS-WRAP จะคัดลอก settings และเครื่องที่ลงทะเบียนไว้มาให้ตอนเปิดครั้งแรก (ของ chiaki-ng ไม่ถูกแตะ)
 
+## แจ้งปัญหา
+
+PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทางการ** เจอบั๊กหรือมีไอเดีย แจ้งที่ [Issues](https://github.com/iDevGIS/PS-WRAP/issues) ของ repo นี้ ไม่ใช่ที่ chiaki-ng · แนบ session log จาก `%APPDATA%\PS-WRAP\PS-WRAP\log` มาด้วยถ้าได้ (log ไม่มี stream key หรือ API key)
+
 ## มีอะไรใหม่จาก chiaki-ng
 
 - **UI ใหม่ทั้งชุด** — หน้าหลักแบบ console card, Settings แบบ sidebar, เมนูสตรีมใหม่, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า (Steam Deck / TV)
