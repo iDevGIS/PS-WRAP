@@ -137,11 +137,24 @@ Dialog {
                 font.pixelSize: Theme.fontCaption
                 color: Theme.textMuted
             }
+            // PS-WRAP: Discord ของเรา (ถาม/แจ้งปัญหา/ข่าว/beta)
+            C.Button {
+                id: discordButton
+                text: qsTr("Join Discord")
+                onClicked: Qt.openUrlExternally("https://discord.gg/6VTSxu8JRf")
+                KeyNavigation.right: updatesButton
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+                Keys.onUpPressed: about.scrollBy(-80)
+                Keys.onDownPressed: about.scrollBy(80)
+                Material.roundedScale: Material.SmallScale
+            }
             // PS-WRAP: เช็คเวอร์ชันใหม่ (UpdateDialog ใน Main.qml)
             C.Button {
                 id: updatesButton
                 text: Chiaki.updater.updateAvailable ? qsTr("Update to %1").arg(Chiaki.updater.latestVersion) : qsTr("Check for updates")
                 onClicked: { about.close(); root.showUpdateDialog(null); }
+                KeyNavigation.left: discordButton
                 KeyNavigation.right: about.hasNotices ? noticesButton : closeButton
                 Keys.onReturnPressed: clicked()
                 Keys.onEnterPressed: clicked()

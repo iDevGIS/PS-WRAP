@@ -5,6 +5,8 @@
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) · เวอร์ชันของ PS-WRAP เอง (0.x = pre-release) · ฐาน upstream: chiaki-ng `a9a2805`
 
 ## [Unreleased]
+### Added
+- 2026-10-10 ปุ่ม **Join Discord** ในหน้า About และ **Ask on Discord** ใน PS-WRAP-Diagnostics เปิด Discord ของ PS-WRAP (ห้องถามปัญหา ข่าว build ทดสอบ): <https://discord.gg/6VTSxu8JRf>
 ### Changed
 - **ออกแบบหน้า Settings ใหม่**: จัดกลุ่มใหม่ให้ตัวเลือกที่เกี่ยวกันอยู่ด้วยกัน ทุกหน้าแบ่งเป็นการ์ดมีหัวข้อ ไอคอน และคำอธิบายสั้น · sidebar มีไอคอนทุกหน้า จัดเป็น **Play** (General, Stream, Video, Audio, Game presets), **Controls** (Controllers, Keyboard), **Connection** (Consoles, Remote Play), **Create** (Facecam, Recording, Go Live) และ **App** (System) · ของที่เคยปนอยู่ใน General ย้ายไปที่ที่ควรอยู่: facecam มีหน้าของตัวเอง, โฟลเดอร์และความละเอียดคลิปอยู่ใน Recording, ตัวเลือก Steam Deck และคอมโบปุ่มเปิดเมนูสตรีมอยู่ใน Controllers, การแจ้งเตือน Wi-Fi/packet loss อยู่ใน Stream, โฟลเดอร์ log อยู่ใน System · ค่าทุกตัวยังอยู่ครบ ค่าเดิมไม่เปลี่ยน และใช้จอยได้ทุกหน้าเหมือนเดิม (L1/R1 เปลี่ยนหน้า)
 ### Fixed

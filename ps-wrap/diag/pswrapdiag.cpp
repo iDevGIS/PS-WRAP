@@ -51,6 +51,7 @@ using std::vector;
 using std::wstring;
 
 static const wchar_t *kIssuesUrl = L"https://github.com/iDevGIS/PS-WRAP/issues/new";
+static const wchar_t *kDiscordUrl = L"https://discord.gg/6VTSxu8JRf";
 static const wchar_t *kSettingsBase = L"Software\\PS-WRAP\\PS-WRAP";
 static const DWORD kVulkanTimeoutMs = 20000;
 static const int kHungSecondsBeforeCapture = 10;   // IsHungAppWindow ตอบ true หลังไม่ตอบ 5 วิ → รวม ~15 วิ
@@ -633,9 +634,10 @@ enum
 	IDC_EDIT,
 	IDC_STATUS,
 	IDC_INTRO,
+	IDC_DISCORD,
 };
 
-static HWND g_hwnd, g_edit, g_status, g_intro, g_btn_check, g_btn_test, g_btn_safe, g_chk_verbose, g_btn_save, g_btn_copy, g_btn_github, g_btn_renderer;
+static HWND g_hwnd, g_edit, g_status, g_intro, g_btn_check, g_btn_test, g_btn_safe, g_chk_verbose, g_btn_save, g_btn_copy, g_btn_github, g_btn_renderer, g_btn_discord;
 static HFONT g_font, g_font_mono;
 static UINT g_dpi = 96;
 static std::atomic<bool> g_busy_check{ false };
@@ -2569,7 +2571,7 @@ static void MakeFonts()
 		DeleteObject(g_font_mono);
 	g_font = CreateFontW(-Px(14), 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, 0, L"Segoe UI");
 	g_font_mono = CreateFontW(-Px(13), 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET, 0, 0, CLEARTYPE_QUALITY, FIXED_PITCH, L"Consolas");
-	for(HWND h : { g_intro, g_btn_check, g_btn_test, g_btn_safe, g_chk_verbose, g_btn_save, g_btn_copy, g_btn_github, g_btn_renderer, g_status })
+	for(HWND h : { g_intro, g_btn_check, g_btn_test, g_btn_safe, g_chk_verbose, g_btn_save, g_btn_copy, g_btn_github, g_btn_discord, g_btn_renderer, g_status })
 		if(h)
 			SendMessageW(h, WM_SETFONT, (WPARAM)g_font, TRUE);
 	if(g_edit)
@@ -2585,13 +2587,14 @@ static void Layout()
 	MoveWindow(g_intro, m, m, cw, intro_h, TRUE);
 	int y = m + intro_h + gap;
 	HWND row1[] = { g_btn_check, g_btn_test, g_btn_safe, g_chk_verbose };
-	HWND row2[] = { g_btn_save, g_btn_copy, g_btn_github, g_btn_renderer };
+	HWND row2[] = { g_btn_save, g_btn_copy, g_btn_github, g_btn_discord, g_btn_renderer };
 	int bw = (cw - 3 * gap) / 4;
 	for(int i = 0; i < 4; i++)
 		MoveWindow(row1[i], m + i * (bw + gap), y, bw, bh, TRUE);
 	y += bh + gap;
-	for(int i = 0; i < 4; i++)
-		MoveWindow(row2[i], m + i * (bw + gap), y, bw, bh, TRUE);
+	int bw2 = (cw - 4 * gap) / 5;
+	for(int i = 0; i < 5; i++)
+		MoveWindow(row2[i], m + i * (bw2 + gap), y, bw2, bh, TRUE);
 	y += bh + gap;
 	int status_h = Px(22);
 	MoveWindow(g_edit, m, y, cw, rc.bottom - y - m - status_h - gap / 2, TRUE);
@@ -2776,6 +2779,10 @@ static void OnCommand(int id)
 		case IDC_RENDERER:
 			ToggleRenderer();
 			break;
+		case IDC_DISCORD:
+			ShellExecuteW(g_hwnd, L"open", kDiscordUrl, nullptr, nullptr, SW_SHOWNORMAL);
+			UiStatus(L"Opened the PS-WRAP Discord. Ask in #help and paste \"Copy summary\" there.");
+			break;
 	}
 }
 
@@ -2817,6 +2824,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp)
 			g_btn_save = MakeButton(h, L"Save report (.zip)", IDC_SAVE);
 			g_btn_copy = MakeButton(h, L"Copy summary", IDC_COPY);
 			g_btn_github = MakeButton(h, L"Report on GitHub", IDC_GITHUB);
+			g_btn_discord = MakeButton(h, L"Ask on Discord", IDC_DISCORD);
 			g_btn_renderer = MakeButton(h, L"Use OpenGL (fix freeze)", IDC_RENDERER);
 			g_edit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_TABSTOP | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL, 0, 0, 10, 10, h,
 				(HMENU)IDC_EDIT, inst, nullptr);

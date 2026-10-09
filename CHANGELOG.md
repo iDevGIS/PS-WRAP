@@ -5,6 +5,8 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
 ## [Unreleased]
+### Added
+- **Join Discord** in About and **Ask on Discord** in PS-WRAP-Diagnostics open the PS-WRAP Discord server (help forum, news, beta builds): <https://discord.gg/6VTSxu8JRf>.
 ### Changed
 - **Redesigned Settings**: the sections are regrouped so related options sit together, and every page is split into titled cards with an icon and a short explanation. The sidebar has an icon for each page, grouped into **Play** (General, Stream, Video, Audio, Game presets), **Controls** (Controllers, Keyboard), **Connection** (Consoles, Remote Play), **Create** (Facecam, Recording, Go Live) and **App** (System). Things that were mixed into General moved to where you would look for them: facecam has its own page, the recording folder and output resolution are under Recording, the Steam Deck options and the stream menu button combo are under Controllers, the Wi-Fi and packet loss warnings are under Stream, and the log folder is under System. Every setting is still there with the same value and still works with a controller (L1/R1 switch page).
 ### Fixed
