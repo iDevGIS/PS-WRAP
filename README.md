@@ -7,6 +7,8 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 
 ▶️ **Demo stream:** [youtube.com/live/8sWkgmj81Aw](https://www.youtube.com/live/8sWkgmj81Aw).
 
+💬 **Discord:** [discord.gg/6VTSxu8JRf](https://discord.gg/6VTSxu8JRf) for help, news and beta builds.
+
 ![Playing with the vertical 9:16 window open](screenshots/stream-916.jpg)
 
 *Playing with the 9:16 window open: overlays on the game screen, and next to it the vertical picture for Shorts / TikTok / Reels with an image on top and the facecam below (Blur fill layout).*
@@ -126,7 +128,7 @@ These settings gave the sharpest and smoothest picture in our tests: PS5 on ordi
 
 ## Reporting problems
 
-PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please report PS-WRAP bugs and ideas in this repository's [Issues](https://github.com/iDevGIS/PS-WRAP/issues), not to chiaki-ng.
+PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please report PS-WRAP bugs and ideas in this repository's [Issues](https://github.com/iDevGIS/PS-WRAP/issues) or in the **#help** forum on our [Discord](https://discord.gg/6VTSxu8JRf), not to chiaki-ng.
 
 **Easiest way: run `PS-WRAP-Diagnostics.exe`** (in the PS-WRAP folder, next to `PS-WRAP.exe`). It works even when PS-WRAP itself won't open:
 

@@ -7,6 +7,8 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 ▶️ **Demo stream:** [youtube.com/live/8sWkgmj81Aw](https://www.youtube.com/live/8sWkgmj81Aw)
 
+💬 **Discord:** [discord.gg/6VTSxu8JRf](https://discord.gg/6VTSxu8JRf) ถามปัญหา ข่าว และ build ทดสอบ
+
 ![เล่นพร้อมเปิดหน้าต่าง 9:16](screenshots/stream-916.jpg)
 
 *เล่นพร้อมเปิดหน้าต่าง 9:16 — overlay บนจอเกม และข้างๆ เป็นภาพแนวตั้งสำหรับ Shorts / TikTok / Reels มีรูปด้านบน + facecam ด้านล่าง (เลย์เอาต์ Blur fill)*
@@ -126,7 +128,7 @@ Settings › Keys: ผูกปุ่ม PlayStation ทุกปุ่มกั
 
 ## แจ้งปัญหา
 
-PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทางการ** เจอบั๊กหรือมีไอเดีย แจ้งที่ [Issues](https://github.com/iDevGIS/PS-WRAP/issues) ของ repo นี้ ไม่ใช่ที่ chiaki-ng
+PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทางการ** เจอบั๊กหรือมีไอเดีย แจ้งที่ [Issues](https://github.com/iDevGIS/PS-WRAP/issues) ของ repo นี้ หรือห้อง **#help** ใน [Discord](https://discord.gg/6VTSxu8JRf) ของเรา ไม่ใช่ที่ chiaki-ng
 
 **วิธีที่ง่ายที่สุด: เปิด `PS-WRAP-Diagnostics.exe`** (อยู่ในโฟลเดอร์ PS-WRAP ข้าง `PS-WRAP.exe`) ใช้ได้แม้ PS-WRAP เปิดไม่ขึ้น
 1. ตรวจเครื่องให้เอง: ไฟล์ของ PS-WRAP, Windows, ไดรเวอร์การ์ดจอ, Vulkan ใช้ได้หรือค้าง, แอป overlay ที่เกาะเกม, crash/ค้างล่าสุด (Windows Error Reporting + Event Log), log ของ PS-WRAP
