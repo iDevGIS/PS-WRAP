@@ -89,9 +89,9 @@ Recording a 9:16 clip while playing: the button turns into **■ Stop** with the
 | ![Settings › Video](screenshots/settings-video.png) | ![Settings › Stream](screenshots/settings-stream.png) |
 | Decoder, window type, render preset (up to HQ + Spatial upscaling), frame delivery and more. | Resolution, frame rate, bitrate and codec, separately for PS5 / PS4 and for home (local) and remote play. |
 
-![Settings › Keys](screenshots/settings-keys.png)
+![Settings › Keyboard](screenshots/settings-keys.png)
 
-Settings › Keys: every PlayStation button mapped to a keyboard key, grouped into cards (face buttons, D-pad, shoulders and triggers, system, sticks), all reachable with a controller. The sidebar groups the pages into Basics, Advanced, Games (game presets) and Broadcast (Go Live).
+Settings › Keyboard: every PlayStation button mapped to a keyboard key, grouped into cards (face buttons, D-pad, shoulders and triggers, system, sticks), all reachable with a controller. The sidebar groups the pages, each with an icon, into Play (General, Stream, Video, Audio, Game presets), Controls (Controllers, Keyboard), Connection (Consoles, Remote Play), Create (Facecam, Recording, Go Live) and App (System); every page is split into titled cards.
 
 ### System tray and disconnect
 
@@ -222,7 +222,7 @@ AI facecam features need `onnxruntime.dll` (ONNX Runtime 1.30 win-x64) next to `
 
 ## Credits
 
-PS-WRAP would not exist without these projects. The same credits are shown in the app under the ⓘ **About** chip on the home screen (also in Settings › Config).
+PS-WRAP would not exist without these projects. The same credits are shown in the app under the ⓘ **About** chip on the home screen (also in Settings › System).
 
 - **[chiaki-ng](https://github.com/streetpea/chiaki-ng)** by Street Pea and contributors. PS-WRAP forked from commit `a9a2805` (1.10.0 development); the whole Remote Play streaming core is theirs.
 - **[Chiaki](https://git.sr.ht/~thestr4ng3r/chiaki)** by Florian Märkl and contributors, the original that chiaki-ng is based on.

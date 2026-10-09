@@ -2226,29 +2226,26 @@ Item {
             sessionPinDialogActive = false;
             view.updateOverlayInteractionActive();
             // PS-WRAP: หลัง PIN dialog ปิด focus ค้าง (ไม่มี item ให้คืน) → คีย์ลัด/เมนูไม่ตอบ จนกว่าจะเริ่ม session ใหม่ → คืน focus ให้ view
-            pinField.text = "";
+            pinField.clear();
             Qt.callLater(function() { view.forceActiveFocus(Qt.TabFocusReason); });
         }
         onAccepted: Chiaki.enterPin(pinField.text)
         onRejected: Chiaki.stopSession(false)
         Material.roundedScale: Material.MediumScale
 
-        TextField {
+        // PS-WRAP: ใส่ PIN ด้วยจอยได้ (↑↓ เปลี่ยนเลข ←→ เลื่อนหลัก ✕ ตกลง ○ ยกเลิก) — เดิม TextField พิมพ์ได้แค่คีย์บอร์ด
+        C.PinPad {
             id: pinField
-            echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-            implicitWidth: 200
-            validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
-            Keys.onReturnPressed: {
-                if(sessionPinDialog.standardButton(Dialog.Ok).enabled)
-                    sessionPinDialog.standardButton(Dialog.Ok).clicked()
-            }
+            hidden: Chiaki.settings.streamerMode
+            onAccepted: sessionPinDialog.accept()
+            onCanceled: sessionPinDialog.reject()
         }
     }
 
     Window {
         id: separateSessionPinWindow
-        readonly property int dialogWidth: 360
-        readonly property int dialogHeight: 220
+        readonly property int dialogWidth: 420
+        readonly property int dialogHeight: 520
         visible: false
         flags: Qt.Dialog | Qt.FramelessWindowHint
         color: "transparent"
@@ -2261,7 +2258,7 @@ Item {
 
         onVisibleChanged: {
             if (visible) {
-                separatePinField.text = "";
+                separatePinField.clear();
                 view.updateSeparateDialogGeometry(width, height);
                 requestActivate();
                 view.grabInput(separatePinField);
@@ -2292,14 +2289,13 @@ Item {
                 font.pixelSize: 24
             }
 
-            TextField {
+            C.PinPad {
                 id: separatePinField
-                Layout.topMargin: 20
+                Layout.topMargin: 12
                 Layout.fillWidth: true
-                echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-                validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
-                Keys.onReturnPressed: if (acceptableInput) separatePinOkButton.clicked()
-                Keys.onEscapePressed: separateSessionPinWindow.visible = false
+                hidden: Chiaki.settings.streamerMode
+                onAccepted: separatePinOkButton.clicked()
+                onCanceled: { separateSessionPinWindow.visible = false; Chiaki.stopSession(false); }
             }
 
             RowLayout {

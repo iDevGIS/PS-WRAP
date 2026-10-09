@@ -48,6 +48,22 @@
     <file>menu/volume-off.svg</file>
     <file>menu/zoom.svg</file>
     <file>menu/settings.svg</file>
+    <file>settings/general.svg</file>
+    <file>settings/games.svg</file>
+    <file>settings/keyboard.svg</file>
+    <file>settings/consoles.svg</file>
+    <file>settings/remote.svg</file>
+    <file>settings/window.svg</file>
+    <file>settings/privacy.svg</file>
+    <file>settings/network.svg</file>
+    <file>settings/vibration.svg</file>
+    <file>settings/touch.svg</file>
+    <file>settings/profile.svg</file>
+    <file>settings/logs.svg</file>
+    <file>settings/mapping.svg</file>
+    <file>settings/effects.svg</file>
+    <file>settings/add.svg</file>
+    <file>settings/psn.svg</file>
     <file>menu/menu.svg</file>
     <file>menu/vertical.svg</file>
     <file>menu/chat.svg</file>

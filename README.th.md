@@ -89,9 +89,9 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 | ![Settings › Video](screenshots/settings-video.png) | ![Settings › Stream](screenshots/settings-stream.png) |
 | ตัวถอดรหัส, ชนิดหน้าต่าง, render preset (ถึง HQ + Spatial upscale), frame delivery ฯลฯ | ความละเอียด, fps, bitrate และ codec แยก PS5 / PS4 และเล่นในบ้าน (local) / นอกบ้าน (remote) |
 
-![Settings › Keys](screenshots/settings-keys.png)
+![Settings › Keyboard](screenshots/settings-keys.png)
 
-Settings › Keys: ผูกปุ่ม PlayStation ทุกปุ่มกับคีย์บอร์ด จัดเป็นการ์ดตามหมวด (ปุ่มหน้า, D-pad, ไหล่/ไก, ระบบ, สติ๊ก) ใช้จอยเลื่อนได้ทั้งหน้า · sidebar จัดหน้าเป็น Basics, Advanced, Games (game presets) และ Broadcast (Go Live)
+Settings › Keyboard: ผูกปุ่ม PlayStation ทุกปุ่มกับคีย์บอร์ด จัดเป็นการ์ดตามหมวด (ปุ่มหน้า, D-pad, ไหล่/ไก, ระบบ, สติ๊ก) ใช้จอยเลื่อนได้ทั้งหน้า · sidebar มีไอคอนทุกหน้า จัดเป็น Play (General, Stream, Video, Audio, Game presets), Controls (Controllers, Keyboard), Connection (Consoles, Remote Play), Create (Facecam, Recording, Go Live) และ App (System) · ทุกหน้าแบ่งเป็นการ์ดมีหัวข้อ
 
 ### เมนู tray และ Disconnect
 
@@ -190,7 +190,7 @@ Facecam แบบ AI ต้องมี `onnxruntime.dll` (ONNX Runtime 1.30 win
 
 ## Credits
 
-PS-WRAP เกิดขึ้นไม่ได้ถ้าไม่มีโปรเจกต์เหล่านี้ — เครดิตชุดเดียวกันอยู่ในแอปที่ชิป ⓘ **About** หน้าแรก (และ Settings › Config)
+PS-WRAP เกิดขึ้นไม่ได้ถ้าไม่มีโปรเจกต์เหล่านี้ — เครดิตชุดเดียวกันอยู่ในแอปที่ชิป ⓘ **About** หน้าแรก (และ Settings › System)
 
 - **[chiaki-ng](https://github.com/streetpea/chiaki-ng)** โดย Street Pea และผู้ร่วมพัฒนา — PS-WRAP แยกมาจาก commit `a9a2805` (1.10.0 development) แกน streaming Remote Play ทั้งหมดเป็นงานของเขา
 - **[Chiaki](https://git.sr.ht/~thestr4ng3r/chiaki)** โดย Florian Märkl และผู้ร่วมพัฒนา — ต้นฉบับของ chiaki-ng

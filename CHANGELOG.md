@@ -5,6 +5,11 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
 ## [Unreleased]
+### Changed
+- **Redesigned Settings**: the sections are regrouped so related options sit together, and every page is split into titled cards with an icon and a short explanation. The sidebar has an icon for each page, grouped into **Play** (General, Stream, Video, Audio, Game presets), **Controls** (Controllers, Keyboard), **Connection** (Consoles, Remote Play), **Create** (Facecam, Recording, Go Live) and **App** (System). Things that were mixed into General moved to where you would look for them: facecam has its own page, the recording folder and output resolution are under Recording, the Steam Deck options and the stream menu button combo are under Controllers, the Wi-Fi and packet loss warnings are under Stream, and the log folder is under System. Every setting is still there with the same value and still works with a controller (L1/R1 switch page).
+### Fixed
+- **Enter the console PIN with a controller**: the Console Login PIN prompt when connecting (also over PSN) and *Set console pin* on the home screen now work like the passcode screen on the PS5: each controller button types one digit (◀1 ▲2 ▶3 ▼4 R1 5 R2 6 L1 7 L2 8 △9 □0, shown on an on-screen keypad), the fourth digit confirms by itself and Circle deletes the last digit (or cancels when empty). Typing on a keyboard and clicking the keypad also work.
+- **Settings sections list on small screens**: the list on the left of Settings can now be scrolled (mouse wheel, drag or touch) when the window is too short to show every section, so *Game presets* and *Go Live* are reachable. Switching section with L1/R1 scrolls the list to keep the selected section in view.
 
 ## [0.8.0] — 2026-10-09
 Updates inside the app, a connection check that recommends settings, and an easier PSN sign-in.

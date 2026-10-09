@@ -4,6 +4,8 @@ import QtQuick.Controls.Material
 
 import org.streetpea.chiaking
 
+import "controls" as C
+
 Rectangle {
     id: view
     property bool allowClose: false
@@ -155,21 +157,19 @@ Rectangle {
         }
         onClosed: {
             textVisible = true
+            pinField.clear()
             view.releaseInput()
         }
         onAccepted: Chiaki.enterPin(pinField.text)
         onRejected: Chiaki.stopSession(false)
         Material.roundedScale: Material.MediumScale
 
-        TextField {
+        // PS-WRAP: ใส่ PIN ด้วยจอยได้ (↑↓ เปลี่ยนเลข ←→ เลื่อนหลัก ✕ ตกลง ○ ยกเลิก) — เดิม TextField พิมพ์ได้แค่คีย์บอร์ด
+        C.PinPad {
             id: pinField
-            echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-            implicitWidth: 200
-            validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
-            Keys.onReturnPressed: {
-                if(sessionPinDialog.standardButton(Dialog.Ok).enabled)
-                    sessionPinDialog.standardButton(Dialog.Ok).clicked()
-            }
+            hidden: Chiaki.settings.streamerMode
+            onAccepted: sessionPinDialog.accept()
+            onCanceled: sessionPinDialog.reject()
         }
     }
 

@@ -8,6 +8,7 @@ import org.streetpea.chiaking
 import "controls" as C
 
 DialogView {
+    id: pinDialog
     property var consoleIndex
     title: qsTr("Set console pin")
     buttonText: qsTr("Set")
@@ -31,11 +32,13 @@ DialogView {
                             text: qsTr("Remote Play PIN (4 digits):")
                         }
 
-                        TextField {
+                        // PS-WRAP: ใส่ PIN ด้วยจอยได้ (↑↓ ←→ ✕ ○) — เดิม TextField พิมพ์ได้แค่คีย์บอร์ด
+                        C.PinPad {
                             id: pin
-                            validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
-                            echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-                            Layout.preferredWidth: controlWidth
+                            focus: true
+                            hidden: Chiaki.settings.streamerMode
+                            onAccepted: pinDialog.accepted()
+                            onCanceled: pinDialog.close()
                         }
         }
 

@@ -68,6 +68,16 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
             }
         }
 
+        // PS-WRAP: L2/R2 (แกน analog) กดเกินครึ่ง = คีย์ F13/F14 — ไม่มีบนคีย์บอร์ดทั่วไป จึงไม่ชนหน้าอื่น (ใช้ใน controls/PinPad.qml)
+        const bool l2 = state.l2_state > 128;
+        const bool r2 = state.r2_state > 128;
+        if (l2 && !old_l2)
+            sendKey(Qt::Key_F13);
+        if (r2 && !old_r2)
+            sendKey(Qt::Key_F14);
+        old_l2 = l2;
+        old_r2 = r2;
+
         if ((old_buttons & escape_shortcut) == escape_shortcut && (buttons & escape_shortcut) != escape_shortcut)
             sendKey(Qt::Key_O, Qt::ControlModifier);
 

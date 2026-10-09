@@ -44,6 +44,12 @@
     <file>PsnView.qml</file>
     <file>controls/Theme.qml</file>
     <file>controls/FocusRing.qml</file>
+    <file>controls/PinPad.qml</file>
+    <file>controls/SettingsPageHeader.qml</file>
+    <file>controls/SettingsPage.qml</file>
+    <file>controls/SettingsSection.qml</file>
+    <file>controls/RowLabel.qml</file>
+    <file>controls/Hint.qml</file>
     <file>controls/Button.qml</file>
     <file>controls/CheckBox.qml</file>
     <file>controls/ComboBox.qml</file>

@@ -79,6 +79,8 @@ private:
     QObject *target = {};
     uint32_t escape_shortcut = 0;
     uint32_t old_buttons = 0;
+    bool old_l2 = false;   // PS-WRAP: L2/R2 เป็นแกน analog → ส่งเป็นคีย์ F13/F14 (ช่อง PIN แบบ PS5: L2=8, R2=6)
+    bool old_r2 = false;
     Controller *controller = {};
     QTimer *repeat_timer = {};
     int repeat_running = 0;

@@ -126,7 +126,7 @@ Item {
                 wrapMode: Text.WordWrap
                 text: page.api && !page.api.secureStoreAvailable
                       ? qsTr("Stream keys cannot be saved on this system — you will be asked for them each time you go live.")
-                      : qsTr("Every enabled destination gets the 16:9 H.264 game picture with your overlays, at the Output Resolution set in Settings › General (YouTube and Custom up to 4K; other platforms are scaled to 1080p). Destinations marked Vertical 9:16 get the 1080 × 1920 picture from the 9:16 window instead. Start and stop from the stream menu (Live) or Ctrl+Shift+L. Stream keys are stored in Windows Credential Manager, never in the settings file.")
+                      : qsTr("Every enabled destination gets the 16:9 H.264 game picture with your overlays, at the Output Resolution set in Settings › Recording (YouTube and Custom up to 4K; other platforms are scaled to 1080p). Destinations marked Vertical 9:16 get the 1080 × 1920 picture from the 9:16 window instead. Start and stop from the stream menu (Live) or Ctrl+Shift+L. Stream keys are stored in Windows Credential Manager, never in the settings file.")
             }
 
             // สรุปแบนด์วิดท์ + คำเตือน (คำนวณฝั่ง C++ — engine ใช้ค่าเดียวกัน)
