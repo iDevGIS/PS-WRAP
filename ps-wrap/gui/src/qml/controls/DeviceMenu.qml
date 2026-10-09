@@ -45,6 +45,27 @@ Popup {
         highlighted = showVolume ? -2 : Math.max(0, indexOfCurrent());
         open();
     }
+    // คลิกนอกเมนู = ปิด: Popup.CloseOnPressOutside ไม่ทำงานเพราะ QML ทั้งแอปวาดใน quick window offscreen (QQuickRenderControl)
+    // → วางแผ่นรับคลิกโปร่งใสเต็มหน้าต่างใต้ popup ระหว่างเปิด (popup อยู่ชั้น Overlay เหนือ contentItem จึงยังกดได้)
+    property Item scrim: null
+    Component {
+        id: scrimComponent
+        MouseArea {
+            // root item ของ quick window offscreen กว้างยาว 0 → ใช้ขนาดหน้าต่างแทน anchors.fill
+            width: menu.parent ? menu.parent.Window.width : 0
+            height: menu.parent ? menu.parent.Window.height : 0
+            z: 100000
+            acceptedButtons: Qt.AllButtons
+            onPressed: menu.close()
+            onWheel: (wheel) => wheel.accepted = true
+        }
+    }
+    onOpened: {
+        const root = parent && parent.Window.window ? parent.Window.window.contentItem : null;
+        if (root && !scrim)
+            scrim = scrimComponent.createObject(root);
+    }
+    onClosed: if (scrim) { scrim.destroy(); scrim = null; }
     function indexOfCurrent() {
         for (let i = 0; i < items.length; ++i)
             if (items[i].value === current) return i;

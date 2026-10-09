@@ -83,6 +83,7 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool micOverlay READ micOverlay WRITE setMicOverlay NOTIFY micOverlayChanged)
     Q_PROPERTY(bool clockOverlay READ clockOverlay WRITE setClockOverlay NOTIFY clockOverlayChanged)   // PS-WRAP: นาฬิกา + เวลาเล่น (qmlmainwindow_pswrapclock.cpp)
     Q_PROPERTY(bool chatOverlay READ chatOverlay WRITE setChatOverlay NOTIFY chatOverlayChanged)       // PS-WRAP: แชทไลฟ์บนจอ (qmlmainwindow_pswrapchat.cpp)
+    Q_PROPERTY(bool pointerAtBottom READ pointerAtBottom NOTIFY pointerAtBottomChanged)                // PS-WRAP: เมาส์อยู่แถบล่างของหน้าต่างระหว่างสตรีม → แถบสถานะโผล่ (StreamStatusBar.qml)
     // PS-WRAP: ภาพสวยขึ้นตอนสตรีม (qmlmainwindow_pswrapvisual.cpp)
     Q_PROPERTY(bool ambientLight READ ambientLight WRITE setAmbientLight NOTIFY ambientLightChanged)   // ขอบว่าง = แสงเบลอจากขอบเกม
     Q_PROPERTY(bool lightbarHalo READ lightbarHalo WRITE setLightbarHalo NOTIFY lightbarHaloChanged)   // แสงเรืองขอบจอตามสีไฟจอย
@@ -233,6 +234,7 @@ public:
     void setDiscordShowGame(bool v);
     bool frameGenActive() const { return pswrap_fg_active_reported; }
     bool chatOverlay() const;           // PS-WRAP: qmlmainwindow_pswrapchat.cpp
+    bool pointerAtBottom() const { return pointer_at_bottom; }   // PS-WRAP
     void setChatOverlay(bool v);
     class PsWrapLiveChat *liveChat();   // สร้างครั้งแรกที่เรียก (ลูกของ window)
     QObject *liveChatObject();
@@ -340,6 +342,7 @@ signals:
     void micOverlayChanged();          // PS-WRAP
     void clockOverlayChanged();        // PS-WRAP
     void chatOverlayChanged();         // PS-WRAP
+    void pointerAtBottomChanged();     // PS-WRAP
     void ambientLightChanged();        // PS-WRAP
     void lightbarHaloChanged();        // PS-WRAP
     void frameGenChanged();            // PS-WRAP
@@ -505,6 +508,9 @@ private:
     class QAction *tray_on_top_action = nullptr;
     QList<QRectF> overlay_hit_rects;   // PS-WRAP
     bool overlay_mouse_captured = false;   // PS-WRAP: press เริ่มบน overlay → move/release ตามไป QML
+    bool pointer_at_bottom = false;        // PS-WRAP: ดู pointerAtBottom
+    bool pointer_on_overlay = false;       // PS-WRAP: move ล่าสุดอยู่บน overlay hit rect
+    void setPointerAtBottom(bool v);
     QTimer tray_click_timer;   // PS-WRAP: แยก single/double click ของ tray
     class QAction *tray_pad_action = nullptr;
     class QAction *tray_cam_action = nullptr;

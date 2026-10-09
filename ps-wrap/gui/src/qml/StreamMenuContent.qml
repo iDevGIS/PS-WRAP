@@ -5,46 +5,49 @@ import QtQuick.Controls.Material
 
 import org.streetpea.chiaking
 
-// PS-WRAP: เนื้อหาเมนูระหว่างสตรีม (v3 "control deck") ใช้ร่วมกันทั้ง inline (Vulkan) และ StreamMenuWindow (OpenGL)
-//  แถว 1: [⏻ End Stream] [● Record] [🎤 Mic] 🔊 ━━━ 100%                       3.2 Mbps · 0.0% loss · 3 dropped · host
-//  แถว 2 (Flow — ห่อบรรทัดเมื่อแคบ ไม่เลื่อนแนวนอน): FIT (Zoom|Stretch|Glow|Size) · QUALITY (Default|HQ|HQ+S|HQ+A|Custom|Frame Gen) · Display · Renderer · OVERLAY (Pad|Cam|Spectrum|Clock|Chat|Stack|Move…/Arrange|Stats|Light) · CAPTURE (Replay|60s|Save|Screenshot)
-//  แถว 3: hotkey hint (ซ่อนเมื่อแคบ)
-//  ความสูงเมนู = implicitHeight (StreamView/StreamMenuWindow ผูกตามนี้) · คง id/signals/KeyNavigation ของ upstream
+// PS-WRAP: เนื้อหาเมนูระหว่างสตรีม (v4 "cards") ใช้ร่วมกันทั้ง inline (Vulkan) และ StreamMenuWindow (OpenGL)
+//  แถวบน: [⏻ End Stream] [● Record] | [🎤] [ไมค์ ▾] [🔊 ลำโพง ▾] ━━ 100%            15.6 Mbps · 0.0% loss   [✕]
+//  การ์ด (Flow — ทั้งการ์ดห่อลงบรรทัดใหม่เมื่อแคบ ไม่มีอะไรล้นขอบ):
+//    PICTURE (Zoom Stretch Glow Size Display) · QUALITY (Default HQ Spatial Advanced Custom FrameGen Renderer)
+//    OVERLAY (Pad Cam Spectrum Clock Chat Stats Light Stack Move) · CAPTURE (Replay Length Save Screenshot Live 9:16)
+//  จอย/คีย์บอร์ด: ลูกศรย้ายโฟกัสตามตำแหน่งบนจอ (navKey/moveFocus — ไม่ผูก KeyNavigation รายปุ่ม เลย์เอาต์ห่อได้อิสระ)
+//    ✕/Enter = กด · ◯/Esc = ปิดเมนู · slider: ←→ ปรับค่า ↑↓ ย้ายโฟกัส
+//  ความสูงเมนู = implicitHeight (StreamView/StreamMenuWindow ผูกตามนี้)
 FocusScope {
     id: content
     property Item initialFocusItem: closeButton
     property bool overlayEnabled: true
     property bool webcamEnabled: false
     property bool dockEnabled: false   // PS-WRAP: Stack — overlay เรียงคอลัมน์เดียว (StreamView จัดให้)
-    // PS-WRAP: อัดคลิป + mic spectrum — ผูกกับ Chiaki.window ตรงๆ (เหมือนปุ่ม Mic/Stats) จึงใช้ได้ทั้ง inline และ window แยก
     readonly property QtObject recorder: Chiaki.window ? Chiaki.window.recorder : null
     readonly property bool recording: !!recorder && recorder.recording
     readonly property bool micOverlayEnabled: !!Chiaki.window && Chiaki.window.micOverlay
     readonly property bool clockOverlayEnabled: !!Chiaki.window && !!Chiaki.window.clockOverlay
     readonly property bool chatOverlayEnabled: !!Chiaki.window && !!Chiaki.window.chatOverlay
-    // PS-WRAP: Instant Replay (Chiaki.window.replayEnabled/replaySeconds/saveReplay + recorder.replayActive)
     readonly property bool replayEnabled: !!Chiaki.window && !!Chiaki.window.replayEnabled
     readonly property bool replayActive: !!recorder && !!recorder.replayActive
     readonly property int replaySeconds: Chiaki.window && Chiaki.window.replaySeconds > 0 ? Chiaki.window.replaySeconds : 60
-    // PS-WRAP: Go Live (Chiaki.goLive — pswraplive.h) · state: off/connecting/live/reconnecting/error
     readonly property var goLive: Chiaki.goLive !== undefined ? Chiaki.goLive : null
     readonly property bool liveOn: !!goLive && goLive.live
+    readonly property bool connected: !!Chiaki.session && Chiaki.session.connected
+    readonly property bool customPreset: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom
     function liveDotColor(state) {
         return state === "live" ? Theme.success : state === "error" ? Theme.danger : Theme.warning;
     }
-    // PS-WRAP: ไมค์ที่ใช้อยู่ ("" = Auto) — ระหว่างสตรีมอ่านจาก session (เปลี่ยนสด), นอกนั้นจาก settings
     readonly property string micDevice: Chiaki.session ? Chiaki.session.audioInDevice : Chiaki.settings.audioInDevice
     readonly property string speakerDevice: Chiaki.session ? Chiaki.session.audioOutDevice : Chiaki.settings.audioOutDevice
-    readonly property bool popupOpen: micDevicePopup.visible || sizePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้ (ให้ Esc ปิดแค่ popup)
+    readonly property bool popupOpen: micDevicePopup.visible || sizePopup.visible || movePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้
     function micDeviceLabel(name) { return name && name.length ? name : qsTr("Auto (Windows default)"); }
-    onVisibleChanged: if (!visible) micDevicePopup.close()
+    onVisibleChanged: if (!visible) { micDevicePopup.close(); sizePopup.close(); movePopup.close(); }
     readonly property bool narrow: width < 760
+    // ชื่ออุปกรณ์บนแถวบน: กว้างตามพื้นที่ (จอแคบเหลือแค่ไอคอน + ▾)
+    readonly property int deviceTextWidth: width >= 1500 ? 170 : width >= 1180 ? 110 : 0
     function formatElapsed(sec) {
         const s = Math.max(0, Math.floor(sec || 0));
         const pad = (n) => (n < 10 ? "0" : "") + n;
         return pad(Math.floor(s / 3600)) + ":" + pad(Math.floor(s / 60) % 60) + ":" + pad(s % 60);
     }
-    implicitHeight: deck.implicitHeight + Theme.space4 * 2 + 2
+    implicitHeight: deck.implicitHeight + Theme.space3 * 2 + 2
 
     signal closeRequested()
     signal displaySettingsRequested()
@@ -70,43 +73,107 @@ FocusScope {
     Keys.onMenuPressed: content.closeRequested()
     Keys.onEscapePressed: content.closeRequested()
 
-    // ปุ่ม: pill เดี่ยว (primary) หรือ segmented (อยู่ในกลุ่ม) · checkable = toggle เติม accent
+    // ---------- โฟกัสตามตำแหน่ง (จอย/ลูกศร) ----------
+    function collectNav(item, out) {
+        if (!item || item.visible === false)
+            return;
+        if (item.navigable === true && item.enabled)
+            out.push(item);
+        const kids = item.children;
+        for (let i = 0; i < kids.length; ++i)
+            collectNav(kids[i], out);
+    }
+    function moveFocus(from, dx, dy) {
+        let items = [];
+        collectNav(deck, items);
+        const a = from.mapToItem(content, 0, 0, from.width, from.height);
+        const ax = a.x + a.width / 2, ay = a.y + a.height / 2;
+        let best = null, bestScore = 1e9;
+        for (let i = 0; i < items.length; ++i) {
+            const it = items[i];
+            if (it === from)
+                continue;
+            const b = it.mapToItem(content, 0, 0, it.width, it.height);
+            const bx = b.x + b.width / 2, by = b.y + b.height / 2;
+            let along, across;
+            if (dx !== 0) {
+                along = (bx - ax) * dx;
+                // แถวเดียวกัน (ซ้อนกันแนวตั้ง) มาก่อน
+                const vOverlap = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+                across = vOverlap > 0 ? 0 : Math.abs(by - ay);
+                if (along <= 4) continue;
+            } else {
+                along = (by - ay) * dy;
+                const overlap = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+                across = overlap > 0 ? 0 : Math.abs(bx - ax);
+                if (along <= 4) continue;
+            }
+            const score = along + across * 3;
+            if (score < bestScore) { bestScore = score; best = it; }
+        }
+        if (best)
+            best.forceActiveFocus(Qt.TabFocusReason);
+    }
+    // ลูกศร = ย้ายโฟกัส · ✕/Enter/Space = กด · ◯/Esc = ปิดเมนู
+    function navKey(item, event, horizontalAdjusts) {
+        switch (event.key) {
+        case Qt.Key_Left:  if (horizontalAdjusts) return; moveFocus(item, -1, 0); break;
+        case Qt.Key_Right: if (horizontalAdjusts) return; moveFocus(item, 1, 0); break;
+        case Qt.Key_Up:    moveFocus(item, 0, -1); break;
+        case Qt.Key_Down:  moveFocus(item, 0, 1); break;
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            if (item.clicked) item.clicked(); else return;
+            break;
+        case Qt.Key_Escape: content.closeRequested(); break;
+        default: return;
+        }
+        event.accepted = true;
+    }
+
+    component FocusRing: Rectangle {
+        anchors.fill: parent
+        anchors.margins: -Theme.focusMargin + 1
+        radius: parent.radius + 2
+        color: "transparent"
+        border.width: Theme.focusWidth
+        border.color: Theme.accent
+    }
+
+    // ปุ่มแถวบน: pill สูง 40 · on = เติม accent · danger = แดง
     component MenuButton: Button {
         id: mb
+        property bool navigable: true
         property url iconSource: ""
         property bool danger: false
-        property bool segmented: false
-        property int glyph: 0           // PS-WRAP: 0 = ไม่มี · 1 = จุดอัด (แดง) · 2 = สี่เหลี่ยมหยุด — ใช้แทน icon (ไม่ต้องเพิ่ม svg)
-        property int maxTextWidth: -1   // PS-WRAP: >0 = ตัดข้อความยาวด้วย … (ชื่ออุปกรณ์)
-        property bool caret: false      // PS-WRAP: ▾ ท้ายปุ่ม = เปิดรายการ
-        property color statusDot: "transparent"   // PS-WRAP: จุดสถานะเล็กหลัง icon (Go Live) — transparent = ไม่แสดง
+        property bool on: false
+        property int glyph: 0           // 0 = ไม่มี · 1 = จุดอัด (แดง) · 2 = สี่เหลี่ยมหยุด
+        property int maxTextWidth: -1   // >0 = ตัดข้อความยาวด้วย … · 0 = ซ่อนข้อความ (เหลือไอคอน)
+        property bool caret: false
+        readonly property bool showText: text.length > 0 && maxTextWidth !== 0
         flat: true
-        padding: segmented ? 6 : 8
-        leftPadding: iconSource != "" || glyph > 0 ? 12 : (segmented ? 14 : 18)
-        rightPadding: segmented ? 14 : 18
+        focusPolicy: Qt.StrongFocus
+        padding: 6
+        leftPadding: showText ? (iconSource != "" || glyph > 0 ? 12 : 16) : 11
+        rightPadding: showText ? 16 : (caret ? 9 : 11)
         font.pixelSize: Theme.fontLabel
         font.weight: Font.DemiBold
+        Keys.onPressed: (event) => content.navKey(mb, event)
         background: Rectangle {
-            implicitHeight: mb.segmented ? 36 : 44
+            implicitHeight: 40
+            implicitWidth: 40
             radius: Theme.radiusChip
             color: mb.danger ? (mb.down ? "#b33a3a" : Theme.danger)
-                 : mb.checked ? Theme.accent
+                 : mb.on ? Theme.accent
                  : mb.down ? Theme.surfaceHover
                  : mb.hovered ? Theme.surfaceRaised
-                 : (mb.segmented ? "transparent" : Qt.rgba(1, 1, 1, 0.04))
-            border.width: mb.segmented || mb.checked || mb.danger ? 0 : 1
+                 : Qt.rgba(1, 1, 1, 0.04)
+            border.width: mb.on || mb.danger ? 0 : 1
             border.color: Theme.border
             opacity: mb.enabled ? 1.0 : 0.4
             Behavior on color { ColorAnimation { duration: Theme.durFast } }
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: -Theme.focusMargin
-                radius: parent.radius
-                color: "transparent"
-                border.width: Theme.focusWidth
-                border.color: mb.danger ? Theme.text : Theme.accent
-                visible: mb.activeFocus
-            }
+            FocusRing { visible: mb.activeFocus; border.color: mb.danger ? Theme.text : Theme.accent }
         }
         contentItem: RowLayout {
             spacing: 8
@@ -130,22 +197,13 @@ FocusScope {
                     color: mb.glyph === 2 ? Theme.accentText : Theme.danger
                     border.width: mb.glyph === 1 ? 2 : 0
                     border.color: Qt.rgba(1, 1, 1, 0.85)
-                    opacity: mb.enabled ? 1.0 : 0.5
                 }
             }
-            Rectangle {
-                visible: mb.statusDot.a > 0
-                Layout.preferredWidth: 10
-                Layout.preferredHeight: 10
-                radius: 5
-                color: mb.statusDot
-                border.width: 1
-                border.color: Qt.rgba(0, 0, 0, 0.35)
-            }
             Label {
+                visible: mb.showText
                 text: mb.text
                 font: mb.font
-                color: mb.checked || mb.danger ? Theme.accentText : Theme.text
+                color: mb.on || mb.danger ? Theme.accentText : Theme.text
                 verticalAlignment: Text.AlignVCenter
                 Layout.maximumWidth: mb.maxTextWidth > 0 ? mb.maxTextWidth : -1
                 elide: Text.ElideRight
@@ -160,45 +218,112 @@ FocusScope {
         }
     }
 
-    // กลุ่มปุ่มแบบ segmented: แคปซูลเดียว สูง 44 เท่ากันทุกกลุ่ม ป้ายชื่ออยู่ "ใน" แคปซูล (baseline ตรงกันเสมอ)
-    component Segment: Rectangle {
-        id: seg
-        property string label: ""
-        default property alias items: segRow.data
-        width: segLayout.implicitWidth + 8
-        height: 44
-        radius: Theme.radiusChip
-        color: Qt.rgba(1, 1, 1, 0.04)
-        border.width: 1
-        border.color: Theme.border
-        RowLayout {
-            id: segLayout
-            anchors.fill: parent
-            anchors.margins: 4
-            spacing: 0
-            Label {
-                visible: seg.label.length > 0
-                Layout.leftMargin: 12
-                Layout.rightMargin: 10
-                text: seg.label
-                font.pixelSize: Theme.fontCaption
-                font.letterSpacing: 1.5
-                font.weight: Font.DemiBold
-                color: Theme.textMuted
+    // ไทล์ในการ์ด: ไอคอน (หรือตัวอักษรสั้นๆ) บน + ป้ายชื่อล่าง · on = เติม accent · ไม่ใช้ checkable (กดแล้ว binding ไม่หลุด)
+    component Tile: AbstractButton {
+        id: tile
+        property bool navigable: true
+        property url iconSource: ""
+        property string glyph: ""
+        property bool on: false
+        property bool caret: false
+        property color statusDot: "transparent"
+        focusPolicy: Qt.StrongFocus
+        implicitWidth: 72
+        implicitHeight: 58
+        font.pixelSize: 12
+        font.weight: Font.DemiBold
+        Keys.onPressed: (event) => content.navKey(tile, event)
+        background: Rectangle {
+            radius: 12
+            color: tile.on ? Theme.accent
+                 : tile.down ? Theme.surfaceHover
+                 : tile.hovered ? Theme.surfaceRaised
+                 : Qt.rgba(1, 1, 1, 0.035)
+            border.width: tile.on ? 0 : 1
+            border.color: tile.hovered ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.06)
+            opacity: tile.enabled ? 1.0 : 0.35
+            Behavior on color { ColorAnimation { duration: Theme.durFast } }
+            FocusRing { visible: tile.activeFocus }
+            Rectangle {
+                visible: tile.statusDot.a > 0
+                anchors { top: parent.top; right: parent.right; margins: 7 }
+                width: 8; height: 8; radius: 4
+                color: tile.statusDot
             }
-            RowLayout {
-                id: segRow
-                spacing: 2
+        }
+        contentItem: ColumnLayout {
+            spacing: 3
+            Item {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 22
+                Layout.preferredHeight: 22
+                Image {
+                    anchors.centerIn: parent
+                    visible: tile.iconSource != ""
+                    width: 20; height: 20
+                    sourceSize: Qt.size(20, 20)
+                    source: tile.iconSource
+                }
+                Label {
+                    anchors.centerIn: parent
+                    visible: tile.iconSource == ""
+                    text: tile.glyph
+                    font.pixelSize: tile.glyph.length > 3 ? 13 : 15
+                    font.weight: Font.Bold
+                    font.features: { "tnum": 1 }
+                    color: tile.on ? Theme.accentText : Theme.text
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.maximumWidth: tile.width - 8
+                text: tile.text + (tile.caret ? " ▾" : "")
+                font: tile.font
+                elide: Text.ElideRight
+                color: tile.on ? Theme.accentText : Theme.textMuted
             }
         }
     }
 
-    component Divider: Rectangle {
-        Layout.preferredWidth: 1
-        Layout.preferredHeight: 26
-        Layout.leftMargin: 6
-        Layout.rightMargin: 6
-        color: Theme.border
+    // การ์ด: หัวข้อ + ตารางไทล์ (คอลัมน์ตายตัว → การ์ดกว้างคงที่ ห่อทั้งใบใน Flow)
+    component Card: Rectangle {
+        id: card
+        property string title: ""
+        property int columns: 3
+        default property alias tiles: grid.data
+        property alias extra: extraRow.data
+        width: cardCol.implicitWidth + 20
+        height: cardCol.implicitHeight + 18
+        radius: 16
+        color: Qt.rgba(1, 1, 1, 0.025)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.07)
+        ColumnLayout {
+            id: cardCol
+            x: 10
+            y: 8
+            spacing: 6
+            Label {
+                text: card.title
+                font.pixelSize: 11
+                font.letterSpacing: 1.6
+                font.weight: Font.DemiBold
+                color: Theme.textMuted
+                leftPadding: 2
+            }
+            GridLayout {
+                id: grid
+                columns: card.columns
+                rowSpacing: 6
+                columnSpacing: 6
+            }
+            RowLayout {
+                id: extraRow
+                visible: children.length > 0 && visibleChildren.length > 0
+                Layout.fillWidth: true
+                spacing: 6
+            }
+        }
     }
 
     component Caption: Label {
@@ -209,7 +334,7 @@ FocusScope {
     Rectangle {
         anchors.fill: parent
         color: Theme.surface
-        opacity: 0.96
+        opacity: 0.97
         Rectangle { anchors.top: parent.top; width: parent.width; height: 2; color: Theme.accent; opacity: 0.8 }
     }
 
@@ -219,39 +344,33 @@ FocusScope {
             left: parent.left
             right: parent.right
             top: parent.top
-            topMargin: Theme.space4 + 2
-            leftMargin: Theme.space6
-            rightMargin: Theme.space6
+            topMargin: Theme.space3 + 2
+            leftMargin: content.narrow ? Theme.space3 : Theme.space6
+            rightMargin: content.narrow ? Theme.space3 : Theme.space6
         }
         spacing: Theme.space3
 
-        // ---------- แถว 1: ควบคุมหลัก + stats ----------
+        // ---------- แถวบน: ควบคุมหลัก + stats + ปิด ----------
         RowLayout {
             id: topRow
             Layout.fillWidth: true
-            spacing: Theme.space3
+            spacing: Theme.space2
 
             MenuButton {
                 id: closeButton
                 danger: true
                 iconSource: "qrc:/icons/menu/power.svg"
                 text: Chiaki.session ? qsTr("End Stream") : qsTr("Main Menu")
-                activeFocusOnTab: true
+                maxTextWidth: content.narrow ? 0 : -1
                 onClicked: {
                     if (Chiaki.session)
                         Chiaki.window.close();
                     else
                         content.mainViewRequested();
                 }
-                KeyNavigation.right: recordButton
-                KeyNavigation.down: zoomButton
-                Keys.onReturnPressed: clicked()
-                Keys.onEscapePressed: content.closeRequested()
             }
 
-            Divider {}
-
-            // PS-WRAP: อัดคลิป — ระหว่างอัดเป็นปุ่มแดง "■ 00:12:34" (กด = หยุด) · busy = กำลังปิดไฟล์
+            // อัดคลิป — ระหว่างอัดเป็นปุ่มแดง "■ 00:12:34" (กด = หยุด) · busy = กำลังปิดไฟล์
             MenuButton {
                 id: recordButton
                 danger: content.recording
@@ -260,122 +379,81 @@ FocusScope {
                 text: content.recorder && content.recorder.busy ? qsTr("Saving…")
                     : content.recording ? content.formatElapsed(content.recorder.seconds)
                     : qsTr("Record")
-                // ไม่ disable ตอน busy (focus จอยจะหลุดจากปุ่ม) — กดซ้ำระหว่าง busy = ไม่ทำอะไร
-                enabled: !!content.recorder && (content.recording || content.recorder.busy || (!!Chiaki.session && Chiaki.session.connected))
+                maxTextWidth: content.narrow && !content.recording ? 0 : -1
+                // ไม่ disable ตอน busy (focus จอยจะหลุด) — กดซ้ำระหว่าง busy = ไม่ทำอะไร
+                enabled: !!content.recorder && (content.recording || content.recorder.busy || content.connected)
                 onClicked: if (!content.recorder.busy) Chiaki.window.toggleRecording()
-                KeyNavigation.left: closeButton
-                KeyNavigation.right: muteButton
-                KeyNavigation.down: zoomButton
-                Keys.onReturnPressed: clicked()
-                Keys.onEscapePressed: content.closeRequested()
             }
 
+            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 24; Layout.leftMargin: 4; Layout.rightMargin: 4; color: Theme.border }
+
+            // ไมค์: ปุ่มไอคอน = เปิด/ปิดเสียง (สีฟ้า = เปิด) · ถัดไปเลือกอุปกรณ์
             MenuButton {
                 id: muteButton
                 iconSource: "qrc:/icons/menu/mic.svg"
-                text: qsTr("Mic")
-                checkable: true
-                enabled: Chiaki.session && Chiaki.session.connected
-                checked: Chiaki.session && !Chiaki.session.muted
-                onToggled: Chiaki.session.muted = !Chiaki.session.muted
-                KeyNavigation.left: recordButton
-                KeyNavigation.right: micDeviceButton
-                KeyNavigation.down: zoomButton
-                Keys.onReturnPressed: toggled()
-                Keys.onEscapePressed: content.closeRequested()
+                on: !!Chiaki.session && !Chiaki.session.muted
+                enabled: content.connected
+                onClicked: Chiaki.session.muted = !Chiaki.session.muted
             }
-
-            // PS-WRAP: เลือกไมค์ระหว่างสตรีม — ✕/Enter เปิดรายการ · ↑↓ เลือก · ✕/Enter ยืนยัน · ◯/Esc ยกเลิก
             MenuButton {
                 id: micDeviceButton
                 caret: true
-                maxTextWidth: content.narrow ? 90 : 170
                 text: content.micDeviceLabel(content.micDevice)
-                enabled: Chiaki.session && Chiaki.session.connected
+                maxTextWidth: content.deviceTextWidth > 0 ? content.deviceTextWidth : 60
+                enabled: content.connected
                 onClicked: { micDevicePopup.kind = "mic"; micDevicePopup.opener = micDeviceButton; micDevicePopup.open(); }
-                KeyNavigation.left: muteButton
-                KeyNavigation.right: speakerDeviceButton
-                KeyNavigation.down: zoomButton
-                Keys.onReturnPressed: clicked()
-                Keys.onEscapePressed: content.closeRequested()
-                ToolTip.visible: hovered && !micDevicePopup.visible
-                ToolTip.delay: 600
-                ToolTip.text: qsTr("Microphone: %1").arg(text)
             }
-
-            // PS-WRAP: เลือกลำโพง (อุปกรณ์เสียงออก) ระหว่างสตรีม — popup เดียวกับไมค์
             MenuButton {
                 id: speakerDeviceButton
                 iconSource: "qrc:/icons/menu/volume.svg"
                 caret: true
-                maxTextWidth: content.narrow ? 70 : 150
                 text: content.micDeviceLabel(content.speakerDevice)
+                maxTextWidth: content.deviceTextWidth
                 onClicked: { micDevicePopup.kind = "speaker"; micDevicePopup.opener = speakerDeviceButton; micDevicePopup.open(); }
-                KeyNavigation.left: micDeviceButton
-                KeyNavigation.right: volumeSlider
-                KeyNavigation.down: zoomButton
-                Keys.onReturnPressed: clicked()
-                Keys.onEscapePressed: content.closeRequested()
-                ToolTip.visible: hovered && !micDevicePopup.visible
-                ToolTip.delay: 600
-                ToolTip.text: qsTr("Speaker: %1").arg(text)
             }
-
             Slider {
                 id: volumeSlider
-                Layout.preferredWidth: content.narrow ? 110 : 160
+                property bool navigable: true
+                Layout.preferredWidth: content.width >= 1180 ? 140 : 96
                 from: 0
                 to: 128
                 stepSize: 1
                 value: Chiaki.settings.audioVolume
                 onMoved: Chiaki.settings.audioVolume = value
-                KeyNavigation.down: zoomButton
-                KeyNavigation.up: speakerDeviceButton
-                Keys.onEscapePressed: content.closeRequested()
-                // ซ้าย/ขวา = ปรับค่า (ของ Slider เอง) · ออกจาก slider ด้วย Tab/↓ หรือ Enter → Mic
-                Keys.onReturnPressed: muteButton.forceActiveFocus(Qt.TabFocusReason)
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: -Theme.focusMargin
-                    radius: Theme.radiusControl
-                    color: "transparent"
-                    border.width: Theme.focusWidth
-                    border.color: Theme.accent
-                    visible: volumeSlider.activeFocus
-                }
+                Keys.onPressed: (event) => content.navKey(volumeSlider, event, true)   // ←→ ปรับค่า (ของ Slider)
+                FocusRing { radius: Theme.radiusControl; visible: volumeSlider.activeFocus }
             }
-
             Label {
-                Layout.preferredWidth: 44
+                Layout.preferredWidth: 40
                 text: Math.round((volumeSlider.value / 128.0) * 100) + "%"
-                font.pixelSize: Theme.fontLabel
+                font.pixelSize: Theme.fontCaption
+                font.features: { "tnum": 1 }
                 color: Theme.textMuted
             }
 
             Item { Layout.fillWidth: true }
 
-            // stats แบบบรรทัดเดียว (Mbps เด่น · loss/dropped · host)
+            // stats บรรทัดเดียว — ตัดรายละเอียดเมื่อแคบ
             RowLayout {
-                id: statsBlock
-                visible: Chiaki.session
+                visible: !!Chiaki.session && content.width >= 900
                 spacing: 6
                 Label {
                     text: Chiaki.session ? Chiaki.session.measuredBitrate.toFixed(1) : "0.0"
                     color: Theme.accent
                     font.bold: true
-                    font.pixelSize: Theme.fontTitle
+                    font.pixelSize: 20
+                    font.features: { "tnum": 1 }
                 }
                 Caption { text: "Mbps" }
                 Caption {
-                    Layout.leftMargin: 6
+                    visible: content.width >= 1280
                     text: {
                         const loss = ((Chiaki.session && isFinite(Chiaki.session.averagePacketLoss)) ? Chiaki.session.averagePacketLoss : 0) * 100;
                         return qsTr("· %1% loss · %2 dropped").arg(loss.toFixed(1)).arg(Chiaki.window.droppedFrames);
                     }
                 }
                 Caption {
-                    visible: !content.narrow
-                    Layout.leftMargin: 6
+                    visible: content.width >= 1600
                     color: Theme.text
                     text: {
                         if (!Chiaki.session) return "";
@@ -384,548 +462,371 @@ FocusScope {
                     }
                 }
             }
+
+            // ปิดเมนู (เหมือน Esc / ◯)
+            MenuButton {
+                id: dismissButton
+                Layout.leftMargin: 4
+                text: "✕"
+                font.pixelSize: 16
+                leftPadding: 13
+                rightPadding: 13
+                onClicked: content.closeRequested()
+            }
         }
 
-        // ---------- แถว 2: ตัวเลือก (ห่อบรรทัดอัตโนมัติ) ----------
+        // ---------- การ์ดตัวเลือก ----------
         Flow {
-            id: optionRow
+            id: cards
             Layout.fillWidth: true
-            spacing: Theme.space3
+            spacing: Theme.space2
 
-            Segment {
-                label: qsTr("FIT")
-                MenuButton {
-                    id: zoomButton
-                    segmented: true
+            Card {
+                title: qsTr("PICTURE")
+                columns: 3
+                Tile {
                     iconSource: "qrc:/icons/menu/zoom.svg"
                     text: qsTr("Zoom")
-                    checkable: true
-                    checked: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom
-                    onToggled: Chiaki.window.videoMode = Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Zoom
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.right: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? zoomFactor : stretchButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom
+                    onClicked: Chiaki.window.videoMode = on ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Zoom
                 }
-                Slider {
-                    id: zoomFactor
-                    Layout.preferredWidth: 100
-                    from: -1
-                    to: 4
-                    stepSize: 0.01
-                    visible: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom
-                    value: Chiaki.window.ZoomFactor
-                    onMoved: {
-                        Chiaki.window.ZoomFactor = value
-                        Chiaki.settings.sZoomFactor = value
-                    }
-                    KeyNavigation.up: muteButton
-                    Keys.onReturnPressed: stretchButton.forceActiveFocus(Qt.TabFocusReason)
-                    Keys.onEscapePressed: content.closeRequested()
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: -Theme.focusMargin
-                        radius: Theme.radiusControl
-                        color: "transparent"
-                        border.width: Theme.focusWidth
-                        border.color: Theme.accent
-                        visible: zoomFactor.activeFocus
-                    }
-                }
-                Caption {
-                    visible: zoomFactor.visible
-                    Layout.rightMargin: 6
-                    text: zoomFactor.value === -1 ? qsTr("No bars") : (zoomFactor.value >= 0 ? (zoomFactor.value + 1).toFixed(2) : zoomFactor.value.toFixed(2)) + "x"
-                }
-                MenuButton {
-                    id: stretchButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/stretch.svg"
                     text: qsTr("Stretch")
-                    checkable: true
-                    checked: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Stretch
-                    onToggled: Chiaki.window.videoMode = Chiaki.window.videoMode == ChiakiWindow.VideoMode.Stretch ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Stretch
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? zoomFactor : zoomButton
-                    KeyNavigation.right: glowButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Stretch
+                    onClicked: Chiaki.window.videoMode = on ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Stretch
                 }
-                // PS-WRAP: Ambient light — ขอบว่างรอบภาพเป็นแสงเบลอจากขอบเกม (เห็นผลเมื่อมีขอบ เช่น จอกว้าง / หน้าต่างไม่ใช่ 16:9)
-                MenuButton {
-                    id: glowButton
-                    segmented: true
+                // Ambient light — ขอบว่างรอบภาพเป็นแสงเบลอจากขอบเกม
+                Tile {
+                    glyph: "✦"
                     text: qsTr("Glow")
-                    checkable: true
-                    checked: !!Chiaki.window.ambientLight
-                    onToggled: Chiaki.window.ambientLight = !Chiaki.window.ambientLight
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: stretchButton
-                    KeyNavigation.right: sizeButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("Ambient light: fill the empty bars around the picture with a soft glow from the game")
+                    on: !!Chiaki.window.ambientLight
+                    onClicked: Chiaki.window.ambientLight = !Chiaki.window.ambientLight
                 }
-                // PS-WRAP: ขนาดพื้นที่ภาพ 16:9 ตาม preset (ไม่มีขอบดำ คลิปอัดได้ขนาดตามชื่อ) — ✕/Enter เปิดรายการ
-                MenuButton {
+                // ขนาดพื้นที่ภาพ 16:9 ตาม preset
+                Tile {
                     id: sizeButton
-                    segmented: true
-                    caret: true
+                    glyph: "16:9"
                     text: qsTr("Size")
+                    caret: true
                     onClicked: sizePopup.open()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: glowButton
-                    KeyNavigation.right: defaultButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
-                    ToolTip.visible: hovered && !sizePopup.visible
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("Set the picture to an exact 16:9 size — no black bars, screenshots match the size")
                 }
-            }
-
-            Segment {
-                label: qsTr("QUALITY")
-                MenuButton {
-                    id: defaultButton
-                    segmented: true
-                    text: qsTr("Default")
-                    checkable: true
-                    checked: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Default
-                    onToggled: {
-                        Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.Default
-                        Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.Default
-                    }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: sizeButton
-                    KeyNavigation.right: highQualityButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: highQualityButton
-                    segmented: true
-                    iconSource: "qrc:/icons/menu/quality.svg"
-                    text: qsTr("HQ")
-                    checkable: true
-                    checked: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.HighQuality
-                    onToggled: {
-                        Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.HighQuality
-                        Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.HighQuality
-                    }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: defaultButton
-                    KeyNavigation.right: highQualitySpatialButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: highQualitySpatialButton
-                    segmented: true
-                    text: content.narrow ? qsTr("HQ+S") : qsTr("HQ + Spatial")
-                    checkable: true
-                    checked: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.HighQualitySpatial
-                    onToggled: {
-                        Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.HighQualitySpatial
-                        Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.HighQualitySpatial
-                    }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: highQualityButton
-                    KeyNavigation.right: highQualityAdvancedSpatialButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: highQualityAdvancedSpatialButton
-                    segmented: true
-                    text: content.narrow ? qsTr("HQ+A") : qsTr("HQ + Adv")
-                    checkable: true
-                    checked: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.HighQualityAdvancedSpatial
-                    onToggled: {
-                        Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.HighQualityAdvancedSpatial
-                        Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.HighQualityAdvancedSpatial
-                    }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: highQualitySpatialButton
-                    KeyNavigation.right: customButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: customButton
-                    segmented: true
-                    text: qsTr("Custom")
-                    checkable: true
-                    checked: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom
-                    onToggled: {
-                        Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.Custom
-                        Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.Custom
-                    }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: highQualityAdvancedSpatialButton
-                    KeyNavigation.right: frameGenButton.enabled ? frameGenButton : displaySettingsButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                // PS-WRAP: Frame generation — เฟรมกลางระหว่างเฟรมจริง (60 → 120) · ต้อง Direct Mapping + Vulkan + จอเร็วกว่าสตรีม
-                MenuButton {
-                    id: frameGenButton
-                    segmented: true
-                    text: content.narrow ? qsTr("FG") : (Chiaki.window.frameGenActive ? qsTr("Frame Gen · 120") : qsTr("Frame Gen"))
-                    checkable: true
-                    enabled: !!Chiaki.window.frameGenSupported
-                    checked: !!Chiaki.window.frameGen && !!Chiaki.window.frameGenSupported
-                    onToggled: Chiaki.window.frameGen = !Chiaki.window.frameGen
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: customButton
-                    KeyNavigation.right: displaySettingsButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: !Chiaki.window.frameGenSupported
-                        ? qsTr("Frame generation needs Frame Delivery = Direct Mapping and the Vulkan renderer (Settings › Video)")
-                        : qsTr("Frame generation: adds an in-between frame for each stream frame (60 → 120 fps) on displays faster than the stream. Adds about half a frame of delay.")
-                }
-            }
-
-            Segment {
-                MenuButton {
-                    id: displaySettingsButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/display.svg"
                     text: qsTr("Display")
                     onClicked: content.displaySettingsRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: frameGenButton.enabled ? frameGenButton : customButton
-                    KeyNavigation.right: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom ? placeboSettingsButton : overlayButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
                 }
-                MenuButton {
-                    id: placeboSettingsButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/renderer.svg"
                     text: qsTr("Renderer")
-                    visible: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom
+                    visible: content.customPreset
                     onClicked: content.placeboSettingsRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: displaySettingsButton
-                    KeyNavigation.right: overlayButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
+                }
+                // ระดับซูม (เฉพาะโหมด Zoom) — แถวเสริมใต้ไทล์
+                extra: [
+                    Slider {
+                        id: zoomFactor
+                        property bool navigable: true
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 28
+                        from: -1
+                        to: 4
+                        stepSize: 0.01
+                        visible: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom
+                        value: Chiaki.window.ZoomFactor
+                        onMoved: {
+                            Chiaki.window.ZoomFactor = value
+                            Chiaki.settings.sZoomFactor = value
+                        }
+                        Keys.onPressed: (event) => content.navKey(zoomFactor, event, true)
+                        FocusRing { radius: Theme.radiusControl; visible: zoomFactor.activeFocus }
+                    },
+                    Caption {
+                        visible: zoomFactor.visible
+                        text: zoomFactor.value === -1 ? qsTr("No bars") : (zoomFactor.value >= 0 ? (zoomFactor.value + 1).toFixed(2) : zoomFactor.value.toFixed(2)) + "x"
+                        font.features: { "tnum": 1 }
+                    }
+                ]
+            }
+
+            Card {
+                title: qsTr("QUALITY")
+                columns: 3
+                Tile {
+                    glyph: "SD"
+                    text: qsTr("Default")
+                    on: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Default
+                    onClicked: { Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.Default; Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.Default; }
+                }
+                Tile {
+                    iconSource: "qrc:/icons/menu/quality.svg"
+                    text: qsTr("HQ")
+                    on: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.HighQuality
+                    onClicked: { Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.HighQuality; Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.HighQuality; }
+                }
+                Tile {
+                    glyph: "HQ+S"
+                    text: qsTr("Spatial")
+                    on: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.HighQualitySpatial
+                    onClicked: { Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.HighQualitySpatial; Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.HighQualitySpatial; }
+                }
+                Tile {
+                    glyph: "HQ+A"
+                    text: qsTr("Advanced")
+                    on: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.HighQualityAdvancedSpatial
+                    onClicked: { Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.HighQualityAdvancedSpatial; Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.HighQualityAdvancedSpatial; }
+                }
+                Tile {
+                    glyph: "⚙"
+                    text: qsTr("Custom")
+                    on: content.customPreset
+                    onClicked: { Chiaki.window.videoPreset = ChiakiWindow.VideoPreset.Custom; Chiaki.settings.videoPreset = ChiakiWindow.VideoPreset.Custom; }
+                }
+                // Frame generation — เฟรมกลาง 60 → 120 · ต้อง Direct Mapping + Vulkan
+                Tile {
+                    glyph: "120"
+                    text: qsTr("Frame Gen")
+                    enabled: !!Chiaki.window.frameGenSupported
+                    on: !!Chiaki.window.frameGen && !!Chiaki.window.frameGenSupported
+                    statusDot: Chiaki.window.frameGenActive ? Theme.success : "transparent"
+                    onClicked: Chiaki.window.frameGen = !Chiaki.window.frameGen
                 }
             }
 
-            Segment {
-                label: qsTr("OVERLAY")
-                MenuButton {
-                    id: overlayButton
-                    segmented: true
+            Card {
+                title: qsTr("OVERLAY")
+                columns: 5
+                Tile {
                     iconSource: "qrc:/icons/controller.svg"
                     text: qsTr("Pad")
-                    checkable: true
-                    checked: content.overlayEnabled
-                    onToggled: content.overlayToggled()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom ? placeboSettingsButton : displaySettingsButton
-                    KeyNavigation.right: camButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: content.overlayEnabled
+                    onClicked: content.overlayToggled()
                 }
-                MenuButton {
-                    id: camButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/cam.svg"
                     text: qsTr("Cam")
-                    checkable: true
-                    checked: content.webcamEnabled
-                    onToggled: content.webcamToggled()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: overlayButton
-                    KeyNavigation.right: micVizButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: content.webcamEnabled
+                    onClicked: content.webcamToggled()
                 }
-                // PS-WRAP: mic spectrum overlay
-                MenuButton {
-                    id: micVizButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/spectrum.svg"
                     text: qsTr("Spectrum")
-                    checkable: true
-                    checked: content.micOverlayEnabled
-                    onToggled: Chiaki.window.micOverlay = !Chiaki.window.micOverlay
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: camButton
-                    KeyNavigation.right: clockButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: content.micOverlayEnabled
+                    onClicked: Chiaki.window.micOverlay = !Chiaki.window.micOverlay
                 }
-                // PS-WRAP: นาฬิกา + เวลาเล่น (ClockOverlay.qml)
-                MenuButton {
-                    id: clockButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/clock.svg"
                     text: qsTr("Clock")
-                    checkable: true
-                    checked: content.clockOverlayEnabled
-                    onToggled: Chiaki.window.clockOverlay = !Chiaki.window.clockOverlay
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: micVizButton
-                    KeyNavigation.right: chatButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: content.clockOverlayEnabled
+                    onClicked: Chiaki.window.clockOverlay = !Chiaki.window.clockOverlay
                 }
-                // PS-WRAP: แชทไลฟ์บนจอ (YouTube / Twitch — ตั้งแหล่งใน Settings › Go Live › Chat on screen)
-                MenuButton {
-                    id: chatButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/chat.svg"
                     text: qsTr("Chat")
-                    checkable: true
-                    checked: !!Chiaki.window && !!Chiaki.window.chatOverlay
-                    onToggled: Chiaki.window.chatOverlay = !Chiaki.window.chatOverlay
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: clockButton
-                    KeyNavigation.right: stackButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: content.chatOverlayEnabled
+                    onClicked: Chiaki.window.chatOverlay = !Chiaki.window.chatOverlay
                 }
-                // PS-WRAP: Stack — overlay ที่เปิดอยู่ทั้งหมดเรียงเป็นคอลัมน์เดียว กว้างเท่ากัน · ปุ่มถัดไปกลายเป็น Arrange (แก้ทั้งชุด)
-                MenuButton {
-                    id: stackButton
-                    segmented: true
-                    text: qsTr("Stack")
-                    checkable: true
-                    checked: content.dockEnabled
-                    onToggled: content.dockToggled()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: chatButton
-                    KeyNavigation.right: editOverlayButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("Stack: line up every overlay in one column at the same width — move and resize them all at once")
-                }
-                MenuButton {
-                    id: editOverlayButton
-                    segmented: true
-                    iconSource: "qrc:/icons/menu/move.svg"
-                    text: content.dockEnabled ? qsTr("Arrange") : qsTr("Move")
-                    enabled: Chiaki.session
-                    onClicked: content.dockEnabled ? content.dockEditRequested() : content.overlayEditRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: stackButton
-                    KeyNavigation.right: content.dockEnabled ? statsButton : (content.webcamEnabled ? camEditButton : (content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton))))
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: camEditButton
-                    segmented: true
-                    iconSource: "qrc:/icons/menu/move.svg"
-                    text: qsTr("Move cam")
-                    visible: content.webcamEnabled && !content.dockEnabled
-                    enabled: Chiaki.session
-                    onClicked: content.webcamEditRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: editOverlayButton
-                    KeyNavigation.right: content.micOverlayEnabled ? micEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton))
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: micEditButton
-                    segmented: true
-                    iconSource: "qrc:/icons/menu/move.svg"
-                    text: qsTr("Move mic")
-                    visible: content.micOverlayEnabled && !content.dockEnabled
-                    enabled: Chiaki.session
-                    onClicked: content.micEditRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.webcamEnabled ? camEditButton : editOverlayButton
-                    KeyNavigation.right: content.clockOverlayEnabled ? clockEditButton : (content.chatOverlayEnabled ? chatEditButton : statsButton)
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: clockEditButton
-                    segmented: true
-                    iconSource: "qrc:/icons/menu/move.svg"
-                    text: qsTr("Move clock")
-                    visible: content.clockOverlayEnabled && !content.dockEnabled
-                    enabled: Chiaki.session
-                    onClicked: content.clockEditRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton)
-                    KeyNavigation.right: content.chatOverlayEnabled ? chatEditButton : statsButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: chatEditButton
-                    segmented: true
-                    iconSource: "qrc:/icons/menu/move.svg"
-                    text: qsTr("Move chat")
-                    visible: content.chatOverlayEnabled && !content.dockEnabled
-                    enabled: Chiaki.session
-                    onClicked: content.chatEditRequested()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton))
-                    KeyNavigation.right: statsButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
-                }
-                MenuButton {
-                    id: statsButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/stats.svg"
                     text: qsTr("Stats")
-                    checkable: true
-                    checked: Chiaki.settings.showStreamStats
-                    onToggled: Chiaki.settings.showStreamStats = !Chiaki.settings.showStreamStats
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: content.dockEnabled ? editOverlayButton : (content.chatOverlayEnabled ? chatEditButton : (content.clockOverlayEnabled ? clockEditButton : (content.micOverlayEnabled ? micEditButton : (content.webcamEnabled ? camEditButton : editOverlayButton))))
-                    KeyNavigation.right: haloButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: Chiaki.settings.showStreamStats
+                    onClicked: Chiaki.settings.showStreamStats = !Chiaki.settings.showStreamStats
                 }
-                // PS-WRAP: Lightbar halo — แสงเรืองขอบภาพตามสีไฟจอยที่เกมสั่ง (สีเดียวกับแถบไฟบน Pad overlay)
-                MenuButton {
-                    id: haloButton
-                    segmented: true
+                // Lightbar halo — แสงเรืองขอบภาพตามสีไฟจอยที่เกมสั่ง
+                Tile {
+                    glyph: "◉"
                     text: qsTr("Light")
-                    checkable: true
-                    checked: !!Chiaki.window.lightbarHalo
-                    onToggled: Chiaki.window.lightbarHalo = !Chiaki.window.lightbarHalo
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: statsButton
-                    KeyNavigation.right: replayButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("Lightbar halo: glow around the picture in the controller light color set by the game")
+                    on: !!Chiaki.window.lightbarHalo
+                    onClicked: Chiaki.window.lightbarHalo = !Chiaki.window.lightbarHalo
+                }
+                // Stack — overlay ทั้งหมดเรียงคอลัมน์เดียว กว้างเท่ากัน
+                Tile {
+                    iconSource: "qrc:/icons/menu/menu.svg"
+                    text: qsTr("Stack")
+                    on: content.dockEnabled
+                    onClicked: content.dockToggled()
+                }
+                // ย้าย/ย่อขยาย: Stack = ทั้งชุด · ไม่งั้นเลือกตัวจากรายการ (มีตัวเดียว = เข้าเลย)
+                Tile {
+                    id: moveButton
+                    iconSource: "qrc:/icons/menu/move.svg"
+                    text: content.dockEnabled ? qsTr("Arrange") : qsTr("Move")
+                    caret: !content.dockEnabled && movePopup.choices().length > 1
+                    enabled: !!Chiaki.session && (content.dockEnabled || movePopup.choices().length > 0)
+                    onClicked: {
+                        if (content.dockEnabled) { content.dockEditRequested(); return; }
+                        const c = movePopup.choices();
+                        if (c.length === 1) movePopup.run(c[0].act);
+                        else movePopup.open();
+                    }
                 }
             }
 
-            // PS-WRAP: CAPTURE — Instant Replay (เปิด/ปิด · ความยาว 30/60/90/120 วิ กดวน · เซฟ) + ภาพหน้าจอ
-            Segment {
-                label: qsTr("CAPTURE")
-                MenuButton {
-                    id: replayButton
-                    segmented: true
+            Card {
+                title: qsTr("CAPTURE")
+                columns: 3
+                Tile {
                     iconSource: "qrc:/icons/menu/replay.svg"
                     text: qsTr("Replay")
-                    checkable: true
-                    checked: content.replayEnabled
-                    onToggled: Chiaki.window.replayEnabled = !content.replayEnabled
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: haloButton
-                    KeyNavigation.right: replayLengthButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
+                    on: content.replayEnabled
+                    onClicked: Chiaki.window.replayEnabled = !content.replayEnabled
                 }
-                // ✕/Enter = วนความยาว 30 → 60 → 90 → 120 → 30 (ซ้าย/ขวาไว้ย้าย focus เหมือนปุ่มอื่น)
-                MenuButton {
-                    id: replayLengthButton
-                    segmented: true
-                    text: qsTr("%1s").arg(content.replaySeconds)
-                    font.features: { "tnum": 1 }
+                // ✕/Enter = วนความยาว 30 → 60 → 90 → 120
+                Tile {
+                    glyph: qsTr("%1s").arg(content.replaySeconds)
+                    text: qsTr("Length")
                     onClicked: {
                         const steps = [30, 60, 90, 120];
                         const i = steps.indexOf(content.replaySeconds);
                         Chiaki.window.replaySeconds = steps[(i + 1) % steps.length];
                     }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: replayButton
-                    KeyNavigation.right: saveReplayButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
                 }
-                MenuButton {
-                    id: saveReplayButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/save.svg"
-                    text: qsTr("Save")
+                    text: qsTr("Save clip")
                     enabled: content.replayActive
                     onClicked: Chiaki.window.saveReplay()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: replayLengthButton
-                    KeyNavigation.right: screenshotButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
                 }
-                MenuButton {
-                    id: screenshotButton
-                    segmented: true
+                Tile {
                     iconSource: "qrc:/icons/menu/screenshot.svg"
                     text: qsTr("Screenshot")
-                    enabled: !!Chiaki.session && Chiaki.session.connected
+                    enabled: content.connected
                     // เมนูปิดก่อน แล้วค่อยถ่าย (ไม่ให้แถบเมนูติดไปในภาพ)
-                    onClicked: {
-                        content.closeRequested();
-                        screenshotDelay.restart();
-                    }
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: saveReplayButton
-                    KeyNavigation.right: liveButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
+                    onClicked: { content.closeRequested(); screenshotDelay.restart(); }
                 }
-                // PS-WRAP: Go Live — เริ่ม/หยุดไลฟ์ไปทุกปลายทางที่เปิดใน Settings › Go Live (Ctrl+Shift+L)
-                // จุดสี = สถานะรวม (เขียว live · เหลือง กำลังต่อ/ต่อใหม่ · แดง error) · ไม่มีปลายทาง → C++ แจ้ง toast เอง
-                MenuButton {
-                    id: liveButton
-                    segmented: true
+                // Go Live — เริ่ม/หยุดไลฟ์ไปทุกปลายทางที่เปิดใน Settings › Go Live (Ctrl+Shift+L)
+                Tile {
                     iconSource: "qrc:/icons/menu/live.svg"
-                    text: content.liveOn ? content.formatElapsed(content.goLive.seconds) : qsTr("Live")
+                    text: content.liveOn ? content.formatElapsed(content.goLive.seconds) : qsTr("Go Live")
                     font.features: { "tnum": 1 }
-                    // ไม่ checkable: กดแล้ว start() อาจไม่สำเร็จ (ไม่มีปลายทาง/HDR) — สีตาม goLive.live เท่านั้น ไม่ให้ปุ่มสลับเอง
-                    checked: content.liveOn
+                    on: content.liveOn
                     statusDot: content.liveOn ? content.liveDotColor(content.goLive.state) : "transparent"
-                    enabled: !!content.goLive && (content.liveOn || (!!Chiaki.session && Chiaki.session.connected))
+                    enabled: !!content.goLive && (content.liveOn || content.connected)
                     onClicked: content.goLive.toggle()
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: screenshotButton
-                    KeyNavigation.right: verticalButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: content.closeRequested()
                 }
-                // PS-WRAP: หน้าต่าง preview ภาพแนวตั้ง 9:16 (VerticalPreviewWindow.qml)
-                MenuButton {
-                    id: verticalButton
-                    segmented: true
+                // preview ภาพแนวตั้ง 9:16 (VerticalPreviewWindow.qml)
+                Tile {
                     iconSource: "qrc:/icons/menu/vertical.svg"
                     text: qsTr("9:16")
-                    checkable: true
-                    checked: !!Chiaki.window && Chiaki.window.verticalPreview
-                    onToggled: Chiaki.window.verticalPreview = !Chiaki.window.verticalPreview
-                    KeyNavigation.up: muteButton
-                    KeyNavigation.left: liveButton
-                    Keys.onReturnPressed: toggled()
-                    Keys.onEscapePressed: content.closeRequested()
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("Vertical 9:16 preview for Shorts / TikTok / Reels")
+                    on: !!Chiaki.window && Chiaki.window.verticalPreview
+                    onClicked: Chiaki.window.verticalPreview = !Chiaki.window.verticalPreview
                 }
             }
         }
 
-        // ---------- แถว 3: hotkey hint ----------
-        // แบบย่อ: "Ctrl+Shift +" ครั้งเดียวแล้วตามด้วยตัวอักษร (ห่อได้ 2 บรรทัดเมื่อแคบ ไม่ล้นแนวนอน)
+        // hotkey (บรรทัดเดียว ตัดท้ายเมื่อแคบ)
         Caption {
             Layout.fillWidth: true
-            visible: !content.narrow
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
+            visible: content.width >= 1000
             elide: Text.ElideRight
-            opacity: 0.8
+            font.pixelSize: 12
+            opacity: 0.7
             text: qsTr("Ctrl+O menu · F12 screenshot · Ctrl+Shift + R record · B save replay · K marker · S stats · O pad · E move pad · C cam · V move cam · M spectrum · T clock · H chat · L live · Esc = PS")
+        }
+    }
+
+    // คลิกนอก popup (ในกรอบเมนู) = ปิด — Popup.CloseOnPressOutside ไม่ทำงานใน quick window offscreen
+    MouseArea {
+        anchors.fill: parent
+        z: 1000
+        visible: content.popupOpen
+        onPressed: { micDevicePopup.close(); sizePopup.close(); movePopup.close(); }
+    }
+
+    // ---------- popup เลือก overlay ที่จะย้าย ----------
+    Popup {
+        id: movePopup
+        function choices() {
+            let c = [];
+            if (content.overlayEnabled) c.push({ label: qsTr("Controller"), act: "pad" });
+            if (content.webcamEnabled) c.push({ label: qsTr("Facecam"), act: "cam" });
+            if (content.micOverlayEnabled) c.push({ label: qsTr("Mic spectrum"), act: "mic" });
+            if (content.clockOverlayEnabled) c.push({ label: qsTr("Clock"), act: "clock" });
+            if (content.chatOverlayEnabled) c.push({ label: qsTr("Chat"), act: "chat" });
+            return c;
+        }
+        function run(act) {
+            close();
+            switch (act) {
+            case "pad": content.overlayEditRequested(); break;
+            case "cam": content.webcamEditRequested(); break;
+            case "mic": content.micEditRequested(); break;
+            case "clock": content.clockEditRequested(); break;
+            case "chat": content.chatEditRequested(); break;
+            }
+        }
+        property var items: []
+        parent: content
+        modal: false
+        focus: true
+        closePolicy: Popup.CloseOnEscape
+        padding: 6
+        width: 240
+        height: Math.min(moveList.contentHeight + topPadding + bottomPadding + movePopupTitle.height + 6, content.height - 8)
+        x: {
+            const bx = moveButton.mapToItem(content, 0, 0).x;
+            return Math.max(Theme.space2, Math.min(bx, content.width - width - Theme.space2));
+        }
+        y: 4
+        onAboutToShow: { items = choices(); moveList.currentIndex = 0; }
+        onOpened: moveList.forceActiveFocus(Qt.TabFocusReason)
+        onClosed: if (content.visible && moveButton.visible) moveButton.forceActiveFocus(Qt.TabFocusReason)
+        background: Rectangle {
+            radius: Theme.radiusControl
+            color: Theme.surfaceRaised
+            border.width: 1
+            border.color: Theme.accent
+        }
+        contentItem: Column {
+            spacing: 4
+            Label {
+                id: movePopupTitle
+                leftPadding: 10
+                topPadding: 2
+                text: qsTr("MOVE / RESIZE")
+                font.pixelSize: Theme.fontCaption
+                font.letterSpacing: 1.5
+                font.weight: Font.DemiBold
+                color: Theme.textMuted
+            }
+            ListView {
+                id: moveList
+                width: parent.width
+                height: movePopup.availableHeight - movePopupTitle.height - 4
+                clip: true
+                model: movePopup.items
+                boundsBehavior: Flickable.StopAtBounds
+                highlightMoveDuration: 0
+                Keys.onReturnPressed: movePopup.run(movePopup.items[currentIndex].act)
+                Keys.onEnterPressed: movePopup.run(movePopup.items[currentIndex].act)
+                Keys.onSpacePressed: movePopup.run(movePopup.items[currentIndex].act)
+                Keys.onEscapePressed: movePopup.close()
+                Keys.onLeftPressed: (event) => event.accepted = true
+                Keys.onRightPressed: (event) => event.accepted = true
+                delegate: ItemDelegate {
+                    id: moveRow
+                    required property int index
+                    required property var modelData
+                    width: ListView.view.width
+                    height: 36
+                    focusPolicy: Qt.NoFocus
+                    highlighted: ListView.isCurrentItem
+                    onClicked: movePopup.run(modelData.act)
+                    background: Rectangle {
+                        radius: Theme.radiusControl - 2
+                        color: moveRow.highlighted ? Qt.rgba(0, 0.655, 1, 0.22) : moveRow.hovered ? Theme.surfaceHover : "transparent"
+                        border.width: moveRow.highlighted ? Theme.focusWidth - 1 : 0
+                        border.color: Theme.accent
+                    }
+                    contentItem: Label {
+                        leftPadding: 8
+                        text: moveRow.modelData.label
+                        font.pixelSize: Theme.fontLabel
+                        color: Theme.text
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+            }
         }
     }
 

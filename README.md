@@ -18,8 +18,8 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 ![Home screen](screenshots/main.png)
 
 - One card per console: PS5 / PS4 art by model, a status chip (Ready / Standby / Remote) and a big **Play** button.
-- The bottom bar has controller hints on the left and status chips on the right: microphone, camera, controller, **Recordings**, **Screenshots**, Discovery and **ⓘ About**. Click a chip to open its page.
-- Everything works with a controller: ✕ Play, △ wake up, □ hide, L1 PIN, R3 add console, ☰ Settings.
+- The bottom bar has controller hints on the left and status chips on the right: microphone, speaker (with volume), camera, controller, **Recordings**, **Screenshots**, Discovery and **ⓘ About**. Click a chip to open its page or menu; click outside a menu to close it.
+- Everything works with a controller: ✕ Play, △ wake up, □ hide, L1 PIN, R3 add console, ☰ Settings. The hints are buttons too, so you can click them with the mouse.
 
 | ⓘ About and credits | Controller status | Microphone test |
 |---|---|---|
@@ -30,7 +30,7 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 
 ![Stream with overlays](screenshots/stream-overlay.jpg)
 
-The game with every overlay turned on. Each one can be dragged and resized (click it to edit, or use **Move …** in the stream menu with a controller):
+The game with every overlay turned on. Each one can be dragged and resized (click it to edit, or use **Move** in the stream menu with a controller):
 
 - **Live chat** (left): YouTube and Twitch messages, with colored names and badges.
 - **Clock and play time** (top right).
@@ -38,15 +38,21 @@ The game with every overlay turned on. Each one can be dragged and resized (clic
 - **Network stats**: bitrate, ping at connect, packet loss and dropped/lost frames.
 - **Controller overlay** (bottom right): buttons light up and sticks move as you play.
 
+![Status bar while playing](screenshots/stream-statusbar.jpg)
+
+**Status bar**: move the mouse to the bottom of the window and a bar appears. From left to right: ☰ the stream menu, mute the mic, speaker and volume, facecam, controller overlay, record, screenshot, **Go Live**, and network (Mbps; click for stream stats). Click 📌 to keep the bar on screen. Clicks outside the bar still go to the game.
+
 ![Stream menu](screenshots/stream-menu.jpg)
 
-The stream menu (Ctrl+O, L1+R1+L3+R3, or the tray), in rows:
+The stream menu (Ctrl+O, L1+R1+L3+R3, ☰ on the status bar, or the tray):
 
-1. **End Stream**, **Record**, microphone on/off and device, volume, and live stream stats.
-2. **FIT** (Zoom / Stretch / **Size ▾** for exact 16:9 window sizes), **QUALITY** (Default → HQ + Spatial upscaling) and Display settings.
-3. **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats, and a **Move** button for each overlay.
-4. **CAPTURE**: Instant Replay (on/off, length, Save), Screenshot, **Live** and **9:16**.
-5. The keyboard shortcut list.
+- **Top row**: **End Stream**, **Record**, mic on/off, microphone and speaker devices, volume, live stream stats, and **✕** to close the menu.
+- **PICTURE**: Zoom, Stretch, Glow, **Size ▾** (exact 16:9 window sizes) and Display settings.
+- **QUALITY**: Default, HQ, HQ + Spatial, HQ + Advanced, Custom and **Frame Gen** (60 → 120 fps).
+- **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats, Light, Stack and **Move** (pick which overlay to move or resize).
+- **CAPTURE**: Instant Replay (on/off, length, Save), Screenshot, **Go Live** and **9:16**.
+
+The cards wrap onto a new line on narrow windows instead of being cut off. With a controller, the D-pad moves to the nearest button on screen, ✕ presses and ◯ closes.
 
 ![Picture size](screenshots/picture-size.jpg)
 
@@ -159,6 +165,8 @@ The report never contains your PSN sign-in, stream keys, console registration or
   - RNNoise noise reduction and speaker echo removal that can be changed mid-stream.
   - Boost and noise gate.
   - Mic test page.
+- **Status bar while playing**: move the mouse to the bottom of the window for the mic, speaker, facecam, record, screenshot, Go Live and network chips; pin it to keep it on screen.
+- **New stream menu**: compact cards (Picture, Quality, Overlay, Capture) that wrap instead of overflowing, a ✕ close button, and controller navigation that follows the layout.
 - **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
 - **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).

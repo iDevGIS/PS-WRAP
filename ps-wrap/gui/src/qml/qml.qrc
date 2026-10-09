@@ -15,6 +15,7 @@
     <file>VerticalPreviewWindow.qml</file>
     <file>ChatOverlay.qml</file>
     <file>AboutDialog.qml</file>
+    <file>StreamStatusBar.qml</file>
     <file>StreamToast.qml</file>
     <file>MicPreviewDialog.qml</file>
     <file>CamPreviewDialog.qml</file>

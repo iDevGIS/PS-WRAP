@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-09
+A status bar while playing and a redesigned stream menu.
+### Added
+- **Status bar while playing**: move the mouse to the bottom of the window and a bar with the home screen chips appears — ☰ stream menu, mute the mic, speaker and volume, facecam, controller overlay, record, screenshot, **Go Live** (start or stop the live stream; shows the time while live), and network (Mbps, click for stream stats). The 📌 chip keeps it on screen. Mouse clicks outside the bar still go to the game.
+- **Click the button hints on the home screen bar**: ✕ Play, △ Wake Up, □ Hide, L1 Console PIN, R3 Add Console and ≡ Settings now work with the mouse too, not only with a controller.
+### Changed
+- **Redesigned stream menu**: a compact top row (End Stream, Record, mic, microphone and speaker devices, volume, stats) with a **✕** close button, and four cards — **Picture**, **Quality**, **Overlay**, **Capture** — made of small icon tiles. Cards wrap onto a new line on narrow windows instead of being cut off. The five Move buttons are now one **Move** tile that asks which overlay to move. With a controller, the D-pad goes to the nearest button on screen.
+- The bottom bars no longer show tooltips on hover.
+### Fixed
+- Clicking outside a menu now closes it (the speaker menu on the home screen and on the status bar, and the device/size lists in the stream menu).
+
 ## [0.6.0] — 2026-10-09
 Choose the speaker and its volume, and switch it mid-stream.
 ### Added
@@ -202,6 +213,7 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.7.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.7.0
 [0.6.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.5.0
 [0.4.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.4.0

@@ -2857,6 +2857,17 @@ void QmlMainWindow::setStatsOverlay(bool v)
 }
 
 // PS-WRAP: เรียกกลับจาก tray — คืน state เดิม (ไม่ทับ maximize) และบังคับ sync ชั้น overlay ถ้ากำลังสตรีม
+// PS-WRAP: แสดงเคอร์เซอร์ระหว่างเมาส์อยู่แถบล่าง (ปกติซ่อนตอนสตรีม) ให้กดชิปบนแถบสถานะได้
+void QmlMainWindow::setPointerAtBottom(bool v)
+{
+    if (pointer_at_bottom == v)
+        return;
+    pointer_at_bottom = v;
+    if (!grab_input && has_video && settings->GetHideCursor())
+        setCursor(v ? Qt::ArrowCursor : Qt::BlankCursor);
+    emit pointerAtBottomChanged();
+}
+
 void QmlMainWindow::setOverlayHitRects(const QVariantList &rects)
 {
     overlay_hit_rects.clear();
@@ -2982,7 +2993,7 @@ void QmlMainWindow::releaseInput()
         return;
     grab_input--;
     qCInfo(chiakiGui) << "PSWRAP releaseInput count =" << grab_input;
-    if (!grab_input && has_video && settings->GetHideCursor())
+    if (!grab_input && has_video && settings->GetHideCursor() && !pointer_at_bottom)   // PS-WRAP: เมาส์ค้างบนแถบสถานะ = คงเคอร์เซอร์
         setCursor(Qt::BlankCursor);
     if (session)
         session->BlockInput(grab_input);
@@ -7908,6 +7919,9 @@ bool QmlMainWindow::event(QEvent *event)
             // PS-WRAP: เมาส์บน overlay (facecam/จอย/stats) → QML (คลิกเพื่อเข้าโหมดแก้, hover tooltip) ไม่ส่งเข้าเกม
             {
                 const QPointF pos = static_cast<QMouseEvent*>(event)->position();
+                // แถบล่าง (สูง 9% ไม่ต่ำกว่า 56px) = แถบสถานะโผล่ · เมาส์ยังเข้าเกมตามปกติ ยกเว้นตรงตัวแถบ (อยู่ใน overlay_hit_rects)
+                if (event->type() == QEvent::MouseMove)
+                    setPointerAtBottom(pos.y() >= height() - qMax(84.0, height() * 0.1));
                 bool on_overlay = overlay_mouse_captured;
                 if (!on_overlay)
                     for (const QRectF &r : overlay_hit_rects)
@@ -7918,7 +7932,13 @@ bool QmlMainWindow::event(QEvent *event)
                     overlay_mouse_captured = false;
                 if (on_overlay) {
                     QGuiApplication::sendEvent(quick_window, event);
+                    pointer_on_overlay = true;
                     return true;
+                }
+                // เพิ่งออกจาก overlay: ส่ง move นี้ให้ QML ด้วยครั้งหนึ่ง ไม่งั้น hover (tooltip/ไฮไลต์/แถบสถานะ) ค้าง
+                if (pointer_on_overlay && event->type() == QEvent::MouseMove) {
+                    pointer_on_overlay = false;
+                    QGuiApplication::sendEvent(quick_window, event);
                 }
             }
             if (event->type() == QEvent::MouseMove)
@@ -7930,6 +7950,11 @@ bool QmlMainWindow::event(QEvent *event)
             return true;
         }
         QGuiApplication::sendEvent(quick_window, event);
+        break;
+    case QEvent::Leave:
+        setPointerAtBottom(false);   // PS-WRAP: เมาส์ออกนอกหน้าต่าง → แถบสถานะซ่อน
+        pointer_on_overlay = false;
+        QGuiApplication::sendEvent(quick_window, event);   // ล้าง hover ใน QML
         break;
     case QEvent::MouseButtonDblClick:
         if(!settings->GetFullscreenDoubleClickEnabled())

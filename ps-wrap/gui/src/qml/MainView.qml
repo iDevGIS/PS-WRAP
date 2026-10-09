@@ -354,6 +354,18 @@ Pane {
         }
     }
     Keys.onMenuPressed: settingsButton.clicked()
+    // PS-WRAP: คลิกปุ่มลัดในแถบล่าง = ทำเหมือนกดปุ่มจอยนั้น
+    function hintAction(act) {
+        const host = hostsView.currentItem;
+        switch (act) {
+        case "play": if (host) host.connectToHost(); break;
+        case "wake": if (host) host.wakeUpHost(); break;
+        case "hide": if (host) host.deleteHost(); break;
+        case "pin": if (host) host.setConsolePin(); break;
+        case "add": root.showManualHostDialog(); break;
+        case "settings": settingsButton.clicked(); break;
+        }
+    }
     Keys.onReturnPressed: if (hostsView.currentItem) hostsView.currentItem.connectToHost()
     Keys.onYesPressed: if (hostsView.currentItem) hostsView.currentItem.wakeUpHost()
     Keys.onNoPressed: if (hostsView.currentItem) hostsView.currentItem.deleteHost()
@@ -902,28 +914,50 @@ Pane {
             }
             spacing: consolePane.width >= 1600 ? Theme.space6 : Theme.space3
 
+            // PS-WRAP: ปุ่มลัดจอยกดด้วยเมาส์ได้ด้วย (ทำเหมือนกดปุ่มนั้นบนจอย) — ≡ = Settings, R3 = เพิ่มเครื่อง
             Repeater {
                 model: [
-                    { glyph: root.controllerButton("cross"),   label: qsTr("Play") },
-                    { glyph: root.controllerButton("pyramid"), label: qsTr("Wake Up") },
-                    { glyph: root.controllerButton("box"),     label: qsTr("Hide") },
-                    { glyph: "qrc:/icons/l1.svg",              label: qsTr("Console PIN") },
-                    { glyph: "qrc:/icons/r3.svg",              label: qsTr("Add Console") },
-                    { glyph: "qrc:/icons/options.svg",         label: qsTr("Settings") }
+                    { glyph: root.controllerButton("cross"),   label: qsTr("Play"),        act: "play",     host: true },
+                    { glyph: root.controllerButton("pyramid"), label: qsTr("Wake Up"),     act: "wake",     host: true },
+                    { glyph: root.controllerButton("box"),     label: qsTr("Hide"),        act: "hide",     host: true },
+                    { glyph: "qrc:/icons/l1.svg",              label: qsTr("Console PIN"), act: "pin",      host: true },
+                    { glyph: "qrc:/icons/r3.svg",              label: qsTr("Add Console"), act: "add",      host: false },
+                    { glyph: "qrc:/icons/options.svg",         label: qsTr("Settings"),    act: "settings", host: false }
                 ]
-                delegate: RowLayout {
-                    spacing: Theme.space2
-                    Image {
-                        Layout.preferredWidth: 26
-                        Layout.preferredHeight: 26
-                        sourceSize: Qt.size(26, 26)
-                        source: modelData.glyph
+                delegate: Rectangle {
+                    id: hint
+                    readonly property bool usable: !modelData.host || !!hostsView.currentItem
+                    implicitWidth: hintRow.implicitWidth + Theme.space2 * 2
+                    implicitHeight: 40
+                    radius: Theme.radiusChip
+                    color: hintMouse.containsMouse && usable ? Theme.surfaceRaised : "transparent"
+                    border.width: hintMouse.containsMouse && usable ? 1 : 0
+                    border.color: Theme.accent
+                    opacity: usable ? 1.0 : 0.5
+                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                    RowLayout {
+                        id: hintRow
+                        anchors.centerIn: parent
+                        spacing: Theme.space2
+                        Image {
+                            Layout.preferredWidth: 26
+                            Layout.preferredHeight: 26
+                            sourceSize: Qt.size(26, 26)
+                            source: modelData.glyph
+                        }
+                        Label {
+                            visible: consolePane.width >= 1400   // จอแคบ (Deck 1280): เหลือแค่ไอคอนปุ่ม
+                            text: modelData.label
+                            font.pixelSize: Theme.fontLabel
+                            color: hintMouse.containsMouse && hint.usable ? Theme.text : Theme.textMuted
+                        }
                     }
-                    Label {
-                        visible: consolePane.width >= 1400   // จอแคบ (Deck 1280): เหลือแค่ไอคอนปุ่ม
-                        text: modelData.label
-                        font.pixelSize: Theme.fontLabel
-                        color: Theme.textMuted
+                    MouseArea {
+                        id: hintMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: hint.usable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: if (hint.usable) consolePane.hintAction(modelData.act)
                     }
                 }
             }
@@ -1032,9 +1066,6 @@ Pane {
                         speakerMenu.openAbove(speakerChip);
                     }
                 }
-                ToolTip.visible: speakerMouse.containsMouse && consolePane.width < 1800 && !speakerMenu.visible
-                ToolTip.text: qsTr("Speaker: %1").arg(speakerChip.device === "" ? qsTr("Auto (Windows default)") : speakerChip.device)
-                ToolTip.delay: 500
                 C.DeviceMenu {
                     id: speakerMenu
                     title: qsTr("SPEAKER")
@@ -1237,8 +1268,5 @@ Pane {
             cursorShape: Qt.PointingHandCursor
             onClicked: chip.clicked()
         }
-        ToolTip.visible: chipMouse.containsMouse && consolePane.width < 1800
-        ToolTip.text: chip.text
-        ToolTip.delay: 500
     }
 }

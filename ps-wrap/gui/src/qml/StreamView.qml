@@ -588,6 +588,7 @@ Item {
         property real dockW: 0.14        // ความกว้างคอลัมน์ เป็นสัดส่วนของกรอบวิดีโอ
         property real dockY: 0.03        // ขอบบนของคอลัมน์ เป็นสัดส่วนของความสูงกรอบวิดีโอ
         property string dockOrder: "clock,mic,stats,chat,cam,pad"
+        property bool statusBarPinned: false   // PS-WRAP: แถบสถานะค้างบนจอ (ไม่ปัก = โผล่เมื่อเมาส์ไปขอบล่าง)
     }
 
     // ---- edit mode ของ overlay: ขอ input คืนจากเกมชั่วคราว ลากด้วยเมาส์/ลูกศร/จอย, มุมขวาล่างย่อขยาย, L1/R1 หรือ +/- ย่อขยาย, Esc/◯ หรือ Enter/✕ เสร็จ ----
@@ -699,7 +700,7 @@ Item {
     function rectOf(item) { return item.visible ? Qt.rect(item.x, item.y, item.width, item.height) : Qt.rect(0, 0, 0, 0) }
     function pushOverlayHitRects() {
         if (!Chiaki.window) return;
-        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor)]);
+        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor), rectOf(statusBar)]);
         // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
         const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
         Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
@@ -2064,7 +2065,24 @@ Item {
     Binding {
         target: root
         property: "toastBottomInset"
-        value: (menuController.open && !useSeparateMenuWindow) ? streamMenuHeight : 0
+        value: (menuController.open && !useSeparateMenuWindow) ? streamMenuHeight
+             : (statusBar.shown ? view.height - statusBar.y : 0)   // toast อยู่เหนือแถบสถานะ
+    }
+
+    // PS-WRAP: แถบสถานะระหว่างเล่น (StreamStatusBar.qml) — กลางล่างของภาพ · เฉพาะ backend Vulkan (QML วาดทับวิดีโอ)
+    StreamStatusBar {
+        id: statusBar
+        z: 80
+        x: Math.round(view.videoX + (view.videoW - width) / 2)
+        y: Math.round(view.height - height - 16)   // ชิดขอบล่างหน้าต่าง (อยู่ในแถบ pointerAtBottom เสมอ · ภาพมีขอบดำก็ไปอยู่ในขอบดำ)
+        allowed: !useSeparateMenuWindow && !!Chiaki.session && !sessionLoading && !sessionError
+                 && !(menuController.open || menuController.closing) && !view.anyOverlayEdit
+                 && !sessionStopDialogActive && !sessionPinDialogActive
+        pinned: pswrapPrefs.statusBarPinned
+        onPinToggled: pswrapPrefs.statusBarPinned = !pswrapPrefs.statusBarPinned
+        onMenuRequested: { menuController.toggle(); Chiaki.window.requestOverlayUpdate(); }
+        onGrabRequested: view.grabInput(null)
+        onReleaseRequested: view.releaseInput()
     }
 
     // overlay แบบ window แยก (backend OpenGL) — โปร่งใสและไม่รับ input

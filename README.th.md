@@ -18,8 +18,8 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 ![หน้าหลัก](screenshots/main.png)
 
 - การ์ดเครื่องละใบ: รูป PS5 / PS4 ตามรุ่น, ชิปสถานะ (Ready / Standby / Remote) และปุ่ม **Play** ใหญ่
-- แถบล่าง: ซ้ายเป็นคำใบ้ปุ่มจอย ขวาเป็นชิปสถานะ — ไมค์, กล้อง, จอย, **Recordings**, **Screenshots**, Discovery และ **ⓘ About** คลิกชิปเพื่อเปิดหน้านั้น
-- ใช้จอยได้ทั้งหน้า: ✕ Play, △ ปลุกเครื่อง, □ ซ่อน, L1 ใส่ PIN, R3 เพิ่มเครื่อง, ☰ Settings
+- แถบล่าง: ซ้ายเป็นคำใบ้ปุ่มจอย ขวาเป็นชิปสถานะ — ไมค์, ลำโพง (ปรับเสียงได้), กล้อง, จอย, **Recordings**, **Screenshots**, Discovery และ **ⓘ About** คลิกชิปเพื่อเปิดหน้าหรือเมนูนั้น คลิกนอกเมนูเพื่อปิด
+- ใช้จอยได้ทั้งหน้า: ✕ Play, △ ปลุกเครื่อง, □ ซ่อน, L1 ใส่ PIN, R3 เพิ่มเครื่อง, ☰ Settings · คำใบ้ปุ่มเหล่านี้กดด้วยเมาส์ได้ด้วย
 
 | ⓘ About และเครดิต | สถานะจอย | ทดสอบไมค์ |
 |---|---|---|
@@ -30,7 +30,7 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 ![สตรีมพร้อม overlay](screenshots/stream-overlay.jpg)
 
-เกมพร้อม overlay ครบทุกตัว ลากย้าย/ย่อขยายได้ทุกตัว (คลิกที่ overlay เพื่อแก้ หรือใช้ปุ่ม **Move …** ในเมนูสตรีมด้วยจอย)
+เกมพร้อม overlay ครบทุกตัว ลากย้าย/ย่อขยายได้ทุกตัว (คลิกที่ overlay เพื่อแก้ หรือใช้ปุ่ม **Move** ในเมนูสตรีมด้วยจอย)
 
 - **แชทไลฟ์** (ซ้าย): ข้อความ YouTube และ Twitch พร้อมสีชื่อและป้าย
 - **นาฬิกา + เวลาเล่น** (ขวาบน)
@@ -38,15 +38,21 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 - **network stats**: bitrate, ping ตอนเชื่อมต่อ, packet loss, เฟรมที่ทิ้ง/หาย
 - **overlay จอย** (ขวาล่าง): ปุ่มสว่างและสติ๊กขยับตามที่เล่น
 
+![แถบสถานะระหว่างเล่น](screenshots/stream-statusbar.jpg)
+
+**แถบสถานะ**: เลื่อนเมาส์ไปขอบล่างของหน้าต่างแล้วแถบจะโผล่ขึ้นมา จากซ้ายไปขวา: ☰ เมนูสตรีม, ปิด/เปิดไมค์, ลำโพงและระดับเสียง, facecam, overlay จอย, อัดคลิป, ภาพหน้าจอ, **Go Live** และเน็ต (Mbps คลิกเปิดสถิติสตรีม) · กด 📌 ให้แถบค้างบนจอ · คลิกนอกแถบยังเข้าเกมตามปกติ
+
 ![เมนูสตรีม](screenshots/stream-menu.jpg)
 
-เมนูสตรีม (Ctrl+O, L1+R1+L3+R3 หรือจาก tray) เรียงเป็นแถว:
+เมนูสตรีม (Ctrl+O, L1+R1+L3+R3, ☰ บนแถบสถานะ หรือจาก tray):
 
-1. **End Stream**, **Record**, เปิด/ปิดไมค์ + เลือกไมค์, เสียง และสถิติสตรีมสด
-2. **FIT** (Zoom / Stretch / **Size ▾** ขนาดหน้าต่าง 16:9 พอดี), **QUALITY** (Default → HQ + Spatial upscale) และ Display
-3. **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats และปุ่ม **Move** ของแต่ละตัว
-4. **CAPTURE**: Instant Replay (เปิด/ปิด, ความยาว, Save), Screenshot, **Live** และ **9:16**
-5. รายการคีย์ลัด
+- **แถวบน**: **End Stream**, **Record**, เปิด/ปิดไมค์, เลือกไมค์และลำโพง, ระดับเสียง, สถิติสตรีมสด และ **✕** ปิดเมนู
+- **PICTURE**: Zoom, Stretch, Glow, **Size ▾** (ขนาดหน้าต่าง 16:9 พอดี) และ Display
+- **QUALITY**: Default, HQ, HQ + Spatial, HQ + Advanced, Custom และ **Frame Gen** (60 → 120 fps)
+- **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats, Light, Stack และ **Move** (เลือกว่าจะย้าย/ย่อขยาย overlay ตัวไหน)
+- **CAPTURE**: Instant Replay (เปิด/ปิด, ความยาว, Save), Screenshot, **Go Live** และ **9:16**
+
+หน้าต่างแคบ การ์ดจะห่อลงบรรทัดใหม่ทั้งใบ ไม่โดนตัด · ใช้จอย: ปุ่มทิศไปปุ่มที่อยู่ติดกันบนจอ ✕ กด ◯ ปิด
 
 ![ขนาดภาพ](screenshots/picture-size.jpg)
 
@@ -132,6 +138,8 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 - **Go Live** — ไลฟ์ไป YouTube / Twitch / Facebook / Kick / Custom RTMP(S) พร้อมกัน ถึง 4K (YouTube/Custom) และปลายทาง **แนวตั้ง 9:16** สำหรับ TikTok / Shorts / Reels · stream key เก็บใน Windows Credential Manager
 - **หน้าต่าง 9:16** — preview แนวตั้งสด 3 เลย์เอาต์, ลาก facecam/ตำแหน่งตัดได้, อัดคลิป 1080 × 1920
 - **ไมโครโฟน** — ลดเสียงรบกวน RNNoise + ตัดเสียงลำโพง ปรับกลางสตรีมได้, boost + noise gate, หน้าทดสอบไมค์
+- **แถบสถานะระหว่างเล่น** — เลื่อนเมาส์ไปขอบล่างเพื่อใช้ชิปไมค์ ลำโพง facecam อัดคลิป ภาพหน้าจอ Go Live และเน็ต · ปักหมุดให้ค้างได้
+- **เมนูสตรีมใหม่** — การ์ดกระชับ (Picture, Quality, Overlay, Capture) ห่อบรรทัดแทนการล้น มีปุ่ม ✕ ปิด และจอยเดินตามเลย์เอาต์จริง
 - **ลำโพง** — เลือกอุปกรณ์เสียงออกและระดับเสียงได้จากชิปหน้าแรก เมนูสตรีม หรือ tray สลับกลางสตรีมได้ (PS5 ส่งเสียง Remote Play มาเป็น stereo — อยากได้เสียงรอบทิศแบบจำลอง เปิด Windows Sonic / Dolby Atmos for Headphones ใน Windows)
 - **Game presets** — ตั้งความละเอียด/bitrate/overlay ฯลฯ ต่อเกม ใช้อัตโนมัติ
 - **สถานะบน Discord** — โปรไฟล์ Discord ขึ้น *Playing PS-WRAP* พร้อมเกมที่เครื่องรันอยู่, Remote Play / Live / Recording และเวลาเล่น (คุยกับแอป Discord ตรงๆ ไม่มี DLL เพิ่ม)
