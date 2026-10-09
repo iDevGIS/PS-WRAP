@@ -8,6 +8,7 @@
 ### Added
 - 2026-10-10 ปุ่ม **Join Discord** ในหน้า About และ **Ask on Discord** ใน PS-WRAP-Diagnostics เปิด Discord ของ PS-WRAP (ห้องถามปัญหา ข่าว build ทดสอบ): <https://discord.gg/6VTSxu8JRf>
 ### Changed
+- 2026-10-10 **About**: หัวข้อใหม่ *PS-WRAP on GitHub* อยู่บนสุด (source/ดาวน์โหลด, Issues, Changelog, Discord) และชื่อ *BudToZai* กดไปหน้า GitHub ของเราได้
 - **ออกแบบหน้า Settings ใหม่**: จัดกลุ่มใหม่ให้ตัวเลือกที่เกี่ยวกันอยู่ด้วยกัน ทุกหน้าแบ่งเป็นการ์ดมีหัวข้อ ไอคอน และคำอธิบายสั้น · sidebar มีไอคอนทุกหน้า จัดเป็น **Play** (General, Stream, Video, Audio, Game presets), **Controls** (Controllers, Keyboard), **Connection** (Consoles, Remote Play), **Create** (Facecam, Recording, Go Live) และ **App** (System) · ของที่เคยปนอยู่ใน General ย้ายไปที่ที่ควรอยู่: facecam มีหน้าของตัวเอง, โฟลเดอร์และความละเอียดคลิปอยู่ใน Recording, ตัวเลือก Steam Deck และคอมโบปุ่มเปิดเมนูสตรีมอยู่ใน Controllers, การแจ้งเตือน Wi-Fi/packet loss อยู่ใน Stream, โฟลเดอร์ log อยู่ใน System · ค่าทุกตัวยังอยู่ครบ ค่าเดิมไม่เปลี่ยน และใช้จอยได้ทุกหน้าเหมือนเดิม (L1/R1 เปลี่ยนหน้า)
 ### Fixed
 - **ใส่ PIN เครื่องด้วยจอยได้**: ช่อง Console Login PIN ตอนเชื่อมต่อ (รวมผ่าน PSN) และ *Set console pin* ที่หน้าแรก ใช้แบบหน้าใส่รหัสของ PS5: ปุ่มจอยแต่ละปุ่ม = ตัวเลขหนึ่งตัว (◀1 ▲2 ▶3 ▼4 R1 5 R2 6 L1 7 L2 8 △9 □0 มีแป้นบนจอบอก) ครบหลักที่ 4 ยืนยันเอง ○ ลบตัวล่าสุด (ว่างแล้ว = ยกเลิก) · พิมพ์จากคีย์บอร์ดและคลิกแป้นบนจอได้

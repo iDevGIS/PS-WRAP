@@ -58,9 +58,12 @@ Dialog {
                     color: Theme.text
                 }
                 Label {
-                    text: qsTr("Version %1 · by BudToZai").arg(Qt.application.version)
+                    textFormat: Text.StyledText
+                    text: qsTr("Version %1 · by %2").arg(Qt.application.version).arg(about.link("https://github.com/iDevGIS", "BudToZai"))
                     font.pixelSize: Theme.fontLabel
                     color: Theme.textMuted
+                    onLinkActivated: (url) => Qt.openUrlExternally(url)
+                    HoverHandler { cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor }
                 }
             }
         }
@@ -81,6 +84,20 @@ Dialog {
                 id: body
                 width: flick.width - Theme.space4
                 spacing: Theme.space4
+
+                // PS-WRAP: ของเราก่อน — repo / ดาวน์โหลด / แจ้งปัญหา / Discord
+                Section {
+                    title: qsTr("PS-WRAP on GitHub")
+                    text: qsTr("Source code, downloads and release notes: %1")
+                          .arg(about.link("https://github.com/iDevGIS/PS-WRAP", "github.com/iDevGIS/PS-WRAP"))
+                          + "<br>"
+                          + qsTr("Found a bug or have an idea? %1 · What's new: %2")
+                          .arg(about.link("https://github.com/iDevGIS/PS-WRAP/issues", qsTr("Issues")))
+                          .arg(about.link("https://github.com/iDevGIS/PS-WRAP/blob/main/CHANGELOG.md", qsTr("Changelog")))
+                          + "<br>"
+                          + qsTr("Help, news and beta builds: %1")
+                          .arg(about.link("https://discord.gg/6VTSxu8JRf", "Discord"))
+                }
 
                 Section {
                     title: qsTr("Built on chiaki-ng")
