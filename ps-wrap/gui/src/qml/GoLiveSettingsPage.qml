@@ -59,7 +59,7 @@ Item {
             else if (bottom > contentY + height)
                 contentY = bottom - height;
         }
-        ScrollBar.vertical: ScrollBar {
+        ScrollBar.vertical: C.SlimScrollBar {
             policy: ScrollBar.AlwaysOn
             visible: liveFlick.contentHeight > liveFlick.height
         }

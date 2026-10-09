@@ -87,11 +87,15 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 | Video | Stream |
 |---|---|
 | ![Settings › Video](screenshots/settings-video.png) | ![Settings › Stream](screenshots/settings-stream.png) |
-| ตัวถอดรหัส, ชนิดหน้าต่าง, render preset (ถึง HQ + Spatial upscale), frame delivery ฯลฯ | ความละเอียด, fps, bitrate และ codec แยก PS5 / PS4 และเล่นในบ้าน (local) / นอกบ้าน (remote) |
+| การ์ดคุณภาพภาพ (render preset ถึง HQ + Advanced Spatial upscale, display settings), หน้าต่างสตรีม และ renderer (ตัวถอดรหัส, V-Sync, frame delivery, Vulkan / OpenGL) | ความละเอียด, fps, bitrate และ codec แยก PS5 / PS4 และเล่นในบ้าน (local) / นอกบ้าน (remote) พร้อม **Check my connection** และการแจ้งเตือนเครือข่าย |
 
 ![Settings › Keyboard](screenshots/settings-keys.png)
 
-Settings › Keyboard: ผูกปุ่ม PlayStation ทุกปุ่มกับคีย์บอร์ด จัดเป็นการ์ดตามหมวด (ปุ่มหน้า, D-pad, ไหล่/ไก, ระบบ, สติ๊ก) ใช้จอยเลื่อนได้ทั้งหน้า · sidebar มีไอคอนทุกหน้า จัดเป็น Play (General, Stream, Video, Audio, Game presets), Controls (Controllers, Keyboard), Connection (Consoles, Remote Play), Create (Facecam, Recording, Go Live) และ App (System) · ทุกหน้าแบ่งเป็นการ์ดมีหัวข้อ
+Settings › Keyboard: ผูกปุ่ม PlayStation ทุกปุ่มกับคีย์บอร์ด จัดเป็นการ์ดตามหมวด (ปุ่มหน้า, D-pad, ไหล่/ไก, ระบบ, สติ๊ก) ใช้จอยเลื่อนได้ทั้งหน้า · sidebar มีไอคอนทุกหน้า จัดเป็น Play (General, Stream, Video, Audio, Game presets), Controls (Controllers, Keyboard), Connection (Consoles, Remote Play), Create (Facecam, Recording, Go Live) และ App (System) · ทุกหน้าแบ่งเป็นการ์ดมีหัวข้อ · หน้าต่างเล็ก sidebar เหลือแต่ไอคอนและแต่ละ setting ซ้อนแนวตั้ง (ชื่ออยู่บน) ไม่ล้นขอบ · ล้อเมาส์เลื่อนได้ทุกรายการ
+
+![ใส่ PIN เครื่องด้วยจอย](screenshots/console-pin.png)
+
+ใส่ PIN เครื่องด้วยจอยแบบหน้าใส่รหัสของ PS5: ปุ่มเดียว = เลขหนึ่งตัว (◀1 ▲2 ▶3 ▼4 R1 5 R2 6 L1 7 L2 8 △9 □0) ครบหลักที่ 4 ยืนยันเอง ○ ลบ · ใช้ตอนต่อเครื่องที่ตั้ง PIN ล็อกอิน (รวมผ่าน PSN) และ *Set console pin* ที่หน้าแรก
 
 ### เมนู tray และ Disconnect
 
@@ -143,7 +147,7 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 
 ## มีอะไรใหม่จาก chiaki-ng
 
-- **UI ใหม่ทั้งชุด** — หน้าหลักแบบ console card, Settings แบบ sidebar, เมนูสตรีมใหม่, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า (Steam Deck / TV)
+- **UI ใหม่ทั้งชุด** — หน้าหลักแบบ console card, Settings แบบ sidebar มีไอคอนจัดกลุ่มตามงาน (Play, Controls, Connection, Create, App) และการ์ดมีหัวข้อทุกหน้า, ใส่ PIN เครื่องด้วยจอย (แป้นแบบ PS5), เมนูสตรีมใหม่, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า (Steam Deck / TV)
 - **Overlay ระหว่างสตรีม** — จอย, network stats, facecam, mic visualizer, นาฬิกา และ **แชทไลฟ์ (YouTube + Twitch)** วางอิสระได้ทุกตัว หรือเปิด **Stack** ให้เรียงเป็นคอลัมน์เดียวกว้างเท่ากัน แล้วย้าย/ย่อขยาย/สลับลำดับทั้งชุดทีเดียว
 - **ภาพ** — **Frame Gen** สร้างเฟรมกลาง 60 → 120 fps บนจอเร็ว (หา motion บน GPU) · **Glow** แถบดำรอบภาพเป็นแสงเบลอจากเกม (เหมาะจอ ultrawide) · **Light** สีไฟจอยที่เกมสั่งเรืองรอบภาพและบนรูปจอย · AI upscale (FSRCNNX) จาก preset QUALITY — ดู [ค่าที่ทดสอบแล้วดีที่สุด](#ค่าที่ทดสอบแล้วดีที่สุด)
 - **Facecam** — กล้องทุกตัวรวมกล้องเสมือน DirectShow, zoom/pan/mirror/วงกลม, ตัดพื้นหลังด้วย chroma key หรือ AI (ไม่ต้องใช้ฉากเขียว), face effects 3D ที่เกาะหน้า (MediaPipe Face Landmarker)

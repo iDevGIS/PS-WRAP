@@ -7956,6 +7956,20 @@ bool QmlMainWindow::event(QEvent *event)
         pointer_on_overlay = false;
         QGuiApplication::sendEvent(quick_window, event);   // ล้าง hover ใน QML
         break;
+    case QEvent::Wheel:
+        // PS-WRAP: เดิมไม่ส่ง wheel ให้ QML เลย → ล้อเมาส์เลื่อน Settings/รายการไหนไม่ได้ทั้งแอป
+        // ตอนสตรีม (ไม่ grab) ส่งเฉพาะตอนเมาส์อยู่บน overlay — เกมไม่ได้รับ wheel อยู่แล้ว
+        if (session && !grab_input) {
+            const QPointF pos = static_cast<QWheelEvent*>(event)->position();
+            for (const QRectF &r : overlay_hit_rects)
+                if (r.contains(pos)) {
+                    QGuiApplication::sendEvent(quick_window, event);
+                    break;
+                }
+            return true;
+        }
+        QGuiApplication::sendEvent(quick_window, event);
+        break;
     case QEvent::MouseButtonDblClick:
         if(!settings->GetFullscreenDoubleClickEnabled())
             break;

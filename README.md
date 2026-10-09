@@ -87,11 +87,15 @@ Recording a 9:16 clip while playing: the button turns into **■ Stop** with the
 | Video | Stream |
 |---|---|
 | ![Settings › Video](screenshots/settings-video.png) | ![Settings › Stream](screenshots/settings-stream.png) |
-| Decoder, window type, render preset (up to HQ + Spatial upscaling), frame delivery and more. | Resolution, frame rate, bitrate and codec, separately for PS5 / PS4 and for home (local) and remote play. |
+| Cards for picture quality (render preset up to HQ + Advanced Spatial upscaling, display settings), the stream window, and the renderer (decoder, V-Sync, frame delivery, Vulkan / OpenGL). | Resolution, frame rate, bitrate and codec, separately for PS5 / PS4 and for home (local) and remote play, plus **Check my connection** and network warnings. |
 
 ![Settings › Keyboard](screenshots/settings-keys.png)
 
-Settings › Keyboard: every PlayStation button mapped to a keyboard key, grouped into cards (face buttons, D-pad, shoulders and triggers, system, sticks), all reachable with a controller. The sidebar groups the pages, each with an icon, into Play (General, Stream, Video, Audio, Game presets), Controls (Controllers, Keyboard), Connection (Consoles, Remote Play), Create (Facecam, Recording, Go Live) and App (System); every page is split into titled cards.
+Settings › Keyboard: every PlayStation button mapped to a keyboard key, grouped into cards (face buttons, D-pad, shoulders and triggers, system, sticks), all reachable with a controller. The sidebar groups the pages, each with an icon, into Play (General, Stream, Video, Audio, Game presets), Controls (Controllers, Keyboard), Connection (Consoles, Remote Play), Create (Facecam, Recording, Go Live) and App (System); every page is split into titled cards. On a small window the sidebar shrinks to icons and each setting stacks with its name on top, so nothing runs off the edge; the mouse wheel scrolls every list.
+
+![Console PIN with a controller](screenshots/console-pin.png)
+
+Console PIN with a controller, like the passcode screen on the PS5: each button types one digit (◀1 ▲2 ▶3 ▼4 R1 5 R2 6 L1 7 L2 8 △9 □0), the fourth digit confirms by itself and Circle deletes. Used when connecting to a console with a login PIN (also over PSN) and in *Set console pin* on the home screen.
 
 ### System tray and disconnect
 
@@ -145,7 +149,8 @@ The report never contains your PSN sign-in, stream keys, console registration or
 ## What's new compared to chiaki-ng
 
 - **A new interface throughout**:
-  - Console-card home screen and Settings with a sidebar.
+  - Console-card home screen, and Settings with an icon sidebar grouped by task (Play, Controls, Connection, Create, App) and titled cards on every page.
+  - Enter the console PIN with a controller (PS5-style keypad).
   - A redesigned stream menu and a new Keys page.
   - Responsive at any window size.
   - Every screen works with a controller (Steam Deck / TV friendly).

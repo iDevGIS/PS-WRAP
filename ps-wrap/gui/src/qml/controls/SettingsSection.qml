@@ -12,10 +12,21 @@ Rectangle {
     property string description
     property url icon
     property bool stretch: false             // true = grid กว้างเต็มการ์ด (เช่นรายชื่อเครื่อง)
-    property alias columns: grid.columns
+    property int columns: 3                  // คอลัมน์ตอนกว้างพอ
+    property int compactColumns: 1           // คอลัมน์ตอนจอแคบ (1 = ชื่ออยู่บน control)
     default property alias content: grid.data
     readonly property bool settingsSection: true
-    readonly property int pad: Theme.space6
+    // PS-WRAP: จอแคบ → ซ้อนแนวตั้ง · อ่านจาก C.SettingsPage ที่ครอบอยู่ (settingsPageCompact)
+    readonly property bool compact: {
+        let p = parent;
+        while (p) {
+            if (p.settingsPageCompact !== undefined)
+                return p.settingsPageCompact;
+            p = p.parent;
+        }
+        return false;
+    }
+    readonly property int pad: 20
 
     Layout.fillWidth: true
     implicitWidth: inner.implicitWidth + 2 * pad
@@ -30,7 +41,7 @@ Rectangle {
         x: section.pad
         y: section.pad
         width: section.width - 2 * section.pad
-        spacing: Theme.space4
+        spacing: Theme.space3
 
         RowLayout {
             visible: section.title.length > 0
@@ -39,16 +50,16 @@ Rectangle {
 
             Rectangle {
                 visible: section.icon != ""
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
                 Layout.alignment: Qt.AlignTop
                 radius: 10
                 color: Qt.rgba(0, 0.655, 1, 0.16)    // Theme.accent จางๆ
                 Image {
                     anchors.centerIn: parent
-                    width: 20
-                    height: 20
-                    sourceSize: Qt.size(20, 20)
+                    width: 18
+                    height: 18
+                    sourceSize: Qt.size(18, 18)
                     source: section.icon
                 }
             }
@@ -82,9 +93,10 @@ Rectangle {
 
         GridLayout {
             id: grid
+            readonly property bool compactLayout: section.compact   // RowLabel อ่านเพื่อเว้นบน
             Layout.fillWidth: section.stretch
-            columns: 3
-            rowSpacing: 14
+            columns: section.compact ? section.compactColumns : section.columns
+            rowSpacing: section.compact ? Theme.space2 : 10
             columnSpacing: 24
         }
     }

@@ -50,6 +50,7 @@
     <file>controls/SettingsSection.qml</file>
     <file>controls/RowLabel.qml</file>
     <file>controls/Hint.qml</file>
+    <file>controls/SlimScrollBar.qml</file>
     <file>controls/Button.qml</file>
     <file>controls/CheckBox.qml</file>
     <file>controls/ComboBox.qml</file>

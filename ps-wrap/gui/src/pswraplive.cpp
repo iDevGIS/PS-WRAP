@@ -93,7 +93,7 @@ const std::vector<PlatformDef> &platformDefs()
 		{"youtube", "YouTube", 51000, 6000, false, false,
 			{{QT_TRANSLATE_NOOP("PsWrapGoLive", "Primary (RTMPS)"), "rtmps://a.rtmps.youtube.com:443/live2"},
 			 {QT_TRANSLATE_NOOP("PsWrapGoLive", "Primary (RTMP)"), "rtmp://a.rtmp.youtube.com/live2"}},
-			QT_TRANSLATE_NOOP("PsWrapGoLive", "Stream key: YouTube Studio › Create › Go live › Stream. A new channel must verify its phone number and wait 24 hours before the first live stream. 4K: set Output resolution to 4K in Settings › General and use 35–45 Mbps."),
+			QT_TRANSLATE_NOOP("PsWrapGoLive", "Stream key: YouTube Studio › Create › Go live › Stream. A new channel must verify its phone number and wait 24 hours before the first live stream. 4K: set Output Resolution to 4K in Settings › Recording and use 35–45 Mbps."),
 			2160},
 		{"twitch", "Twitch", 6000, 6000, false, false,
 			{{QT_TRANSLATE_NOOP("PsWrapGoLive", "Automatic (RTMPS)"), "rtmps://ingest.global-contribute.live-video.net:443/app"}},

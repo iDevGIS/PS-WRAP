@@ -154,7 +154,7 @@ Item {
         contentWidth: width
         contentHeight: content.height + Theme.space12
         flickableDirection: Flickable.AutoFlickIfNeeded
-        ScrollBar.vertical: ScrollBar {
+        ScrollBar.vertical: C.SlimScrollBar {
             policy: ScrollBar.AlwaysOn
             visible: presetsFlick.contentHeight > presetsFlick.height
         }

@@ -5,14 +5,20 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
 ## [Unreleased]
+
+## [0.9.0] — 2026-10-10
+Redesigned Settings, the console PIN with a controller, and the mouse wheel works again.
 ### Added
+- **Enter the console PIN with a controller**: the Console Login PIN prompt when connecting (also over PSN) and *Set console pin* on the home screen now work like the passcode screen on the PS5: each controller button types one digit (◀1 ▲2 ▶3 ▼4 R1 5 R2 6 L1 7 L2 8 △9 □0, shown on an on-screen keypad), the fourth digit confirms by itself and Circle deletes the last digit (or cancels when empty). Typing on a keyboard and clicking the keypad also work. L2 and R2 now also work in menus.
 - **Join Discord** in About and **Ask on Discord** in PS-WRAP-Diagnostics open the PS-WRAP Discord server (help forum, news, beta builds): <https://discord.gg/6VTSxu8JRf>.
 ### Changed
-- **About**: a new *PS-WRAP on GitHub* section at the top (source and downloads, Issues, Changelog, Discord), and *BudToZai* links to our GitHub.
 - **Redesigned Settings**: the sections are regrouped so related options sit together, and every page is split into titled cards with an icon and a short explanation. The sidebar has an icon for each page, grouped into **Play** (General, Stream, Video, Audio, Game presets), **Controls** (Controllers, Keyboard), **Connection** (Consoles, Remote Play), **Create** (Facecam, Recording, Go Live) and **App** (System). Things that were mixed into General moved to where you would look for them: facecam has its own page, the recording folder and output resolution are under Recording, the Steam Deck options and the stream menu button combo are under Controllers, the Wi-Fi and packet loss warnings are under Stream, and the log folder is under System. Every setting is still there with the same value and still works with a controller (L1/R1 switch page).
+- **Settings on small windows**: below 1100 px wide the sidebar shrinks to icons only, and when a page is too narrow for name | setting | default side by side, each setting stacks with its name on top (the Stream table keeps Local and Remote side by side). Nothing runs off the right edge any more.
+- Settings is about 15% more compact than the rest of the app (smaller text, narrower controls, tighter cards), so more fits on screen; the home screen and stream menu keep their large TV-friendly size. Scroll bars in Settings are a slim line that widens when you point at it.
+- **About**: a new *PS-WRAP on GitHub* section at the top (source and downloads, Issues, Changelog, Discord), and *BudToZai* links to our GitHub.
 ### Fixed
-- **Enter the console PIN with a controller**: the Console Login PIN prompt when connecting (also over PSN) and *Set console pin* on the home screen now work like the passcode screen on the PS5: each controller button types one digit (◀1 ▲2 ▶3 ▼4 R1 5 R2 6 L1 7 L2 8 △9 □0, shown on an on-screen keypad), the fourth digit confirms by itself and Circle deletes the last digit (or cancels when empty). Typing on a keyboard and clicking the keypad also work.
-- **Settings sections list on small screens**: the list on the left of Settings can now be scrolled (mouse wheel, drag or touch) when the window is too short to show every section, so *Game presets* and *Go Live* are reachable. Switching section with L1/R1 scrolls the list to keep the selected section in view.
+- **Mouse wheel scrolling**: the mouse wheel did nothing anywhere in PS-WRAP (Settings, lists, dialogs) because the window never passed it on. It now scrolls everywhere; during a stream it only scrolls the overlays under the pointer.
+- The list of pages on the left of Settings can be scrolled when the window is too short to show them all, and follows L1/R1 so the selected page stays in view.
 
 ## [0.8.0] — 2026-10-09
 Updates inside the app, a connection check that recommends settings, and an easier PSN sign-in.
@@ -230,6 +236,7 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.9.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.9.0
 [0.8.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.8.0
 [0.7.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.7.0
 [0.6.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.6.0

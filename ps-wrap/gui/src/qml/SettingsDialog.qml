@@ -20,7 +20,11 @@ DialogView {
     }
     property int selectedConsole: SettingsDialog.Console.PS5
     property bool quitControllerMapping: true
-    readonly property int labelWidth: Math.round(270 * dialog.uiScale)   // PS-WRAP: คอลัมน์ชื่อ setting (หน้า Game presets ใช้)
+    readonly property bool railSidebar: dialog.width < 1100   // PS-WRAP: หน้าต่างแคบ → sidebar เหลือแต่ไอคอน
+    // PS-WRAP: Settings แน่นกว่าหน้าอื่น ~15% (หน้าอื่นเป็น 10-foot UI ฟอนต์ 20) — ฟอนต์ตั้งที่ Control ครอบเนื้อหา
+    readonly property real density: 0.85
+    readonly property int ctlW: Math.round(dialog.controlWidth * 0.88)   // ความกว้าง control ในหน้านี้
+    readonly property int labelWidth: Math.round(270 * dialog.uiScale * dialog.density)   // PS-WRAP: คอลัมน์ชื่อ setting (หน้า Game presets ใช้)
 
     // ลำดับหน้า = ลำดับใน sidebar และ StackLayout
     readonly property int pageGeneral: 0
@@ -247,12 +251,15 @@ DialogView {
         }
     }
 
-    Item {
+    Control {
+        // PS-WRAP: Control (ไม่ใช่ Item) เพื่อส่งต่อฟอนต์ที่เล็กลงให้ทั้งหน้า Settings
+        padding: 0
+        font.pixelSize: Math.round(Theme.fontBody * dialog.uiScale * dialog.density)
         // PS-WRAP: sidebar แทน TabBar แนวนอน — คง id `bar` + currentIndex/incrementCurrentIndex/decrementCurrentIndex (ListView มี API เดียวกับ TabBar)
         // index ต้องตรงกับ StackLayout ด้านล่าง (pageGeneral … pageSystem)
         Rectangle {
             id: sidebar
-            width: dialog.width < 1500 ? 240 : 290
+            width: dialog.railSidebar ? 72 : (dialog.width < 1500 ? 240 : 290)
             anchors {
                 top: parent.top
                 left: parent.left
@@ -268,13 +275,13 @@ DialogView {
                     topMargin: Theme.space2
                     leftMargin: Theme.space3
                     rightMargin: Theme.space3 + 1
-                    bottomMargin: 64
+                    bottomMargin: dialog.railSidebar ? Theme.space4 : 64
                 }
                 clip: true
                 // PS-WRAP: จอเตี้ยรายการล้น — เลื่อนได้ (wheel/ลาก) + เลื่อนตามหมวดที่เลือกตอน L1/R1
                 interactive: contentHeight > height
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { policy: bar.contentHeight > bar.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
+                ScrollBar.vertical: C.SlimScrollBar { policy: bar.contentHeight > bar.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
                 onCurrentIndexChanged: {
                     if (currentIndex <= 0) positionViewAtBeginning();   // ให้หัวกลุ่มแรกโผล่ด้วย
                     else positionViewAtIndex(currentIndex, ListView.Contain);
@@ -299,10 +306,17 @@ DialogView {
                 section.property: "group"
                 section.delegate: Label {
                     width: ListView.view.width
-                    topPadding: Theme.space4
-                    bottomPadding: Theme.space1
+                    topPadding: dialog.railSidebar ? Theme.space3 : Theme.space4
+                    bottomPadding: dialog.railSidebar ? Theme.space2 : Theme.space1
                     leftPadding: Theme.space3
-                    text: section.toUpperCase()
+                    text: dialog.railSidebar ? "" : section.toUpperCase()
+                    // แบบไอคอนล้วน: หัวกลุ่มเหลือเส้นคั่น
+                    Rectangle {
+                        visible: dialog.railSidebar
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: Theme.space2; rightMargin: Theme.space2 }
+                        height: 1
+                        color: Theme.border
+                    }
                     font.pixelSize: Theme.fontCaption
                     font.letterSpacing: 2
                     font.weight: Font.DemiBold
@@ -313,7 +327,7 @@ DialogView {
                     required property var modelData
                     readonly property bool current: ListView.isCurrentItem
                     width: ListView.view.width
-                    height: 44
+                    height: 40
                     radius: Theme.radiusControl
                     color: current ? Theme.accent : (navMouse.containsMouse ? Theme.surfaceRaised : "transparent")
                     Behavior on color { ColorAnimation { duration: Theme.durFast } }
@@ -333,6 +347,7 @@ DialogView {
                         }
                         Label {
                             Layout.fillWidth: true
+                            visible: !dialog.railSidebar
                             text: modelData.name
                             font.weight: current ? Font.DemiBold : Font.Normal
                             color: current ? Theme.accentText : Theme.text
@@ -350,6 +365,7 @@ DialogView {
 
             // hint: L1 / R1 เปลี่ยนหมวด
             RowLayout {
+                visible: !dialog.railSidebar
                 anchors {
                     left: parent.left
                     right: parent.right
@@ -440,7 +456,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Action On Disconnect") }
                     C.ComboBox {
                         id: disconnectAction
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("Do Nothing"), qsTr("Enter Sleep Mode"), qsTr("Ask")]
                         currentIndex: Chiaki.settings.disconnectAction
                         onActivated: index => Chiaki.settings.disconnectAction = index
@@ -449,7 +465,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Action On Suspend") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("Do Nothing"), qsTr("Enter Sleep Mode")]
                         currentIndex: Chiaki.settings.suspendAction
                         onActivated: index => Chiaki.settings.suspendAction = index
@@ -481,14 +497,16 @@ DialogView {
                 icon: "qrc:/icons/menu/quality.svg"
 
                 C.SettingsSection {
+                    id: streamSection
+                    compactColumns: 2            // จอแคบ: ชื่อแถวอยู่บน, Local | Remote สองคอลัมน์
                     title: qsTr("Resolution, Frame Rate And Bitrate")
                     description: qsTr("Local = on the same network as the console · Remote = over the internet. Not sure? Check my connection measures your network and recommends values.")
                     icon: "qrc:/icons/menu/quality.svg"
 
-                    C.RowLabel { text: qsTr("Settings for") }
+                    C.RowLabel { text: qsTr("Settings for"); Layout.columnSpan: streamSection.compact ? 2 : 1 }
                     C.ComboBox {
                         id: consoleSelection
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         Layout.alignment: Qt.AlignLeft
                         model: [qsTr("PS4"), qsTr("PS5")]
                         currentIndex: selectedConsole
@@ -520,7 +538,7 @@ DialogView {
                         KeyNavigation.down: selectedConsole == SettingsDialog.Console.PS4 ? resolutionRemotePS4 : resolutionRemotePS5
                     }
 
-                    Item { Layout.preferredHeight: 1 }
+                    Item { Layout.preferredHeight: 1; visible: !streamSection.compact }
                     Label {
                         Layout.alignment: Qt.AlignCenter
                         text: qsTr("Local")
@@ -534,11 +552,11 @@ DialogView {
                         color: Theme.textMuted
                     }
 
-                    C.RowLabel { text: qsTr("Resolution") }
+                    C.RowLabel { text: qsTr("Resolution"); Layout.columnSpan: streamSection.compact ? 2 : 1 }
 
                     C.ComboBox {
                         id: resolutionLocalPS4
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("360p"), qsTr("540p"), qsTr("720p (Default)"), qsTr("1080p (PS5 and PS4 Pro)")]
                         currentIndex: Chiaki.settings.resolutionLocalPS4 - 1
                         onActivated: (index) => {
@@ -559,7 +577,7 @@ DialogView {
 
                     C.ComboBox {
                         id: resolutionRemotePS4
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("360p"), qsTr("540p"), qsTr("720p (Default)"), qsTr("1080p (PS5 and PS4 Pro)")]
                         currentIndex: Chiaki.settings.resolutionRemotePS4 - 1
                         onActivated: (index) => {
@@ -580,7 +598,7 @@ DialogView {
 
                     C.ComboBox {
                         id: resolutionLocalPS5
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("360p"), qsTr("540p"), qsTr("720p"), qsTr("1080p (Default)")]
                         currentIndex: Chiaki.settings.resolutionLocalPS5 - 1
                         onActivated: (index) => {
@@ -601,7 +619,7 @@ DialogView {
 
                     C.ComboBox {
                         id: resolutionRemotePS5
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("360p"), qsTr("540p"), qsTr("720p (Default)"), qsTr("1080p")]
                         currentIndex: Chiaki.settings.resolutionRemotePS5 - 1
                         onActivated: (index) => {
@@ -620,11 +638,11 @@ DialogView {
                         }
                     }
 
-                    C.RowLabel { text: qsTr("FPS") }
+                    C.RowLabel { text: qsTr("FPS"); Layout.columnSpan: streamSection.compact ? 2 : 1 }
 
                     C.ComboBox {
                         id: fpsLocalPS4
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("30 fps"), qsTr("60 fps (Default)")]
                         currentIndex: (Chiaki.settings.fpsLocalPS4 / 30) - 1
                         onActivated: (index) => Chiaki.settings.fpsLocalPS4 = (index + 1) * 30
@@ -642,7 +660,7 @@ DialogView {
 
                     C.ComboBox {
                         id: fpsRemotePS4
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("30 fps"), qsTr("60 fps (Default)")]
                         currentIndex: (Chiaki.settings.fpsRemotePS4 / 30) - 1
                         onActivated: (index) => Chiaki.settings.fpsRemotePS4 = (index + 1) * 30
@@ -660,7 +678,7 @@ DialogView {
 
                     C.ComboBox {
                         id: fpsLocalPS5
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("30 fps"), qsTr("60 fps (Default)")]
                         currentIndex: (Chiaki.settings.fpsLocalPS5 / 30) - 1
                         onActivated: (index) => Chiaki.settings.fpsLocalPS5 = (index + 1) * 30
@@ -678,7 +696,7 @@ DialogView {
 
                     C.ComboBox {
                         id: fpsRemotePS5
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("30 fps"), qsTr("60 fps (Default)")]
                         currentIndex: (Chiaki.settings.fpsRemotePS5 / 30) - 1
                         onActivated: (index) => Chiaki.settings.fpsRemotePS5 = (index + 1) * 30
@@ -694,7 +712,7 @@ DialogView {
                         }
                     }
 
-                    C.RowLabel { text: qsTr("Bitrate") }
+                    C.RowLabel { text: qsTr("Bitrate"); Layout.columnSpan: streamSection.compact ? 2 : 1 }
 
                     C.Slider {
                         id: bitrateLocalPS4
@@ -709,7 +727,7 @@ DialogView {
                             }
                             return rate;
                         }
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.5)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.5)
                         from: 2
                         to: 100
                         stepSize: 1
@@ -741,7 +759,7 @@ DialogView {
                             }
                             return rate;
                         }
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.5)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.5)
                         from: 2
                         to: 100
                         stepSize: 1
@@ -774,7 +792,7 @@ DialogView {
                             }
                             return rate;
                         }
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.5)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.5)
                         from: 2
                         to: 100
                         stepSize: 1
@@ -807,7 +825,7 @@ DialogView {
                             }
                             return rate;
                         }
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.5)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.5)
                         from: 2
                         to: 100
                         stepSize: 1
@@ -829,12 +847,13 @@ DialogView {
 
                     C.RowLabel {
                         text: qsTr("Codec")
+                        Layout.columnSpan: streamSection.compact ? 2 : 1
                         visible: selectedConsole == SettingsDialog.Console.PS5
                     }
 
                     C.ComboBox {
                         id: codecLocalPS5
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         property bool openGlBackend: Chiaki.settings.rendererBackend === 1
                         model: openGlBackend ? [qsTr("H264"), qsTr("H265 (Default)")] : [qsTr("H264"), qsTr("H265 (Default)"), qsTr("H265 HDR")]
                         currentIndex: Chiaki.settings.codecLocalPS5
@@ -860,7 +879,7 @@ DialogView {
 
                     C.ComboBox {
                         id: codecRemotePS5
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         property bool openGlBackend: Chiaki.settings.rendererBackend === 1
                         model: openGlBackend ? [qsTr("H264"), qsTr("H265 (Default)")] : [qsTr("H264"), qsTr("H265 (Default)"), qsTr("H265 HDR")]
                         currentIndex: Chiaki.settings.codecRemotePS5
@@ -893,8 +912,8 @@ DialogView {
                     C.RowLabel { text: qsTr("Weak Wifi Notification") }
                     C.Slider {
                         id: wifiNotifSlider
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
-                        Layout.rightMargin: Math.round(dialog.controlWidth * 0.75)   // เผื่อป้ายค่าที่ห้อยขวา slider
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
+                        Layout.rightMargin: Math.round(dialog.ctlW * 0.75)   // เผื่อป้ายค่าที่ห้อยขวา slider
                         from: 0
                         to: 100
                         stepSize: 1
@@ -914,11 +933,11 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Packet Loss Reported Max") }
                     C.Slider {
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 100
                         stepSize: 1
-                        Layout.rightMargin: Math.round(dialog.controlWidth * 0.75)
+                        Layout.rightMargin: Math.round(dialog.ctlW * 0.75)
                         value: Chiaki.settings.packetLossReportedMax
                         onMoved: Chiaki.settings.packetLossReportedMax = value
 
@@ -954,7 +973,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Audio/Video") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         lastInFocusChain: true
                         model: [qsTr("Audio and Video Enabled"), qsTr("Audio Disabled"), qsTr("Video Disabled"), qsTr("Audio and Video Disabled")]
                         currentIndex: Chiaki.settings.audioVideoDisabled
@@ -980,7 +999,7 @@ DialogView {
                     C.ComboBox {
                         id: renderPresetCombo
                         firstInFocusChain: true
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 1.3)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 1.3)
                         model: [qsTr("Fast"), qsTr("Default"), qsTr("High Quality"), qsTr("High Quality + Spatial Upscaling"), qsTr("High Quality + Advanced Spatial Upscaling"), qsTr("Custom")]
                         currentIndex: Chiaki.settings.videoPreset
                         onActivated: (index) => {
@@ -1027,7 +1046,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Window Type") }
                     C.ComboBox {
                         id: windowTypeCombo
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         popup.width: 500
                         model: [qsTr("Stream Resolution"), qsTr("Custom Resolution"), qsTr("Adjust Resolution Manually"), qsTr("Fullscreen"), qsTr("Zoom [adjust zoom using slider in stream menu]"), qsTr("Stretch")]
                         currentIndex: Chiaki.settings.windowType
@@ -1041,7 +1060,7 @@ DialogView {
                     }
                     C.TextField {
                         id: customResolutionWidth
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         visible: Chiaki.settings.windowType == 1
                         text: Chiaki.settings.customResolutionWidth
                         Material.accent: text && !validate() ? Material.Red : undefined
@@ -1069,7 +1088,7 @@ DialogView {
                     }
                     C.TextField {
                         id: customResolutionHeight
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         visible: Chiaki.settings.windowType == 1
                         text: Chiaki.settings.customResolutionHeight
                         Material.accent: text && !validate() ? Material.Red : undefined
@@ -1113,12 +1132,12 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Hardware Decoder") }
                     RowLayout {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         spacing: 12
 
                         C.ComboBox {
                             id: hwDecoderCombo
-                            Layout.preferredWidth: Math.round(dialog.controlWidth * 0.55)
+                            Layout.preferredWidth: Math.round(dialog.ctlW * 0.55)
                             model: Chiaki.settings.availableDecoders
                             currentIndex: Math.max(0, model.indexOf(Chiaki.settings.decoder))
                             KeyNavigation.priority: KeyNavigation.BeforeItem
@@ -1153,7 +1172,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Frame Delivery") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("Direct Mapping"), qsTr("Frame Queue")]
                         currentIndex: Chiaki.settings.directFrameMapping ? 0 : 1
                         onActivated: (index) => {
@@ -1169,7 +1188,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Frame Mixer") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("None"), qsTr("Oversample"), qsTr("Hermite"), qsTr("Linear"), qsTr("Cubic")]
                         enabled: !Chiaki.settings.directFrameMapping
                         currentIndex: Chiaki.settings.directFrameMapping ? 0 : Chiaki.settings.placeboFrameMixer
@@ -1179,7 +1198,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Renderer Backend") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         lastInFocusChain: Chiaki.settings.rendererBackend != 0
                         model: [qsTr("Vulkan"), qsTr("OpenGL")]
                         currentIndex: Chiaki.settings.rendererBackend
@@ -1226,7 +1245,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Output Device") }
                     C.ComboBox {
                         id: audioOutDevice
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         popup.x: (width - popup.width) / 2
                         popup.width: 700
                         popup.font.pixelSize: 16
@@ -1239,7 +1258,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Audio Volume") }
                     C.Slider {
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 128
                         stepSize: 1
@@ -1262,7 +1281,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Audio Buffer Size") }
                     C.Slider {
                         id: audioBufferSizeSlider
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 1
                         to: 10
                         stepSize: 1
@@ -1291,7 +1310,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Input Device") }
                     C.ComboBox {
                         id: audioInDevice
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         popup.x: (width - popup.width) / 2
                         popup.width: 700
                         popup.font.pixelSize: 16
@@ -1330,7 +1349,7 @@ DialogView {
                         visible: if (typeof Chiaki.settings.speechProcessing !== "undefined") {Chiaki.settings.speechProcessing} else {false}
                     }
                     C.Slider {
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 60
                         stepSize: 1
@@ -1357,7 +1376,7 @@ DialogView {
                         visible: if (typeof Chiaki.settings.speechProcessing !== "undefined") {Chiaki.settings.speechProcessing} else {false}
                     }
                     C.Slider {
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 60
                         stepSize: 1
@@ -1397,7 +1416,7 @@ DialogView {
                     anchors { top: gamePresetsHeader.bottom; left: parent.left; right: parent.right; bottom: parent.bottom }
                     uiScale: dialog.uiScale
                     labelWidth: dialog.labelWidth
-                    controlWidth: dialog.controlWidth
+                    controlWidth: dialog.ctlW
                     confirm: (title, text, callback) => root.showConfirmDialog(title, text, callback)
                 }
             }
@@ -1465,7 +1484,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Rumble Haptics") }
                     C.ComboBox {
                         id: rumbleHaptics
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("Off"), qsTr("Very Weak"), qsTr("Weak"), qsTr("Normal"), qsTr("Strong"), qsTr("Very Strong")]
                         currentIndex: Chiaki.settings.rumbleHapticsIntensity
                         onActivated: (index) => Chiaki.settings.rumbleHapticsIntensity = index;
@@ -1475,7 +1494,7 @@ DialogView {
                     C.RowLabel { text: qsTr("True Haptics Intensity") }
                     C.Slider {
                         id: hapticOverride
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 2
                         stepSize: 0.1
@@ -1567,7 +1586,7 @@ DialogView {
                     C.Slider {
                         id: touchIncrement
                         visible: Chiaki.settings.dpadTouchEnabled
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 1
                         to: 1079
                         stepSize: 1
@@ -1604,7 +1623,7 @@ DialogView {
 
                         C.ComboBox {
                             id: dpadShortcut1
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.dpadTouchShortcut1
@@ -1623,7 +1642,7 @@ DialogView {
 
                         C.ComboBox {
                             id: dpadShortcut2
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.dpadTouchShortcut2
@@ -1642,7 +1661,7 @@ DialogView {
 
                         C.ComboBox {
                             id: dpadShortcut3
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.dpadTouchShortcut3
@@ -1661,7 +1680,7 @@ DialogView {
 
                         C.ComboBox {
                             id: dpadShortcut4
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.dpadTouchShortcut4
@@ -1719,7 +1738,7 @@ DialogView {
 
                         C.ComboBox {
                             id: streamMenuShortcut1
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.streamMenuShortcut1
@@ -1738,7 +1757,7 @@ DialogView {
 
                         C.ComboBox {
                             id: streamMenuShortcut2
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.streamMenuShortcut2
@@ -1757,7 +1776,7 @@ DialogView {
 
                         C.ComboBox {
                             id: streamMenuShortcut3
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.streamMenuShortcut3
@@ -1776,7 +1795,7 @@ DialogView {
 
                         C.ComboBox {
                             id: streamMenuShortcut4
-                            Layout.preferredWidth: Math.round((dialog.controlWidth - Theme.space2) / 2)
+                            Layout.preferredWidth: Math.round((dialog.ctlW - Theme.space2) / 2)
                             firstInFocusChain: false
                             model: dialog.padButtonNames
                             currentIndex: Chiaki.settings.streamMenuShortcut4
@@ -1858,10 +1877,10 @@ DialogView {
                         id: consolesView
                         visible: count > 0
                         Layout.fillWidth: true
-                        Layout.minimumWidth: 560
+                        Layout.minimumWidth: 400
                         Layout.preferredHeight: Math.max(1, Math.min(count, 4)) * 80
                         keyNavigationEnabled: false
-                        ScrollBar.vertical: ScrollBar {
+                        ScrollBar.vertical: C.SlimScrollBar {
                             id: consolesScrollbar
                             policy: ScrollBar.AlwaysOn
                             visible: consolesView.contentHeight > consolesView.height
@@ -2051,11 +2070,11 @@ DialogView {
                     ListView {
                         id: hiddenConsolesView
                         Layout.fillWidth: true
-                        Layout.minimumWidth: 560
+                        Layout.minimumWidth: 400
                         Layout.preferredHeight: Math.max(1, Math.min(count, 4)) * 80
                         keyNavigationEnabled: false
                         clip: true
-                        ScrollBar.vertical: ScrollBar {
+                        ScrollBar.vertical: C.SlimScrollBar {
                             id: hiddenConsolesScrollbar
                             policy: ScrollBar.AlwaysOn
                             visible: hiddenConsolesView.contentHeight > hiddenConsolesView.height
@@ -2183,7 +2202,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Port Guess Count") }
                     C.Slider {
                         id: portGuessCountSlider
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 75
                         stepSize: 1
@@ -2204,7 +2223,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Port Guess Socket Count") }
                     C.Slider {
                         id: portGuessSocketSlider
-                        Layout.preferredWidth: Math.round(dialog.controlWidth * 0.625)
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
                         to: 500
                         stepSize: 1
@@ -2246,8 +2265,8 @@ DialogView {
                     Item {
                         id: camPreviewBox
                         readonly property bool onFacecamPage: bar.currentIndex === dialog.pageFacecam && dialog.visible
-                        Layout.preferredWidth: dialog.controlWidth
-                        Layout.preferredHeight: camPrefs.camCircle ? dialog.controlWidth : Math.round(dialog.controlWidth * 9 / 16)
+                        Layout.preferredWidth: dialog.ctlW
+                        Layout.preferredHeight: camPrefs.camCircle ? dialog.ctlW : Math.round(dialog.ctlW * 9 / 16)
                         // พื้นลาย checker ให้เห็นส่วนโปร่งใสตอน chroma key
                         Rectangle {
                             anchors.fill: parent
@@ -2284,7 +2303,7 @@ DialogView {
                     C.ComboBox {
                         id: camDeviceCombo
                         firstInFocusChain: true
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         readonly property var names: dialog.allCameraNames()
                         model: [qsTr("System default")].concat(names)
                         currentIndex: Math.max(0, names.indexOf(camPrefs.camDevice) + 1)
@@ -2305,7 +2324,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Facecam Shape") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("Rounded"), qsTr("Circle")]
                         currentIndex: camPrefs.camCircle ? 1 : 0
                         onActivated: index => camPrefs.camCircle = index === 1
@@ -2321,7 +2340,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Facecam Zoom") }
                     C.Slider {
                         id: camZoomSlider
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         from: 1.0
                         to: 3.0
                         stepSize: 0.1
@@ -2339,7 +2358,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Facecam Pan") }
                     RowLayout {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         spacing: Theme.space3
                         enabled: camPrefs.camZoom > 1.0
                         Label { text: "X"; color: Theme.textMuted; font.pixelSize: Theme.fontCaption }
@@ -2356,7 +2375,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Facecam Background") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         model: [qsTr("Keep"), qsTr("Remove green screen"), qsTr("Remove blue screen"), qsTr("AI remove (no green screen)")]
                         currentIndex: Chiaki.window.camBackground
                         onActivated: index => Chiaki.window.camBackground = index
@@ -2371,7 +2390,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Facecam Key Tolerance") }
                     C.Slider {
                         id: camKeyTolSlider
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         enabled: Chiaki.window.camBackground > 0
                         from: 0.05
                         to: 0.6
@@ -2390,7 +2409,7 @@ DialogView {
 
                     C.RowLabel { text: qsTr("Facecam Effect") }
                     C.ComboBox {
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         lastInFocusChain: true
                         model: [qsTr("None"), qsTr("Sunglasses"), qsTr("Mustache"), qsTr("Clown nose"), qsTr("Crown"), qsTr("Bane mask"), qsTr("Party (glasses + mustache + crown)"), qsTr("Samurai mask"), qsTr("Ninja"), qsTr("Ghost (Tsushima)"), qsTr("Samurai armor (kabuto + mask)"), qsTr("Samurai armor (photo)"), qsTr("Jin mask (private)"), qsTr("Jin mask + headband (private)")]
                         currentIndex: Chiaki.window.camFx
@@ -2420,7 +2439,7 @@ DialogView {
                     C.TextField {
                         id: recFolderField
                         firstInFocusChain: true
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         text: Chiaki.window.recordingFolder
                         placeholderText: qsTr("Videos\\PS-WRAP")
                         onEditingFinished: {
@@ -2447,7 +2466,7 @@ DialogView {
                     C.RowLabel { text: qsTr("Output Resolution") }
                     C.ComboBox {
                         readonly property var heights: [0, 1440, 2160]
-                        Layout.preferredWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
                         lastInFocusChain: true
                         model: [qsTr("Same as stream"), qsTr("1440p (upscaled)"), qsTr("4K (upscaled)")]
                         currentIndex: Math.max(0, heights.indexOf(Chiaki.window.captureHeight))
@@ -2532,8 +2551,8 @@ DialogView {
                     C.RowLabel { text: qsTr("Log Directory") }
                     Label {
                         // PS-WRAP: กว้างเท่า control อื่น — ฟอนต์ย่อให้พอดีด้วย HorizontalFit
-                        Layout.preferredWidth: dialog.controlWidth
-                        Layout.maximumWidth: dialog.controlWidth
+                        Layout.preferredWidth: dialog.ctlW
+                        Layout.maximumWidth: dialog.ctlW
                         text: Chiaki.settings.logDirectory
                         verticalAlignment: Text.AlignVCenter
                         fontSizeMode: Text.HorizontalFit
