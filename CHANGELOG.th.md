@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-09
+อัปเดตในแอป, ตรวจการเชื่อมต่อแล้วแนะนำค่า และล็อกอิน PSN ง่ายขึ้น
+### Added
+- 2026-10-09 **อัปเดตในแอป**: เปิดแอปแล้วเช็คเวอร์ชันใหม่จาก GitHub (และทุก 12 ชม.) มีเวอร์ชันใหม่ = ชิป **Update x.y.z** ที่แถบล่างหน้าแรก · **Update now** ดาวน์โหลด ตรวจ SHA-256 แตกไฟล์ แล้ว **Restart and update** = ปิด คัดลอกทับ เปิดใหม่ให้เอง settings อยู่ครบ · เช็คเองที่ **About › Check for updates** (ปิดการเช็คอัตโนมัติได้ที่นั่น) · **Later** = ซ่อนชิปจนกว่าจะมีเวอร์ชันถัดไป · ถ้าโฟลเดอร์โปรแกรมเขียนไม่ได้ จะเปิดหน้า release แทน
+- 2026-10-09 **ตรวจการเชื่อมต่อแล้วแนะนำค่า**: ปุ่ม **Test** บนการ์ดเครื่อง (หรือ **Settings › Stream › Check my connection** ใช้จอยได้) วัดการต่อไปหาเครื่อง (สาย/Wi-Fi ความเร็ว link มาตรฐาน/ย่าน/สัญญาณ Wi-Fi) + ping, jitter, loss ไปเครื่อง แล้วเสนอ resolution, fps, bitrate, codec เทียบค่าปัจจุบัน **Apply** ตั้งให้ · เครื่องพักอยู่ → **Wake console and test again** ปลุกแล้ววัดใหม่
+### Changed
+- 2026-10-09 **ล็อกอิน PSN ง่ายขึ้น**: ปุ่ม **Login to PSN** (Settings › Remote, Connect PSN, ตอน credentials หมดอายุ และตอนหา Account ID ตอนลงทะเบียนเครื่อง) เปิดหน้าต่างล็อกอิน PlayStation Network ในแอปเลย ล็อกอินเสร็จหน้าต่างปิดเองแล้ว PS-WRAP ทำต่อจนจบ ไม่ต้อง copy ลิงก์ ไม่ต้องวาง URL กลับมา · แอปจำการล็อกอินไว้ ต่ออายุครั้งหน้ามักแค่คลิกเดียว · **Use a different account** = ออกจากบัญชีเดิมก่อน · ใช้ Microsoft Edge WebView2 ที่มากับ Windows 10/11
+- 2026-10-09 ถ้าอยากใช้เบราว์เซอร์ของตัวเอง (**Use my web browser instead**) แค่ copy ที่อยู่หลังล็อกอิน แอปจับจาก clipboard เอง ไม่ต้องกดวาง
+
 ## [0.7.0] — 2026-10-09
 แถบสถานะระหว่างเล่น และเมนูสตรีมโฉมใหม่
 ### Added
@@ -181,6 +190,7 @@ Go Live ส่งได้เต็มความเร็ว (ไลฟ์ 4K 
 - 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
 - 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)
 
+[0.8.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.8.0
 [0.7.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.7.0
 [0.6.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.5.0

@@ -23,6 +23,8 @@ Set-Content -Path (Join-Path $out "qt.conf") -Value "[Paths]`nPrefix=.`nPlugins=
 # PS-WRAP-Diagnostics.exe (เครื่องมือวินิจฉัย, static ไม่ต้องตาม DLL) วางข้าง PS-WRAP.exe
 $diag = Join-Path $root "ps-wrap\build\diag\PS-WRAP-Diagnostics.exe"
 if (Test-Path $diag) { Copy-Item $diag $out -Force } else { Write-Warning "ไม่มี $diag — build.ps1 ก่อน" }
+# WebView2Loader.dll (BSD-3, third-party/webview2) — หน้าต่างล็อกอิน PSN ในแอป โหลดตอนรันจากข้าง exe
+Copy-Item (Join-Path $root "ps-wrap\third-party\webview2\x64\WebView2Loader.dll") $out -Force
 $sw.Stop()
 $dlls = (Get-ChildItem $out -Filter *.dll -Recurse | Measure-Object).Count
 $size = [math]::Round((Get-ChildItem $out -Recurse | Measure-Object Length -Sum).Sum / 1MB)

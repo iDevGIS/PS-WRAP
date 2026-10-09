@@ -103,6 +103,8 @@ Dialog {
                             .arg(about.link("https://onnxruntime.ai", "ONNX Runtime")),
                         qsTr("%1 (BSD) and SpeexDSP (BSD) for microphone noise reduction and echo cancellation")
                             .arg(about.link("https://github.com/xiph/rnnoise", "RNNoise")),
+                        qsTr("%1 loader (BSD-3-Clause) for the PlayStation Network sign-in window")
+                            .arg(about.link("https://learn.microsoft.com/microsoft-edge/webview2/", "Microsoft Edge WebView2")),
                         qsTr("Controller art: %1 by Kenney (CC0) · Samurai armor photo: Wikimedia Commons (CC0)")
                             .arg(about.link("https://kenney.nl/assets/input-prompts", "Input Prompts"))
                     ].join("<br>")
@@ -135,11 +137,24 @@ Dialog {
                 font.pixelSize: Theme.fontCaption
                 color: Theme.textMuted
             }
+            // PS-WRAP: เช็คเวอร์ชันใหม่ (UpdateDialog ใน Main.qml)
+            C.Button {
+                id: updatesButton
+                text: Chiaki.updater.updateAvailable ? qsTr("Update to %1").arg(Chiaki.updater.latestVersion) : qsTr("Check for updates")
+                onClicked: { about.close(); root.showUpdateDialog(null); }
+                KeyNavigation.right: about.hasNotices ? noticesButton : closeButton
+                Keys.onReturnPressed: clicked()
+                Keys.onEnterPressed: clicked()
+                Keys.onUpPressed: about.scrollBy(-80)
+                Keys.onDownPressed: about.scrollBy(80)
+                Material.roundedScale: Material.SmallScale
+            }
             C.Button {
                 id: noticesButton
                 visible: about.hasNotices
                 text: qsTr("Licenses")
                 onClicked: Chiaki.window.openAppFile("THIRD-PARTY-NOTICES.txt")
+                KeyNavigation.left: updatesButton
                 KeyNavigation.right: closeButton
                 Keys.onReturnPressed: clicked()
                 Keys.onEnterPressed: clicked()
@@ -152,7 +167,7 @@ Dialog {
                 text: qsTr("Close")
                 highlighted: true
                 onClicked: about.close()
-                KeyNavigation.left: about.hasNotices ? noticesButton : null
+                KeyNavigation.left: about.hasNotices ? noticesButton : updatesButton
                 Keys.onReturnPressed: clicked()
                 Keys.onEnterPressed: clicked()
                 Keys.onUpPressed: about.scrollBy(-80)

@@ -12,6 +12,18 @@ DialogView {
     property var psnurl
     property var expired
     property bool closing: false
+    // PS-WRAP: ไม่มี QtWebEngine (build Windows) → ล็อกอินในหน้าต่าง WebView2 ของเรา (PsnSignInPanel) ไม่ต้อง copy/paste
+    property bool useSignInWindow: false
+    function runAuth(u) {
+        logDialog.open()
+        Chiaki.initPsnAuth(u, function(msg, ok, done) {
+            if(ok)
+                Chiaki.settings.remotePlayAsk = false;
+            logArea.text += msg + "\n";
+            if (done)
+                logDialog.standardButtons = Dialog.Close;
+        });
+    }
     title: {
         if(expired)
             qsTr("Credentials Expired: Refresh PSN Remote Connection")
@@ -21,28 +33,23 @@ DialogView {
     buttonText: qsTr("Setup")
     buttonEnabled: url.text.trim()
     buttonVisible: false
-    onAccepted: {
-        logDialog.open()
-        Chiaki.initPsnAuth(url.text.trim(), function(msg, ok, done) {
-            if(ok)
-                Chiaki.settings.remotePlayAsk = false;
-            if (!done)
-                logArea.text += msg + "\n";
-            else
-            {
-                logArea.text += msg + "\n";
-                logDialog.standardButtons = Dialog.Close;
-            }
-        });
-    }
+    onAccepted: runAuth(url.text.trim())
     StackView.onActivated: {
         Chiaki.settings.remotePlayAsk = true;
+        if (useSignInWindow) {
+            signInPanel.visible = true;
+            signInPanel.focusMain();
+            signInPanel.start();   // เปิดหน้าต่างล็อกอินทันที (กดเองซ้ำได้)
+            return;
+        }
         nativeTokenForm.visible = true;
         nativeTokenForm.forceActiveFocus(Qt.TabFocusReason);
         if(Qt.platform.os == "linux" || Qt.platform.os == "osx")
             extBrowserButton.clicked();
     }
+    Component.onDestruction: Chiaki.psnWebLoginClose()
     function close() {
+        Chiaki.psnWebLoginClose();
         if(webView.web)
         {
             dialog.closing = true;
@@ -116,7 +123,7 @@ DialogView {
                         Layout.preferredWidth: 300
                         from: 0
                         to: 100
-                        value: webView.web.loadProgress
+                        value: webView.web ? webView.web.loadProgress : 0
                         Material.roundedScale: Material.SmallScale
                         focusPolicy: Qt.NoFocus
                     }
@@ -285,11 +292,50 @@ DialogView {
                         web.anchors.fill = webView;
                     } catch (error) {
                         console.error('Create webengine view failed with error:' + error);
-                        extBrowserButton.clicked();
+                        if (Chiaki.psnWebLoginAvailable())
+                            dialog.useSignInWindow = true;   // PS-WRAP: ล็อกอินในหน้าต่างของเรา
+                        else
+                            extBrowserButton.clicked();
                     }
                 }
             }
         }
+        C.PsnSignInPanel {
+            id: signInPanel
+            anchors.fill: parent
+            visible: false
+            heading: dialog.expired ? qsTr("Your PSN sign-in has expired") : qsTr("Connect PS-WRAP to PlayStation Network")
+            body: qsTr("Sign in once to play from anywhere without port forwarding and to register consoles automatically.")
+            onExternalRequested: {
+                visible = false;
+                extBrowserButton.clicked();
+            }
+        }
+
+        Connections {
+            target: Chiaki
+            function onPsnWebLoginRedirect(redirectUrl) {
+                if (signInPanel.visible)
+                    dialog.runAuth(redirectUrl);
+            }
+        }
+
+        // PS-WRAP: ทางเบราว์เซอร์ภายนอก — copy URL redirect จากเบราว์เซอร์แล้วแอปจับจาก clipboard ให้เอง ไม่ต้องกดวาง
+        Timer {
+            interval: 700
+            repeat: true
+            running: linkgrid.visible && !logDialog.visible
+            property string last: ""
+            onTriggered: {
+                const u = Chiaki.psnClipboardRedirect();
+                if (u && u !== last) {
+                    last = u;
+                    url.text = u;
+                    dialog.runAuth(u);
+                }
+            }
+        }
+
         GridLayout {
             id: linkgrid
             visible: false
@@ -301,6 +347,14 @@ DialogView {
             columns: 2
             rowSpacing: 10
             columnSpacing: 20
+
+            Label {
+                Layout.columnSpan: 2
+                Layout.maximumWidth: controlWidth * 2
+                wrapMode: Text.WordWrap
+                color: Theme.textMuted
+                text: qsTr("Sign in in your web browser. When it shows a blank page, copy the address from the address bar. PS-WRAP picks it up by itself.")
+            }
 
             Label {
                 text: qsTr("Open Web Browser with copied URL")

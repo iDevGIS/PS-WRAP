@@ -1543,12 +1543,18 @@ DialogView {
                                 resolutionLocalPS5
 
                         }
+                        KeyNavigation.right: checkConnectionButton
 
                     }
 
-                    Label {
-                        Layout.alignment: Qt.AlignRight
-                        text: qsTr("")
+                    // PS-WRAP: วัดการเชื่อมต่อไปเครื่อง แล้วแนะนำ/ตั้งค่า Local ให้ (ConnectionCheckDialog) — แทน Label ว่างช่องที่ 3
+                    C.Button {
+                        id: checkConnectionButton
+                        Layout.alignment: Qt.AlignLeft
+                        text: qsTr("Check my connection")
+                        onClicked: root.showConnectionCheck(null, checkConnectionButton)
+                        KeyNavigation.left: consoleSelection
+                        KeyNavigation.down: selectedConsole == SettingsDialog.Console.PS4 ? resolutionRemotePS4 : resolutionRemotePS5
                     }
 
                     Label {

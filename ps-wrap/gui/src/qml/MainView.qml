@@ -843,6 +843,14 @@ Pane {
                             visible: modelData.registered
                             onClicked: delegate.setConsolePin()
                         }
+                        // PS-WRAP: ตรวจการเชื่อมต่อไปเครื่องนี้ + แนะนำค่าสตรีม (ConnectionCheckDialog)
+                        C.Button {
+                            flat: true
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Test")
+                            visible: !!modelData.address && !delegate.remoteOnly
+                            onClicked: root.showConnectionCheck(modelData, consolePane)
+                        }
                         C.Button {
                             flat: true
                             focusPolicy: Qt.NoFocus
@@ -1211,6 +1219,18 @@ Pane {
                 showDot: true
                 text: active ? qsTr("Discovery on") : qsTr("Discovery off")
                 onClicked: Chiaki.discoveryEnabled = !Chiaki.discoveryEnabled
+            }
+
+            // PS-WRAP: มีเวอร์ชันใหม่ → ชิปนี้โผล่ (กด Later แล้วซ่อนจนกว่าจะมีเวอร์ชันถัดไป) · ระหว่างดาวน์โหลดแสดง %
+            BarChip {
+                readonly property QtObject up: Chiaki.updater
+                visible: up.updateAvailable && (!up.dismissed || up.state === "downloading" || up.state === "ready")
+                iconSource: "qrc:/icons/menu/save.svg"
+                showDot: true
+                text: up.state === "downloading" ? qsTr("Downloading %1%").arg(Math.round(up.progress * 100))
+                    : up.state === "ready" ? qsTr("Restart to update")
+                    : qsTr("Update %1").arg(up.latestVersion)
+                onClicked: root.showUpdateDialog(consolePane)
             }
 
             // PS-WRAP: เวอร์ชัน + เครดิต (AboutDialog.qml) — แทนเลขเวอร์ชันเปล่าๆ (เดิมเป็นเลขของ upstream)

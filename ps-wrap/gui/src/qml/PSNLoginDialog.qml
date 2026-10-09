@@ -14,6 +14,8 @@ DialogView {
     property bool submitting: false
     property bool closing: false
     property var psnurl: ""
+    // PS-WRAP: ไม่มี QtWebEngine → ล็อกอินในหน้าต่าง WebView2 ของเรา (PsnSignInPanel)
+    property bool useSignInWindow: false
     title: qsTr("PSN Login")
     buttonVisible: false
     buttonText: qsTr("Get Account ID")
@@ -23,7 +25,13 @@ DialogView {
         Chiaki.handlePsnLoginRedirect(url.text.trim());
     }
     StackView.onActivated: {
-        if(login)
+        if(login && useSignInWindow)
+        {
+            signInPanel.visible = true;
+            signInPanel.focusMain();
+            signInPanel.start();
+        }
+        else if(login)
         {
             nativeLoginForm.visible = true;
             nativeLoginForm.forceActiveFocus(Qt.TabFocusReason);
@@ -38,7 +46,9 @@ DialogView {
             Qt.inputMethod.show();
         }
     }
+    Component.onDestruction: Chiaki.psnWebLoginClose()
     function close() {
+        Chiaki.psnWebLoginClose();
         if(webView.web)
         {
             dialog.closing = true;
@@ -112,7 +122,7 @@ DialogView {
                         Layout.preferredWidth: 300
                         from: 0
                         to: 100
-                        value: webView.web.loadProgress
+                        value: webView.web ? webView.web.loadProgress : 0
                         Material.roundedScale: Material.SmallScale
                         focusPolicy: Qt.NoFocus
                     }
@@ -269,11 +279,41 @@ DialogView {
                         web.anchors.fill = webView;
                     } catch (error) {
                         console.error('Create webengine view failed with error:' + error);
-                        extBrowserButton.clicked();
+                        if (dialog.login && Chiaki.psnWebLoginAvailable())
+                            dialog.useSignInWindow = true;   // PS-WRAP
+                        else if (dialog.login)
+                            extBrowserButton.clicked();
                     }
                 }
             }
         }
+        C.PsnSignInPanel {
+            id: signInPanel
+            anchors.fill: parent
+            visible: false
+            body: qsTr("Sign in so PS-WRAP can read your PSN account ID for registering the console.")
+            onExternalRequested: {
+                visible = false;
+                extBrowserButton.clicked();
+            }
+        }
+
+        // PS-WRAP: ทางเบราว์เซอร์ภายนอก — จับ URL redirect จาก clipboard ให้เอง
+        Timer {
+            interval: 700
+            repeat: true
+            running: loginForm.visible && !dialog.submitting
+            property string last: ""
+            onTriggered: {
+                const u = Chiaki.psnClipboardRedirect();
+                if (u && u !== last) {
+                    last = u;
+                    url.text = u;
+                    dialog.accepted();
+                }
+            }
+        }
+
         GridLayout {
             id: loginForm
             anchors {
@@ -428,6 +468,13 @@ DialogView {
         Connections {
             target: Chiaki
 
+            function onPsnWebLoginRedirect(redirectUrl) {
+                if (!signInPanel.visible)
+                    return;
+                submitting = true;
+                Chiaki.handlePsnLoginRedirect(redirectUrl);
+            }
+
             function onPsnLoginAccountIdDone(accountId) {
                 dialog.callback(accountId);
                 submitting = false;
@@ -435,7 +482,13 @@ DialogView {
             }
 
             function onPsnLoginAccountIdError(error) {
-                if(nativeLoginForm.visible)
+                if(signInPanel.visible)
+                {
+                    signInPanel.working = false;
+                    signInPanel.error = error;
+                    submitting = false;
+                }
+                else if(nativeLoginForm.visible)
                 {
                     webView.visible = false;
                     nativeErrorLabel.text = error;

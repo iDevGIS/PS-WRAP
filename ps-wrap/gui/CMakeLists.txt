@@ -96,6 +96,14 @@ set(SOURCE_FILES
 	include/pswrapdiscord.h
 	src/pswrapdiscord.cpp
 	src/qmlmainwindow_pswrapdiscord.cpp
+	include/pswrappsnweblogin.h
+	src/pswrappsnweblogin.cpp
+	src/qmlbackend_pswrappsn.cpp
+	include/pswrapupdater.h
+	src/pswrapupdater.cpp
+	include/pswrapnetcheck.h
+	src/pswrapnetcheck.cpp
+	src/qmlbackend_pswraptools.cpp
 	)
 set(RESOURCE_FILES "")
 
@@ -157,6 +165,12 @@ if(WIN32 AND TARGET FFMPEG::avdevice AND TARGET FFMPEG::swscale)
 endif()   # PS-WRAP: Network สำหรับ single instance (QLocalServer)
 if(WIN32)
 	target_link_libraries(chiaki advapi32)   # PS-WRAP: Credential Manager (CredWriteW/CredReadW) ของ pswrapsecrets
+	# PS-WRAP: ล็อกอิน PSN ในหน้าต่าง WebView2 (pswrappsnweblogin.cpp) — WebView2Loader.dll โหลดตอนรัน วางข้าง exe
+	target_include_directories(chiaki PRIVATE ${CMAKE_SOURCE_DIR}/third-party/webview2/include)
+	target_link_libraries(chiaki ole32 uuid dwmapi)
+	target_link_libraries(chiaki iphlpapi wlanapi ws2_32)   # PS-WRAP: ตรวจการเชื่อมต่อ (pswrapnetcheck.cpp)
+	add_custom_command(TARGET chiaki POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/third-party/webview2/x64/WebView2Loader.dll $<TARGET_FILE_DIR:chiaki>)
 endif()
 if(TARGET FFMPEG::swscale)
 	target_link_libraries(chiaki FFMPEG::swscale)   # PS-WRAP: Go Live ย่อภาพเป็น 16:9 (pswraplive.cpp) — ทุกแพลตฟอร์ม ไม่ใช่แค่ DirectShow

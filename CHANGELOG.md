@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-10-09
+Updates inside the app, a connection check that recommends settings, and an easier PSN sign-in.
+### Added
+- **Updates inside the app**: PS-WRAP checks GitHub for a new version when it starts and every 12 hours. When there is one, an **Update x.y.z** chip appears on the home screen bar. **Update now** downloads it, checks its SHA-256, unpacks it, then **Restart and update** closes PS-WRAP, puts the new files in place and opens it again; your settings stay as they are. Check by hand in **About › Check for updates**; automatic checks can be turned off there. **Later** hides the chip until the next version comes out. A copy in a read-only folder opens the release page instead.
+- **Connection check with recommended settings**: **Test** on a console card (or **Settings › Stream › Check my connection**, which works with a controller) measures the link to the console (cable or Wi-Fi, link speed, Wi-Fi standard, band and signal) and the ping, jitter and loss to it, then recommends resolution, frame rate, bitrate and codec next to your current values. **Apply** sets them. If the console is in rest mode, **Wake console and test again** wakes it up and measures again.
+### Changed
+- **Easier PSN sign-in**: **Login to PSN** (Settings › Remote, Connect PSN, expired credentials, and account lookup when registering a console) now opens a PlayStation Network sign-in window inside PS-WRAP. When you finish signing in, the window closes and PS-WRAP completes the setup by itself; there's no link to copy and no address to paste back. PS-WRAP remembers the sign-in, so renewing expired credentials is usually one click; **Use a different account** signs out first. It uses Microsoft Edge WebView2, which comes with Windows 10 and 11.
+- If you prefer your own browser (**Use my web browser instead**), just copy the address after signing in: PS-WRAP picks it up from the clipboard, so there's no paste step.
+
 ## [0.7.0] — 2026-10-09
 A status bar while playing and a redesigned stream menu.
 ### Added
@@ -213,6 +222,7 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.8.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.8.0
 [0.7.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.7.0
 [0.6.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.6.0
 [0.5.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.5.0

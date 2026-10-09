@@ -81,6 +81,8 @@ class QmlBackend : public QObject
     Q_PROPERTY(QmlMainWindow* window READ qmlWindow CONSTANT)
     Q_PROPERTY(QmlSettings* settings READ qmlSettings CONSTANT)
     Q_PROPERTY(QObject *goLive READ goLiveObject CONSTANT)   // PS-WRAP: Go Live (= Chiaki.window.goLive · pswraplive.h)
+    Q_PROPERTY(QObject *updater READ updaterObject CONSTANT)  // PS-WRAP: อัปเดตในแอป (pswrapupdater.h)
+    Q_PROPERTY(QObject *netCheck READ netCheckObject CONSTANT) // PS-WRAP: ตรวจการเชื่อมต่อ (pswrapnetcheck.h)
     Q_PROPERTY(StreamSession* session READ qmlSession NOTIFY sessionChanged)
     Q_PROPERTY(QList<QmlController*> controllers READ qmlControllers NOTIFY controllersChanged)
     Q_PROPERTY(bool discoveryEnabled READ discoveryEnabled WRITE setDiscoveryEnabled NOTIFY discoveryEnabledChanged)
@@ -201,6 +203,13 @@ public:
     Q_INVOKABLE QString openPsnLink();
     Q_INVOKABLE QString openPlaceboOptionsLink();
     Q_INVOKABLE void initPsnAuth(const QUrl &url, const QJSValue &callback);
+    // PS-WRAP: ล็อกอิน PSN ในหน้าต่าง WebView2 ของเราเอง (qmlbackend_pswrappsn.cpp) — ได้ redirect เองไม่ต้อง copy/paste
+    QObject *updaterObject() const;    // PS-WRAP: qmlbackend_pswraptools.cpp
+    QObject *netCheckObject() const;
+    Q_INVOKABLE bool psnWebLoginAvailable() const;
+    Q_INVOKABLE bool psnWebLogin(bool differentAccount = false);   // differentAccount = ลบคุกกี้ PSN ที่จำไว้ก่อน
+    Q_INVOKABLE void psnWebLoginClose();
+    Q_INVOKABLE QString psnClipboardRedirect() const;   // ทางสำรอง (เบราว์เซอร์ภายนอก): URL redirect ใน clipboard ถ้ามี
     Q_INVOKABLE void psnCancel(bool stop_thread);
     Q_INVOKABLE void refreshPsnToken();
     Q_INVOKABLE void beginControllerMapping(bool reset_mapping);
@@ -251,6 +260,9 @@ signals:
     void registDialogRequested(const QString &host, bool ps5, const QString &duid);
     void psnLoginAccountIdDone(const QString &accountId);
     void psnLoginAccountIdError(const QString &error);
+    void psnWebLoginRedirect(const QString &url);   // PS-WRAP
+    void psnWebLoginFailed(const QString &error);   // PS-WRAP
+    void psnWebLoginClosed();                       // PS-WRAP: ผู้ใช้ปิดหน้าต่างก่อนล็อกอินเสร็จ
 
 private:
     struct DisplayServer {
@@ -287,6 +299,9 @@ private:
     Settings *settings = {};
     QmlSettings *settings_qml = {};
     QmlMainWindow *window = {};
+    class PsWrapPsnWebLogin *psn_web_login = nullptr;   // PS-WRAP
+    mutable class PsWrapUpdater *pswrap_updater = nullptr;   // PS-WRAP: สร้างตอน QML ขอครั้งแรก
+    mutable class PsWrapNetCheck *pswrap_netcheck = nullptr;
     StreamSession *session = {};
     QThread *frame_thread = {};
     QTimer *psn_reconnect_timer = {};

@@ -542,6 +542,25 @@ Item {
         id: remindDialog
     }
 
+    // PS-WRAP: อัปเดตในแอป + ตรวจการเชื่อมต่อ (เปิดได้จากหน้าแรก / Settings / About)
+    UpdateDialog {
+        id: updateDialog
+    }
+    ConnectionCheckDialog {
+        id: connectionCheckDialog
+    }
+    function showUpdateDialog(returnFocus) {
+        if (Chiaki.updater.state !== "available" && Chiaki.updater.state !== "downloading" && Chiaki.updater.state !== "ready")
+            Chiaki.updater.check(true);
+        updateDialog.returnFocusTo = returnFocus || null;
+        updateDialog.open();
+    }
+    function showConnectionCheck(host, returnFocus) {
+        connectionCheckDialog.host = host || null;
+        connectionCheckDialog.returnFocusTo = returnFocus || null;
+        connectionCheckDialog.open();
+    }
+
     Connections {
         target: Chiaki
 

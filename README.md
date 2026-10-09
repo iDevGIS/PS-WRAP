@@ -69,6 +69,17 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 
 Recording a 9:16 clip while playing: the button turns into **■ Stop** with the elapsed time, and a blinking REC dot labelled **9:16** appears at the top left of the game screen (on screen only, not in the file).
 
+### Connection check, updates and PSN sign-in
+
+![Connection check](screenshots/connection-check.png)
+
+**Connection check** (**Test** on a console card, or Settings › Stream › **Check my connection**): measures the cable or Wi-Fi link to the console (speed, Wi-Fi standard, band and signal) and the ping, jitter and loss to it, then recommends resolution, frame rate, bitrate and codec next to your current values. **Apply** sets them.
+
+| Update inside the app | PSN sign-in |
+|---|---|
+| ![Update](screenshots/update.png) | ![PSN sign-in](screenshots/psn-signin.png) |
+| When a new version is out, an **Update x.y.z** chip appears on the home screen bar. **Update now** downloads it and checks its SHA-256; **Restart and update** puts it in place and opens PS-WRAP again, with your settings kept. | **Login to PSN** opens Sony's sign-in page in a window inside PS-WRAP. When you finish, it closes by itself and PS-WRAP completes the setup: no link to copy, no address to paste back. |
+
 ### Settings
 
 | Video | Stream |
@@ -165,6 +176,9 @@ The report never contains your PSN sign-in, stream keys, console registration or
   - RNNoise noise reduction and speaker echo removal that can be changed mid-stream.
   - Boost and noise gate.
   - Mic test page.
+- **Updates inside the app**: an **Update** chip when a new version is out; one click downloads, checks and installs it, then reopens PS-WRAP.
+- **Connection check**: measures the link and ping to the console and recommends (and applies) resolution, frame rate, bitrate and codec.
+- **Easy PSN sign-in**: Sony's sign-in page opens inside PS-WRAP and the setup finishes by itself (Microsoft Edge WebView2, part of Windows 10/11).
 - **Status bar while playing**: move the mouse to the bottom of the window for the mic, speaker, facecam, record, screenshot, Go Live and network chips; pin it to keep it on screen.
 - **New stream menu**: compact cards (Picture, Quality, Overlay, Capture) that wrap instead of overflowing, a ✕ close button, and controller navigation that follows the layout.
 - **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
