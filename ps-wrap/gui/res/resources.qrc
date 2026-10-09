@@ -27,6 +27,7 @@
     <file>stats/loss.svg</file>
     <file>stats/dropped.svg</file>
     <file>stats/lost.svg</file>
+    <file>stats/fps.svg</file>
     <file>menu/cam.svg</file>
     <file>menu/record.svg</file>
     <file>menu/discover.svg</file>

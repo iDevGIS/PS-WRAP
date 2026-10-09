@@ -270,6 +270,11 @@ class Settings : public QObject
 		void SetFrameGen(bool v) { settings.setValue("pswrap/frameGen", v); }
 		bool GetLightbarHalo() const { return settings.value("pswrap/lightbarHalo", false).toBool(); }   // แสงเรืองขอบจอตามสีไฟจอย
 		void SetLightbarHalo(bool v) { settings.setValue("pswrap/lightbarHalo", v); }
+		// PS-WRAP: Discord Rich Presence (qmlmainwindow_pswrapdiscord.cpp) — เปิดเป็นค่าเริ่มต้นเหมือนเกมทั่วไป (ไม่เปิด Discord = ไม่มีผล)
+		bool GetDiscordPresence() const { return settings.value("pswrap/discordPresence", true).toBool(); }
+		void SetDiscordPresence(bool v) { settings.setValue("pswrap/discordPresence", v); }
+		bool GetDiscordShowGame() const { return settings.value("pswrap/discordShowGame", true).toBool(); }
+		void SetDiscordShowGame(bool v) { settings.setValue("pswrap/discordShowGame", v); }
 		// PS-WRAP: แชทไลฟ์บนจอ (pswrapchat.cpp) — แหล่ง YouTube (@handle / channel / ลิงก์) + ช่อง Twitch · API key อยู่ Credential Manager
 		bool GetChatOverlay() const { return settings.value("pswrap/chatOverlay", false).toBool(); }
 		void SetChatOverlay(bool v) { settings.setValue("pswrap/chatOverlay", v); }

@@ -54,6 +54,19 @@ Rectangle {
             value: Chiaki.session ? Chiaki.session.measuredBitrate.toFixed(1) : "0.0"
             valueColor: Theme.accent
         }
+        // PS-WRAP: fps — สตรีมส่งมา / ขึ้นจอจริง (Frame Gen ทำให้ค่าบนจอสูงกว่าสตรีม)
+        StatRow {
+            icon: "qrc:/icons/stats/fps.svg"
+            label: qsTr("fps (stream)")
+            value: String(Chiaki.window.streamFps)
+            valueColor: Theme.accent
+        }
+        StatRow {
+            icon: "qrc:/icons/stats/fps.svg"
+            label: Chiaki.window.frameGenActive ? qsTr("fps on screen · FG") : qsTr("fps on screen")
+            value: String(Chiaki.window.displayFps)
+            valueColor: Chiaki.window.frameGenActive ? Theme.success : Theme.accent
+        }
         StatRow {
             icon: "qrc:/icons/stats/rtt.svg"
             label: qsTr("rtt at connect")

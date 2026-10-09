@@ -221,6 +221,7 @@ bool QmlMainWindow::pswrapFrameGenRender(const pl_frame *direct_frame, bool new_
                                          double refresh_interval_s)
 {
 	Q_UNUSED(video_rect);   // target_frame.crop = กรอบภาพอยู่แล้ว (push ใช้ตรงนั้น · present ตั้งเต็มจอเอง)
+	pswrap_fg_new_image = new_frame;   // วาดซ้ำ (UI เปลี่ยน) = ไม่ใช่ภาพใหม่ · เฟรมจริงที่รอต่อจากเฟรมกลางตั้งเป็น true ด้านล่าง
 	const bool want = pswrap_fg_on.loadAcquire() != 0 &&
 		render_backend == RenderBackend::Vulkan &&
 		stream_session_active.loadAcquire() != 0 &&
@@ -258,7 +259,7 @@ bool QmlMainWindow::pswrapFrameGenRender(const pl_frame *direct_frame, bool new_
 		return pswrap_fg->present(placebo_renderer, false, target_frame);
 	}
 	// ไม่มีเฟรมใหม่: เฟรมจริงที่รอต่อจากเฟรมกลาง (throttle เว้นครึ่งเฟรมให้แล้ว) หรือวาดซ้ำเพราะ UI เปลี่ยน
-	pswrap_fg_pending.storeRelease(0);
+	pswrap_fg_new_image = pswrap_fg_pending.fetchAndStoreRelaxed(0) != 0;
 	return pswrap_fg->present(placebo_renderer, false, target_frame);
 }
 

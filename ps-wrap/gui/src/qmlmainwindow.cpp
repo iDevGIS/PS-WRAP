@@ -3230,6 +3230,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
 
     if (!frame.frame)
         return;
+    pswrap_stream_frames.fetchAndAddRelaxed(1);   // PS-WRAP: stream fps
 
     if (bypass_frame_queue) {
         {
@@ -5328,6 +5329,7 @@ renderer_backend_ready:
     backend = new QmlBackend(settings, this);
     pswrapInitRecording();   // PS-WRAP: อัดวิดีโอ + spectrum ไมค์ (qmlmainwindow_pswraprec.cpp)
     pswrapInitVisual();      // PS-WRAP: ambient / frame gen (qmlmainwindow_pswrapvisual.cpp)
+    pswrapInitDiscord();     // PS-WRAP: Discord Rich Presence (qmlmainwindow_pswrapdiscord.cpp)
     stats_overlay_widget = new StatsOverlayWidget(this, backend);
     connect(backend, &QmlBackend::sessionChanged, this, [this, exit_app_on_stream_exit](StreamSession *s) {
         const bool preserve_startup_warmup = s && startup_warmup_preserve_next_session_change;
@@ -5474,6 +5476,14 @@ renderer_backend_ready:
         if (dropped_frames != dropped_frames_next) {
             dropped_frames = dropped_frames_next;
             emit droppedFramesChanged();
+        }
+        // PS-WRAP: fps ของสตรีม / ภาพที่ขึ้นจอ (นับตลอด 1 วินาที)
+        const int stream_fps_next = pswrap_stream_frames.fetchAndStoreRelaxed(0);
+        const int display_fps_next = pswrap_shown_frames.fetchAndStoreRelaxed(0);
+        if (stream_fps_next != pswrap_stream_fps || display_fps_next != pswrap_display_fps) {
+            pswrap_stream_fps = stream_fps_next;
+            pswrap_display_fps = display_fps_next;
+            emit fpsChanged();
         }
     });
 
@@ -7802,6 +7812,9 @@ void QmlMainWindow::render()
                 logLatencyStats("render_work", render_after_us - render_entry_us_local);
         }
     }
+    // PS-WRAP: นับภาพใหม่ที่ขึ้นจอ — direct: เฟรมใหม่ หรือเฟรมกลาง/เฟรมจริงของ frame gen (ไม่นับวาดซ้ำเพราะ UI) · queue: ทุก present
+    if (!bypass_frame_queue || (pswrap_fg_drawn ? pswrap_fg_new_image : pswrap_direct_new))
+        pswrap_shown_frames.fetchAndAddRelaxed(1);
     // PS-WRAP: อัดวิดีโอ — วาดเฟรมเดียวกัน + overlay ลง texture ของไฟล์ (ทำอะไรเฉพาะตอนกำลังอัด)
     pswrapRecordCapture(bypass_frame_queue ? nullptr : &frame_mix,
                         bypass_frame_queue ? &direct_render_frame : nullptr,

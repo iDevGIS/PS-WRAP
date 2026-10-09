@@ -4,6 +4,11 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
+## [Unreleased]
+### Added
+- **Discord status** (like regular games): your Discord profile shows *Playing PS-WRAP* with the game running on the console, PS5/PS4 Remote Play, Live or Recording, the play time and a *Get PS-WRAP* button. Talks to the Discord app on your PC directly (no extra DLLs); nothing happens if Discord isn't running. During a stream the console is asked for the game name every 30 seconds (one small packet to that console only). Settings › General: *Discord Status* and *Show Game On Discord*.
+- **Frame rate in the stats card**: *fps (stream)* is the frames the console sends per second, *fps on screen* is the new pictures shown per second (it reads about 120 with Frame Gen on, marked "· FG"). Redraws caused only by overlays are not counted.
+
 ## [0.4.0] — 2026-10-09
 Frame Gen (60 → 120 fps), Glow, controller light on screen, and one-click overlay Stack.
 ### Added

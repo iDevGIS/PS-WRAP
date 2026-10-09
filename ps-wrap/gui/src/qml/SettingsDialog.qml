@@ -408,6 +408,38 @@ DialogView {
                             }
                             Label { font.pixelSize: Theme.fontCaption; color: Theme.textMuted; text: qsTr("(Off)") }
 
+                            // PS-WRAP: Discord Rich Presence (สถานะ "Playing PS-WRAP · <เกม>" บนโปรไฟล์ Discord)
+                            Label {
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                Layout.preferredWidth: dialog.labelWidth
+                                Layout.maximumWidth: dialog.labelWidth
+                                wrapMode: Text.WordWrap
+                                color: Theme.text
+                                text: qsTr("Discord Status")
+                            }
+                            C.CheckBox {
+                                checked: Chiaki.window.discordPresence
+                                onToggled: Chiaki.window.discordPresence = !Chiaki.window.discordPresence
+                                text: qsTr("Show \"Playing PS-WRAP\" and play time on your Discord profile (needs the Discord app)")
+                            }
+                            Label { font.pixelSize: Theme.fontCaption; color: Theme.textMuted; text: qsTr("(On)") }
+
+                            Label {
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                Layout.preferredWidth: dialog.labelWidth
+                                Layout.maximumWidth: dialog.labelWidth
+                                wrapMode: Text.WordWrap
+                                color: Theme.text
+                                text: qsTr("Show Game On Discord")
+                            }
+                            C.CheckBox {
+                                enabled: Chiaki.window.discordPresence
+                                checked: Chiaki.window.discordShowGame
+                                onToggled: Chiaki.window.discordShowGame = !Chiaki.window.discordShowGame
+                                text: qsTr("Include the name of the game running on the console")
+                            }
+                            Label { font.pixelSize: Theme.fontCaption; color: Theme.textMuted; text: qsTr("(On)") }
+
                             // PS-WRAP: facecam — preview สด (WebcamOverlay ตัวเดียวกับตอนสตรีม: mirror/shape/zoom/key ตามจริง)
                             Label {
                                 Layout.alignment: Qt.AlignLeft | Qt.AlignTop

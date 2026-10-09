@@ -4,6 +4,11 @@
 
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) · เวอร์ชันของ PS-WRAP เอง (0.x = pre-release) · ฐาน upstream: chiaki-ng `a9a2805`
 
+## [Unreleased]
+### Added
+- 2026-10-09 **สถานะบน Discord** (เหมือนเกมทั่วไป): โปรไฟล์ Discord ขึ้น *Playing PS-WRAP* พร้อมชื่อเกมที่เครื่องกำลังรัน, PS5/PS4 Remote Play, Live หรือ Recording, เวลาเล่น และปุ่ม *Get PS-WRAP* · คุยกับแอป Discord ในเครื่องตรงๆ (ไม่มี DLL เพิ่ม) ไม่ได้เปิด Discord = ไม่มีผล · ระหว่างสตรีมถามชื่อเกมจากเครื่องทุก 30 วินาที (แพ็กเก็ตเล็กๆ ไปเครื่องนั้นเครื่องเดียว) · Settings › General: *Discord Status* และ *Show Game On Discord*
+- 2026-10-09 **fps ในการ์ด Stats** — *fps (stream)* = เฟรมที่เครื่องส่งมาต่อวินาที · *fps on screen* = ภาพใหม่ที่ขึ้นจอต่อวินาที (เปิด Frame Gen จะขึ้นราว 120 มีป้าย "· FG") · ไม่นับการวาดซ้ำเพราะ overlay ขยับ
+
 ## [0.4.0] — 2026-10-09
 Frame Gen (60 → 120 fps), Glow, ไฟจอยบนจอ และ Stack จัด overlay ทีเดียวทั้งชุด
 ### Added

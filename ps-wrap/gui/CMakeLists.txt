@@ -93,6 +93,9 @@ set(SOURCE_FILES
 	include/pswrapframegen.h
 	src/pswrapframegen.cpp
 	src/qmlmainwindow_pswrapvisual.cpp
+	include/pswrapdiscord.h
+	src/pswrapdiscord.cpp
+	src/qmlmainwindow_pswrapdiscord.cpp
 	)
 set(RESOURCE_FILES "")
 

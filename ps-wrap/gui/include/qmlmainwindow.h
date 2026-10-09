@@ -65,6 +65,8 @@ class QmlMainWindow : public QWindow
     Q_OBJECT
     Q_PROPERTY(bool hasVideo READ hasVideo NOTIFY hasVideoChanged)
     Q_PROPERTY(int droppedFrames READ droppedFrames NOTIFY droppedFramesChanged)
+    Q_PROPERTY(int streamFps READ streamFps NOTIFY fpsChanged)     // PS-WRAP: เฟรมที่ถอดรหัสได้ต่อวินาที
+    Q_PROPERTY(int displayFps READ displayFps NOTIFY fpsChanged)   // PS-WRAP: ภาพใหม่ที่ขึ้นจอต่อวินาที (รวมเฟรมกลางของ Frame Gen)
     Q_PROPERTY(bool keepVideo READ keepVideo WRITE setKeepVideo NOTIFY keepVideoChanged)
     Q_PROPERTY(bool loadingTransitionComplete READ loadingTransitionComplete NOTIFY loadingTransitionCompleteChanged)
     Q_PROPERTY(VideoMode videoMode READ videoMode WRITE setVideoMode NOTIFY videoModeChanged)
@@ -86,6 +88,8 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool lightbarHalo READ lightbarHalo WRITE setLightbarHalo NOTIFY lightbarHaloChanged)   // แสงเรืองขอบจอตามสีไฟจอย
     Q_PROPERTY(bool frameGen READ frameGen WRITE setFrameGen NOTIFY frameGenChanged)                   // เฟรมกลาง 60 → 120
     Q_PROPERTY(bool frameGenSupported READ frameGenSupported NOTIFY frameGenChanged)                    // Direct Mapping + Vulkan
+    Q_PROPERTY(bool discordPresence READ discordPresence WRITE setDiscordPresence NOTIFY discordPresenceChanged)   // PS-WRAP: qmlmainwindow_pswrapdiscord.cpp
+    Q_PROPERTY(bool discordShowGame READ discordShowGame WRITE setDiscordShowGame NOTIFY discordPresenceChanged)
     Q_PROPERTY(bool frameGenActive READ frameGenActive NOTIFY frameGenActiveChanged)                   // กำลังสร้างเฟรมจริงอยู่ (จอเร็วพอ + มีสตรีม)
     Q_PROPERTY(QObject *liveChat READ liveChatObject CONSTANT)                                         // PS-WRAP: PsWrapLiveChat (ข้อความ/สถานะ/แหล่ง)
     Q_PROPERTY(int camFx READ camFx WRITE setCamFx NOTIFY camFxChanged)                          // PS-WRAP: 0..13 (ดู WebcamOverlay.fx)
@@ -157,6 +161,8 @@ public:
 
     bool hasVideo() const;
     int droppedFrames() const;
+    int streamFps() const { return pswrap_stream_fps; }
+    int displayFps() const { return pswrap_display_fps; }
     void increaseDroppedFrames();
 
     bool directStream() const;
@@ -221,6 +227,10 @@ public:
     bool frameGen() const;
     void setFrameGen(bool v);
     bool frameGenSupported() const;
+    bool discordPresence() const;       // PS-WRAP: qmlmainwindow_pswrapdiscord.cpp
+    void setDiscordPresence(bool v);
+    bool discordShowGame() const;
+    void setDiscordShowGame(bool v);
     bool frameGenActive() const { return pswrap_fg_active_reported; }
     bool chatOverlay() const;           // PS-WRAP: qmlmainwindow_pswrapchat.cpp
     void setChatOverlay(bool v);
@@ -334,6 +344,7 @@ signals:
     void lightbarHaloChanged();        // PS-WRAP
     void frameGenChanged();            // PS-WRAP
     void frameGenActiveChanged();      // PS-WRAP
+    void discordPresenceChanged();     // PS-WRAP
     void captureHeightChanged();       // PS-WRAP
     void verticalPreviewChanged();     // PS-WRAP
     void verticalLayoutChanged();
@@ -351,6 +362,7 @@ signals:
     void alwaysOnTopChanged();
     void hasVideoChanged();
     void droppedFramesChanged();
+    void fpsChanged();                 // PS-WRAP
     void keepVideoChanged();
     void videoModeChanged();
     void zoomFactorChanged();
@@ -538,7 +550,22 @@ private:
     void pswrapFrameGenSetActive(bool active);
     void pswrapDestroyVisual();
     void pswrapInitVisual();                   // GUI thread ตอน init: settings → atomic
+    void pswrapInitDiscord();                  // PS-WRAP: Discord Rich Presence
+    void pswrapUpdateDiscord();
+    class PsWrapDiscord *pswrap_discord = nullptr;
+    qint64 pswrap_discord_session_start = 0;   // epoch วินาที ตอนเห็น session ต่อแล้วครั้งแรก
+    qint64 pswrap_discord_app_start = 0;
+    QString pswrap_discord_game;               // เกมที่จำไว้ตอน session เริ่ม (ระหว่างสตรีมไม่มีข้อมูล discovery)
+    bool pswrap_discord_ps5 = true;
+    class QUdpSocket *pswrap_discord_udp = nullptr;   // SRCH unicast ถามเกมระหว่างสตรีม
+    qint64 pswrap_discord_last_probe = 0;
+    void pswrapProbeDiscordGame(const QString &host, bool ps5);
     class PsWrapFrameGen *pswrap_fg = nullptr;
+    QAtomicInteger<int> pswrap_stream_frames = 0;    // PS-WRAP: นับต่อวินาที (timer ของ dropped frames)
+    QAtomicInteger<int> pswrap_shown_frames = 0;
+    int pswrap_stream_fps = 0;
+    int pswrap_display_fps = 0;
+    bool pswrap_fg_new_image = false;          // รอบล่าสุดของ frame gen วาดภาพใหม่ (เฟรมกลาง / เฟรมจริงที่รอ) ไม่ใช่วาดซ้ำ
     QAtomicInteger<int> pswrap_fg_pending = 0; // 1 = แสดงเฟรมกลางแล้ว รอแสดงเฟรมจริง (hasBufferedWork ดูค่านี้)
     qint64 pswrap_fg_mid_us = 0;               // เวลาที่แสดงเฟรมกลางล่าสุด
     bool pswrap_fg_active_render = false;      // ค่าฝั่ง render thread
