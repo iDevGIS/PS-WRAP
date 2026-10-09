@@ -14,7 +14,17 @@ Popup {
     property bool showToggle: false
     property string toggleText: ""
     property bool toggleChecked: false
-    property int highlighted: -1    // -1 = สวิตช์ (ถ้ามี) · 0.. = รายการ
+    property int highlighted: -1    // -2 = แถบเสียง (ถ้ามี) · -1 = สวิตช์ (ถ้ามี) · 0.. = รายการ
+    // แถบปรับระดับเสียง (เมนูลำโพง) — 0..128 แบบเดียวกับ Chiaki.settings.audioVolume · ←→ ปรับเมื่อเลือกแถวนี้
+    property bool showVolume: false
+    property int volume: 128
+    signal volumeMoved(int value)
+    function firstIndex() { return showVolume ? -2 : (showToggle ? -1 : 0); }
+    function step(dir) {
+        let h = highlighted + dir;
+        if (h === -1 && !showToggle) h += dir;        // ข้ามแถวสวิตช์ที่ไม่มี
+        highlighted = Math.max(firstIndex(), Math.min(items.length - 1, h));
+    }
     signal picked(var value)
     signal toggleClicked()
 
@@ -26,11 +36,13 @@ Popup {
     // เปิดเหนือ anchor ชิดซ้าย ไม่ล้นขวาจอ
     function openAbove(anchor) {
         parent = anchor;
+        // ความกว้างหน้าต่างจริง (Overlay.overlay ใน Popup ที่ยังไม่เปิดชี้ผิด → x ติดลบหลุดจอ)
         const gx = anchor.mapToItem(null, 0, 0).x;
-        const maxX = (Overlay.overlay ? Overlay.overlay.width : 1920) - gx - width - 12;
-        x = Math.min(0, maxX);
-        y = -implicitHeight - 10;
-        highlighted = Math.max(0, indexOfCurrent());
+        const winW = anchor.Window.width > 0 ? anchor.Window.width : 1920;
+        x = Math.max(-gx + 12, Math.min(0, winW - gx - width - 12));
+        // ความสูงรู้หลังจัดรายการเสร็จ → ผูกไว้ ไม่ใช่คำนวณครั้งเดียว
+        y = Qt.binding(function() { return -height - 10; });
+        highlighted = showVolume ? -2 : Math.max(0, indexOfCurrent());
         open();
     }
     function indexOfCurrent() {
@@ -72,13 +84,17 @@ Popup {
         spacing: 2
         focus: true
 
-        Keys.onUpPressed: menu.highlighted = Math.max(menu.showToggle ? -1 : 0, menu.highlighted - 1)
-        Keys.onDownPressed: menu.highlighted = Math.min(menu.items.length - 1, menu.highlighted + 1)
+        Keys.onUpPressed: menu.step(-1)
+        Keys.onDownPressed: menu.step(1)
+        Keys.onLeftPressed: if (menu.highlighted === -2) menu.volumeMoved(Math.max(0, menu.volume - 8))
+        Keys.onRightPressed: if (menu.highlighted === -2) menu.volumeMoved(Math.min(128, menu.volume + 8))
         Keys.onReturnPressed: activate()
         Keys.onEnterPressed: activate()
         Keys.onSpacePressed: activate()
         function activate() {
-            if (menu.highlighted < 0) {
+            if (menu.highlighted === -2) {
+                return;   // แถบเสียง: ปรับด้วย ←→
+            } else if (menu.highlighted < 0) {
                 menu.toggleClicked();
             } else if (menu.highlighted < menu.items.length) {
                 menu.picked(menu.items[menu.highlighted].value);
@@ -96,6 +112,52 @@ Popup {
             font.weight: Font.DemiBold
             font.letterSpacing: 1.4
             color: Theme.textMuted
+        }
+
+        // แถบปรับระดับเสียง
+        Rectangle {
+            visible: menu.showVolume
+            width: menu.availableWidth
+            height: 46
+            radius: 9
+            color: volMouse.containsMouse || menu.highlighted === -2 ? Theme.surfaceHover : "transparent"
+            border.width: menu.highlighted === -2 ? 1 : 0
+            border.color: Theme.accent
+            Behavior on color { ColorAnimation { duration: Theme.durFast } }
+            MouseArea { id: volMouse; anchors.fill: parent; hoverEnabled: true; onEntered: menu.highlighted = -2 }
+            Image {
+                id: volIcon
+                anchors { left: parent.left; leftMargin: Theme.space3; verticalCenter: parent.verticalCenter }
+                width: 18; height: 18
+                sourceSize: Qt.size(18, 18)
+                source: menu.volume === 0 ? "qrc:/icons/menu/volume-off.svg" : "qrc:/icons/menu/volume.svg"
+                opacity: 0.85
+            }
+            Slider {
+                id: volSlider
+                anchors { left: volIcon.right; leftMargin: Theme.space2; right: volPct.left; rightMargin: Theme.space2; verticalCenter: parent.verticalCenter }
+                from: 0; to: 128; stepSize: 1
+                value: menu.volume
+                focusPolicy: Qt.NoFocus
+                onMoved: menu.volumeMoved(Math.round(value))
+            }
+            Label {
+                id: volPct
+                anchors { right: parent.right; rightMargin: Theme.space3; verticalCenter: parent.verticalCenter }
+                width: 44
+                horizontalAlignment: Text.AlignRight
+                text: Math.round(menu.volume / 128 * 100) + "%"
+                font.pixelSize: Theme.fontLabel
+                font.features: { "tnum": 1 }
+                color: Theme.text
+            }
+        }
+        Rectangle {
+            visible: menu.showVolume
+            width: parent.width - Theme.space3 * 2
+            x: Theme.space3
+            height: 1
+            color: Theme.border
         }
 
         // สวิตช์ (เช่น "Show facecam during stream")

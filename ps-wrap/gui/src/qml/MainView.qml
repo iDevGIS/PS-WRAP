@@ -977,6 +977,75 @@ Pane {
                 }
             }
 
+            // PS-WRAP: ลำโพง (อุปกรณ์เสียงออก) — คลิกเลือกอุปกรณ์ · ค่าเดียวกับ Settings › Audio › Output Device และปุ่มลำโพงในเมนูสตรีม
+            Rectangle {
+                id: speakerChip
+                readonly property string device: Chiaki.settings.audioOutDevice
+                readonly property bool present: device === "" || Chiaki.settings.availableAudioOutDevices.indexOf(device) >= 0
+                radius: Theme.radiusChip
+                color: speakerMouse.containsMouse ? Theme.surfaceRaised : Qt.rgba(1, 1, 1, 0.04)
+                border.width: 1
+                border.color: speakerMouse.containsMouse ? Theme.accent : Theme.border
+                implicitHeight: 36
+                implicitWidth: speakerRow.implicitWidth + Theme.space4 * 2
+                Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                RowLayout {
+                    id: speakerRow
+                    anchors.centerIn: parent
+                    spacing: Theme.space2
+                    Image {
+                        Layout.preferredWidth: 20
+                        Layout.preferredHeight: 20
+                        sourceSize: Qt.size(20, 20)
+                        source: "qrc:/icons/menu/volume.svg"
+                        opacity: speakerChip.present ? 1.0 : 0.4
+                    }
+                    Rectangle {
+                        width: 8; height: 8; radius: 4
+                        color: speakerChip.present ? Theme.success : Theme.textMuted
+                    }
+                    Label {
+                        Layout.maximumWidth: 220
+                        visible: consolePane.width >= 1800
+                        elide: Text.ElideRight
+                        text: speakerChip.device === "" ? qsTr("Default speaker") : speakerChip.device
+                        font.pixelSize: Theme.fontCaption
+                        font.weight: Font.DemiBold
+                        color: speakerChip.present ? Theme.text : Theme.textMuted
+                    }
+                }
+                MouseArea {
+                    id: speakerMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        Chiaki.settings.refreshAudioDevices();
+                        let items = [{ label: qsTr("Auto (Windows default)"), value: "" }];
+                        const devs = Chiaki.settings.availableAudioOutDevices;
+                        for (let i = 0; i < devs.length; ++i)
+                            items.push({ label: devs[i], value: devs[i] });
+                        if (speakerChip.device !== "" && devs.indexOf(speakerChip.device) < 0)
+                            items.push({ label: speakerChip.device, value: speakerChip.device });   // เลือกไว้แต่ถอดอยู่
+                        speakerMenu.items = items;
+                        speakerMenu.current = speakerChip.device;
+                        speakerMenu.openAbove(speakerChip);
+                    }
+                }
+                ToolTip.visible: speakerMouse.containsMouse && consolePane.width < 1800 && !speakerMenu.visible
+                ToolTip.text: qsTr("Speaker: %1").arg(speakerChip.device === "" ? qsTr("Auto (Windows default)") : speakerChip.device)
+                ToolTip.delay: 500
+                C.DeviceMenu {
+                    id: speakerMenu
+                    title: qsTr("SPEAKER")
+                    showVolume: true
+                    volume: Chiaki.settings.audioVolume
+                    onVolumeMoved: (value) => Chiaki.settings.audioVolume = value   // ค่าเดียวกับแถบเสียงในเมนูสตรีม (มีผลกลางสตรีมทันที)
+                    onPicked: (value) => { Chiaki.settings.audioOutDevice = value; close(); }
+                    onClosed: consolePane.forceActiveFocus(Qt.TabFocusReason)
+                }
+            }
+
             Rectangle {
                 id: camChip
                 // ชื่อกล้องเก็บใน QSettings กลุ่ม pswrap (StreamView/SettingsDialog ใช้ key เดียวกัน) — อ่านสดทุกครั้งที่หน้านี้กลับมา

@@ -132,6 +132,7 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 - **Go Live** — ไลฟ์ไป YouTube / Twitch / Facebook / Kick / Custom RTMP(S) พร้อมกัน ถึง 4K (YouTube/Custom) และปลายทาง **แนวตั้ง 9:16** สำหรับ TikTok / Shorts / Reels · stream key เก็บใน Windows Credential Manager
 - **หน้าต่าง 9:16** — preview แนวตั้งสด 3 เลย์เอาต์, ลาก facecam/ตำแหน่งตัดได้, อัดคลิป 1080 × 1920
 - **ไมโครโฟน** — ลดเสียงรบกวน RNNoise + ตัดเสียงลำโพง ปรับกลางสตรีมได้, boost + noise gate, หน้าทดสอบไมค์
+- **ลำโพง** — เลือกอุปกรณ์เสียงออกและระดับเสียงได้จากชิปหน้าแรก เมนูสตรีม หรือ tray สลับกลางสตรีมได้ (PS5 ส่งเสียง Remote Play มาเป็น stereo — อยากได้เสียงรอบทิศแบบจำลอง เปิด Windows Sonic / Dolby Atmos for Headphones ใน Windows)
 - **Game presets** — ตั้งความละเอียด/bitrate/overlay ฯลฯ ต่อเกม ใช้อัตโนมัติ
 - **สถานะบน Discord** — โปรไฟล์ Discord ขึ้น *Playing PS-WRAP* พร้อมเกมที่เครื่องรันอยู่, Remote Play / Live / Recording และเวลาเล่น (คุยกับแอป Discord ตรงๆ ไม่มี DLL เพิ่ม)
 - **fps ในการ์ด Stats** — fps ที่เครื่องส่งมา และ fps ที่ขึ้นจอจริง (ราว 120 เมื่อเปิด Frame Gen)

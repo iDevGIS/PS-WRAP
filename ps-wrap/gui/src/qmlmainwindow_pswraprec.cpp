@@ -721,6 +721,44 @@ void QmlMainWindow::pswrapSetupTrayRecording(QMenu *menu)
 		backend->qmlSettings()->refreshAudioDevices();
 	}
 
+	// ---- ลำโพง (อุปกรณ์เสียงออก): เลือกได้ทั้งตอนสตรีม (สลับทันที) และหน้าแรก (ใช้สตรีมหน้า)
+	QMenu *speaker_menu = makeSubmenu(QStringLiteral(":/icons/menu/volume.svg"), tr("Speaker device"));
+	auto rebuildSpeakerMenu = [this, speaker_menu]() {
+		speaker_menu->clear();
+		QmlSettings *qs = backend ? backend->qmlSettings() : nullptr;
+		const QString current = session ? session->GetAudioOutDevice() : settings->GetAudioOutDevice();
+		auto *group = new QActionGroup(speaker_menu);
+		QStringList names = {QString()};
+		if (qs)
+			names += qs->availableAudioOutDevices();
+		if (!current.isEmpty() && !names.contains(current))
+			names << current;
+		for (const QString &name : names) {
+			QAction *a = speaker_menu->addAction(name.isEmpty() ? tr("Auto (Windows default)") : name);
+			a->setCheckable(true);
+			a->setChecked(name == current);
+			group->addAction(a);
+			connect(a, &QAction::triggered, this, [this, name]() {
+				if (QmlSettings *qs2 = backend ? backend->qmlSettings() : nullptr)
+					qs2->setAudioOutDevice(name);
+				else
+					settings->SetAudioOutDevice(name);
+				if (session)
+					session->SetAudioOutDevice(name);
+			});
+		}
+	};
+	rebuildSpeakerMenu();
+	connect(speaker_menu, &QMenu::aboutToShow, this, [this, rebuildSpeakerMenu]() {
+		rebuildSpeakerMenu();
+		if (backend && backend->qmlSettings())
+			backend->qmlSettings()->refreshAudioDevices();
+	});
+	if (backend && backend->qmlSettings()) {
+		connect(backend->qmlSettings(), &QmlSettings::audioDevicesChanged, this, rebuildSpeakerMenu);
+		connect(backend->qmlSettings(), &QmlSettings::audioOutDeviceChanged, this, rebuildSpeakerMenu);
+	}
+
 	tray_record_action = menu->addAction(QIcon(QStringLiteral(":/icons/menu/record.svg")), tr("Start recording"));
 	connect(tray_record_action, &QAction::triggered, this, [this]() { toggleRecording(); });
 	// Record preset = Output resolution (คลิป / Instant Replay / Go Live ใช้ค่าเดียวกัน — Settings › General)

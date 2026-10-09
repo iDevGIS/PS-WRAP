@@ -1346,6 +1346,13 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	allow_unmute = true;
 	if(start_mic_unmuted)
 		ToggleMute();
+	OpenAudioOut(channels, rate);
+}
+
+// PS-WRAP: แยกจาก InitAudio เพื่อสลับลำโพงกลางสตรีมได้ (InitAudio มีงาน unmute ตอนเริ่มที่ห้ามทำซ้ำ)
+void StreamSession::OpenAudioOut(unsigned int channels, unsigned int rate)
+{
+	StopAudioOutDrainThread();
 	if(audio_out)
 	{
 		SDL_CloseAudioDevice(audio_out);
@@ -1372,7 +1379,7 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 	if(!audio_out)
 	{
 		CHIAKI_LOGE(log.GetChiakiLog(), "Failed to open Audio Output Device '%s': %s", qPrintable(audio_out_device_name), SDL_GetError());
-		if(audio_out_device_name.isEmpty())
+		if(audio_out_device_name.isEmpty() || audio_out_device_name == QLatin1String("Auto"))
 			return;
 		audio_out_device_name.clear();
 		audio_out = SDL_OpenAudioDevice(nullptr, false, &spec, &obtained, false);
@@ -1409,6 +1416,20 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 
 	CHIAKI_LOGI(log.GetChiakiLog(), "Audio Device '%s' opened with %u channels @ %d Hz, buffer size %u",
 				qPrintable(audio_out_device_name), obtained.channels, obtained.freq, obtained.size);
+}
+
+// PS-WRAP: เลือกลำโพงกลางสตรีม — ปิดอุปกรณ์เดิมแล้วเปิดตัวใหม่ด้วย format เดิม (ถ้ายังไม่มีเสียงมา ใช้ตอน InitAudio)
+void StreamSession::SetAudioOutDevice(const QString &device)
+{
+	if(device == GetAudioOutDevice())
+		return;
+	audio_out_device_name = device;
+	if(pswrap_audio_channels)
+	{
+		QMutexLocker lock(&audio_out_switch_mutex);
+		OpenAudioOut(pswrap_audio_channels, pswrap_audio_rate);
+	}
+	emit AudioOutDeviceChanged();
 }
 
 // PS-WRAP: เลือกไมค์กลางสตรีม — ถ้าไมค์เปิดอยู่ เปิดอุปกรณ์ใหม่ทันที (คงสถานะ mute เดิม) · ถ้ายังไม่เคยเปิด ใช้ตอน unmute ครั้งถัดไป
@@ -1926,6 +1947,7 @@ void StreamSession::PushAudioFrame(int16_t *og_buf, size_t samples_count)
 {
 	// PS-WRAP: เสียงเกมก่อนปรับ volume/ก่อนเช็คว่ามีลำโพง → อัดวิดีโอ (ปิดเสียงในเครื่องไฟล์ก็ยังมีเสียง)
 	PsWrapRecorder::tapGameAudio(og_buf, samples_count, pswrap_audio_channels, pswrap_audio_rate);
+	QMutexLocker switch_lock(&audio_out_switch_mutex);   // PS-WRAP: สลับลำโพงอยู่ = รอ (ไม่ใช้ device ที่กำลังปิด)
 	if(!audio_out || !audio_volume)
 		return;
 

@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-09
+Choose the speaker and its volume, and switch it mid-stream.
+### Added
+- **Choose the speaker (audio output device) during a stream**: a speaker button next to the microphone in the stream menu (works with a controller) a **speaker chip** on the home screen bar (next to the microphone, with a volume slider at the top of its menu), and **Speaker device ▸** in the tray. The sound switches right away without restarting the stream, and the choice is remembered (the same setting as Settings › Audio › Output Device).
+
 ## [0.5.0] — 2026-10-09
 Discord status, frame rate in the stats card, the PS-WRAP-Diagnostics troubleshooting tool, and a Steam shortcut fix.
 ### Added
@@ -197,6 +202,9 @@ First pre-release: a complete new interface on top of chiaki-ng.
 - The streaming window size and position, and the controller overlay position, are remembered.
 - Controllers dialog: controller buttons and keys no longer trigger Play or close the dialog by accident.
 
+[0.6.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.6.0
+[0.5.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.5.0
+[0.4.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.4.0
 [0.3.3]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.3
 [0.3.2]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.2
 [0.3.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.1

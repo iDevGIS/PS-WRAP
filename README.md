@@ -159,6 +159,7 @@ The report never contains your PSN sign-in, stream keys, console registration or
   - RNNoise noise reduction and speaker echo removal that can be changed mid-stream.
   - Boost and noise gate.
   - Mic test page.
+- **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
 - **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).
 - **Frame rate in the stats card**: fps from the console and fps shown on screen (about 120 with Frame Gen).

@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-09
+เลือกลำโพงและระดับเสียง สลับได้กลางสตรีม
+### Added
+- 2026-10-09 **เลือกลำโพง (อุปกรณ์เสียงออก) ระหว่างสตรีม**: ปุ่มลำโพงข้างปุ่มไมค์ในเมนูสตรีม (ใช้จอยได้) , **ชิปลำโพง** ที่แถบล่างหน้าแรก (ข้างชิปไมค์ มีแถบปรับเสียงบนสุดของเมนู) และ **Speaker device ▸** ใน tray · สลับเสียงทันทีไม่ต้องเริ่มสตรีมใหม่ และจำไว้ใช้ครั้งหน้า (ค่าเดียวกับ Settings › Audio › Output Device)
+
 ## [0.5.0] — 2026-10-09
 สถานะบน Discord, fps ในการ์ด Stats, เครื่องมือวินิจฉัย PS-WRAP-Diagnostics และแก้ Steam shortcut
 ### Added
@@ -165,6 +170,9 @@ Go Live ส่งได้เต็มความเร็ว (ไลฟ์ 4K 
 - 2026-10-04 จำขนาด/ตำแหน่งหน้าต่างตอนสตรีมที่ผู้ใช้ปรับ (เดิม upstream จำเฉพาะโหมด Adjust Manually) และ overlay จอยจำตำแหน่ง/ขนาดทุกครั้งที่ลากหรือย่อขยาย
 - 2026-10-04 modal Controllers: ปุ่มจอย/คีย์ไม่หลุดไปสั่ง Play หรือปิด modal อีก (✕ △ □ d-pad ใช้ทดสอบเท่านั้น, ◯/Esc ปิด)
 
+[0.6.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.6.0
+[0.5.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.5.0
+[0.4.0]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.4.0
 [0.3.3]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.3
 [0.3.2]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.2
 [0.3.1]: https://github.com/iDevGIS/PS-WRAP/releases/tag/v0.3.1

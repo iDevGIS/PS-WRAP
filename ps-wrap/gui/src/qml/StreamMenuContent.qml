@@ -34,6 +34,7 @@ FocusScope {
     }
     // PS-WRAP: ไมค์ที่ใช้อยู่ ("" = Auto) — ระหว่างสตรีมอ่านจาก session (เปลี่ยนสด), นอกนั้นจาก settings
     readonly property string micDevice: Chiaki.session ? Chiaki.session.audioInDevice : Chiaki.settings.audioInDevice
+    readonly property string speakerDevice: Chiaki.session ? Chiaki.session.audioOutDevice : Chiaki.settings.audioOutDevice
     readonly property bool popupOpen: micDevicePopup.visible || sizePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้ (ให้ Esc ปิดแค่ popup)
     function micDeviceLabel(name) { return name && name.length ? name : qsTr("Auto (Windows default)"); }
     onVisibleChanged: if (!visible) micDevicePopup.close()
@@ -291,9 +292,9 @@ FocusScope {
                 maxTextWidth: content.narrow ? 90 : 170
                 text: content.micDeviceLabel(content.micDevice)
                 enabled: Chiaki.session && Chiaki.session.connected
-                onClicked: micDevicePopup.open()
+                onClicked: { micDevicePopup.kind = "mic"; micDevicePopup.opener = micDeviceButton; micDevicePopup.open(); }
                 KeyNavigation.left: muteButton
-                KeyNavigation.right: volumeSlider
+                KeyNavigation.right: speakerDeviceButton
                 KeyNavigation.down: zoomButton
                 Keys.onReturnPressed: clicked()
                 Keys.onEscapePressed: content.closeRequested()
@@ -302,13 +303,22 @@ FocusScope {
                 ToolTip.text: qsTr("Microphone: %1").arg(text)
             }
 
-            Image {
-                Layout.preferredWidth: 22
-                Layout.preferredHeight: 22
-                Layout.leftMargin: Theme.space2
-                sourceSize: Qt.size(22, 22)
-                source: "qrc:/icons/menu/volume.svg"
-                opacity: 0.8
+            // PS-WRAP: เลือกลำโพง (อุปกรณ์เสียงออก) ระหว่างสตรีม — popup เดียวกับไมค์
+            MenuButton {
+                id: speakerDeviceButton
+                iconSource: "qrc:/icons/menu/volume.svg"
+                caret: true
+                maxTextWidth: content.narrow ? 70 : 150
+                text: content.micDeviceLabel(content.speakerDevice)
+                onClicked: { micDevicePopup.kind = "speaker"; micDevicePopup.opener = speakerDeviceButton; micDevicePopup.open(); }
+                KeyNavigation.left: micDeviceButton
+                KeyNavigation.right: volumeSlider
+                KeyNavigation.down: zoomButton
+                Keys.onReturnPressed: clicked()
+                Keys.onEscapePressed: content.closeRequested()
+                ToolTip.visible: hovered && !micDevicePopup.visible
+                ToolTip.delay: 600
+                ToolTip.text: qsTr("Speaker: %1").arg(text)
             }
 
             Slider {
@@ -320,7 +330,7 @@ FocusScope {
                 value: Chiaki.settings.audioVolume
                 onMoved: Chiaki.settings.audioVolume = value
                 KeyNavigation.down: zoomButton
-                KeyNavigation.up: micDeviceButton
+                KeyNavigation.up: speakerDeviceButton
                 Keys.onEscapePressed: content.closeRequested()
                 // ซ้าย/ขวา = ปรับค่า (ของ Slider เอง) · ออกจาก slider ด้วย Tab/↓ หรือ Enter → Mic
                 Keys.onReturnPressed: muteButton.forceActiveFocus(Qt.TabFocusReason)
@@ -923,7 +933,10 @@ FocusScope {
     // วางทับในกรอบเมนูเอง (ไม่ล้นขึ้นไปบนวิดีโอ) เพราะโหมด OpenGL เมนูเป็นหน้าต่างแยกที่สูงเท่าเมนู — รายการยาวเลื่อนได้
     Popup {
         id: micDevicePopup
-        readonly property var devices: [""].concat(Chiaki.settings.availableAudioInDevices)
+        property string kind: "mic"            // "mic" | "speaker" — popup เดียวใช้ทั้งไมค์และลำโพง
+        property Item opener: micDeviceButton
+        readonly property var devices: [""].concat(kind === "mic" ? Chiaki.settings.availableAudioInDevices : Chiaki.settings.availableAudioOutDevices)
+        readonly property string currentDevice: kind === "mic" ? content.micDevice : content.speakerDevice
         parent: content
         modal: false
         focus: true
@@ -932,27 +945,33 @@ FocusScope {
         width: Math.min(420, content.width - 2 * Theme.space6)
         height: Math.min(micList.contentHeight + topPadding + bottomPadding + micPopupTitle.height + 6, content.height - 8)
         x: {
-            const bx = micDeviceButton.mapToItem(content, 0, 0).x;
+            const bx = opener.mapToItem(content, 0, 0).x;
             return Math.max(Theme.space2, Math.min(bx, content.width - width - Theme.space2));
         }
         y: 4
         onAboutToShow: {
             Chiaki.settings.refreshAudioDevices();
-            micList.currentIndex = Math.max(0, devices.indexOf(content.micDevice));
+            micList.currentIndex = Math.max(0, devices.indexOf(currentDevice));
         }
         onOpened: {
             micList.forceActiveFocus(Qt.TabFocusReason);
             micList.positionViewAtIndex(micList.currentIndex, ListView.Contain);
         }
-        onClosed: if (content.visible) micDeviceButton.forceActiveFocus(Qt.TabFocusReason)
+        onClosed: if (content.visible && opener) opener.forceActiveFocus(Qt.TabFocusReason)
         // รายการอัปเดตแบบ async หลัง refresh — คงตัวเลือกไว้ที่อุปกรณ์ปัจจุบัน
-        onDevicesChanged: if (visible) micList.currentIndex = Math.max(0, devices.indexOf(content.micDevice))
+        onDevicesChanged: if (visible) micList.currentIndex = Math.max(0, devices.indexOf(currentDevice))
 
         function pick(index) {
             const name = index > 0 ? devices[index] : "";
-            if (Chiaki.session)
-                Chiaki.session.audioInDevice = name;
-            Chiaki.settings.audioInDevice = name;   // จำไว้ใช้สตรีมหน้า (Settings → Audio อ่านค่าเดียวกัน)
+            if (kind === "mic") {
+                if (Chiaki.session)
+                    Chiaki.session.audioInDevice = name;
+                Chiaki.settings.audioInDevice = name;   // จำไว้ใช้สตรีมหน้า (Settings → Audio อ่านค่าเดียวกัน)
+            } else {
+                if (Chiaki.session)
+                    Chiaki.session.audioOutDevice = name;   // สลับลำโพงทันที
+                Chiaki.settings.audioOutDevice = name;
+            }
             close();
         }
 
@@ -969,7 +988,7 @@ FocusScope {
                 id: micPopupTitle
                 leftPadding: 10
                 topPadding: 2
-                text: qsTr("MICROPHONE")
+                text: micDevicePopup.kind === "mic" ? qsTr("MICROPHONE") : qsTr("SPEAKER")
                 font.pixelSize: Theme.fontCaption
                 font.letterSpacing: 1.5
                 font.weight: Font.DemiBold
@@ -995,7 +1014,7 @@ FocusScope {
                     id: micRow
                     required property int index
                     required property var modelData
-                    readonly property bool current: modelData === content.micDevice
+                    readonly property bool current: modelData === micDevicePopup.currentDevice
                     width: ListView.view.width - 10
                     height: 36
                     focusPolicy: Qt.NoFocus

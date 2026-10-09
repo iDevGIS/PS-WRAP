@@ -163,6 +163,7 @@ class StreamSession : public QObject
 	Q_PROPERTY(int framesLost READ GetFramesLost NOTIFY FramesLostChanged)
 	Q_PROPERTY(double rttMs READ GetRttMs NOTIFY ConnectedChanged)   // PS-WRAP: RTT ที่วัดตอนเชื่อมต่อ (senkusha)
 	Q_PROPERTY(QString audioInDevice READ GetAudioInDevice WRITE SetAudioInDevice NOTIFY AudioInDeviceChanged)   // PS-WRAP: "" = Auto · สลับได้กลางสตรีม
+	Q_PROPERTY(QString audioOutDevice READ GetAudioOutDevice WRITE SetAudioOutDevice NOTIFY AudioOutDeviceChanged)   // PS-WRAP: ลำโพง "" = Auto · สลับได้กลางสตรีม
 	Q_PROPERTY(QColor lightbarColor READ GetLightbarColor NOTIFY LightbarColorChanged)   // PS-WRAP: สีไฟจอยที่เครื่องสั่ง (ยังไม่มี = โปร่งใส)
 
 	private:
@@ -275,6 +276,7 @@ class StreamSession : public QObject
 		size_t audio_out_ring_fill = 0;
 		bool audio_out_overflow_logged = false;
 		QMutex audio_out_drain_mutex;
+		QMutex audio_out_switch_mutex;   // PS-WRAP: กัน PushAudioFrame (thread เสียงของ lib) ใช้ audio_out ระหว่างสลับลำโพง
 		QWaitCondition audio_out_drain_wait;
 		QThread *audio_out_drain_thread = nullptr;
 		bool audio_out_drain_thread_running = false;
@@ -331,6 +333,7 @@ class StreamSession : public QObject
 
 	private slots:
 		void InitAudio(unsigned int channels, unsigned int rate);
+		void OpenAudioOut(unsigned int channels, unsigned int rate);   // PS-WRAP: เปิด/เปิดใหม่อุปกรณ์ลำโพง (ใช้ทั้ง InitAudio และตอนสลับ)
 		void InitMic(unsigned int channels, unsigned int rate);
 		void InitHaptics();
 		void Event(ChiakiEvent *event);
@@ -369,6 +372,8 @@ class StreamSession : public QObject
 		void SetMuted(bool enable)	{ if (enable != muted) ToggleMute(); }
 		QString GetAudioInDevice() const { return audio_in_device_name == QLatin1String("Auto") ? QString() : audio_in_device_name; }   // PS-WRAP
 		void SetAudioInDevice(const QString &device);
+		QString GetAudioOutDevice() const { return audio_out_device_name == QLatin1String("Auto") ? QString() : audio_out_device_name; }   // PS-WRAP
+		void SetAudioOutDevice(const QString &device);
 		void SetAudioVolume(int volume) { audio_volume = volume; }
 		bool GetCantDisplay()	{ return cant_display; }
 		ChiakiErrorCode ConnectPsnConnection(QString duid, bool ps5);
@@ -413,6 +418,7 @@ class StreamSession : public QObject
 		void FramesLostChanged();
 		void MutedChanged();
 		void AudioInDeviceChanged();   // PS-WRAP
+		void AudioOutDeviceChanged();  // PS-WRAP
 		void LightbarColorChanged();   // PS-WRAP
 		void CantDisplayChanged(bool cant_display);
 		void FecFailure();
