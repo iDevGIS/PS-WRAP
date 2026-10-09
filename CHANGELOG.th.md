@@ -5,9 +5,15 @@
 รูปแบบตาม [Keep a Changelog](https://keepachangelog.com/) · เวอร์ชันของ PS-WRAP เอง (0.x = pre-release) · ฐาน upstream: chiaki-ng `a9a2805`
 
 ## [Unreleased]
+
+## [0.5.0] — 2026-10-09
+สถานะบน Discord, fps ในการ์ด Stats, เครื่องมือวินิจฉัย PS-WRAP-Diagnostics และแก้ Steam shortcut
 ### Added
 - 2026-10-09 **สถานะบน Discord** (เหมือนเกมทั่วไป): โปรไฟล์ Discord ขึ้น *Playing PS-WRAP* พร้อมชื่อเกมที่เครื่องกำลังรัน, PS5/PS4 Remote Play, Live หรือ Recording, เวลาเล่น และปุ่ม *Get PS-WRAP* · คุยกับแอป Discord ในเครื่องตรงๆ (ไม่มี DLL เพิ่ม) ไม่ได้เปิด Discord = ไม่มีผล · ระหว่างสตรีมถามชื่อเกมจากเครื่องทุก 30 วินาที (แพ็กเก็ตเล็กๆ ไปเครื่องนั้นเครื่องเดียว) · Settings › General: *Discord Status* และ *Show Game On Discord*
 - 2026-10-09 **fps ในการ์ด Stats** — *fps (stream)* = เฟรมที่เครื่องส่งมาต่อวินาที · *fps on screen* = ภาพใหม่ที่ขึ้นจอต่อวินาที (เปิด Frame Gen จะขึ้นราว 120 มีป้าย "· FG") · ไม่นับการวาดซ้ำเพราะ overlay ขยับ
+- 2026-10-09 **PS-WRAP-Diagnostics.exe** (อยู่ข้าง PS-WRAP.exe) เครื่องมือหาสาเหตุเวลา PS-WRAP มีปัญหา เปิดได้แม้ PS-WRAP เปิดไม่ขึ้น · ตรวจไฟล์ของ PS-WRAP, Windows, ไดรเวอร์การ์ดจอ, Vulkan ใช้ได้หรือค้าง (ทดสอบใน process แยก จำกัด 20 วิ), แอป overlay ที่เกาะเกม, crash/ค้างล่าสุดจาก Windows Error Reporting และ Event Log, log ของ PS-WRAP · **Test launch** เปิด PS-WRAP แล้วบันทึก output (เลือก verbose ได้) ถ้าแอปไม่ตอบสนองจะเก็บจุดที่ทุก thread ค้างอยู่ + dump เล็กๆ · **Test with OpenGL (safe mode)** แบบเดียวกันแต่ไม่ใช้ Vulkan · **Use OpenGL (fix freeze)** ให้ PS-WRAP เปิดด้วย OpenGL ตลอด · **Save report (.zip)** / **Copy summary** (ยาวไม่เกิน 1 ข้อความ Discord) / **Report on GitHub** ส่งผลได้ง่าย · ไม่มีข้อมูลล็อกอิน PSN, stream key, การลงทะเบียนเครื่อง, ชื่อช่อง · ชื่อ user/ชื่อเครื่อง/โฟลเดอร์ user/IP อินเทอร์เน็ต ถูกแทนด้วยคำกลางๆ
+### Fixed
+- 2026-10-09 **Create Steam Shortcut** บันทึกผิดที่ (`userdata//config/shortcuts.vdf`) บน Steam รุ่นใหม่ที่ไม่ติดป้าย *MostRecent* ให้ผู้ใช้แล้ว shortcut เลยไม่ขึ้นใน Steam · ตอนนี้หาผู้ใช้จาก *AutoLogin* ด้วย (cpp-steam-tools `94a31a3` จาก upstream chiaki-ng `6837fedc`, chiaki-ng#813)
 
 ## [0.4.0] — 2026-10-09
 Frame Gen (60 → 120 fps), Glow, ไฟจอยบนจอ และ Stack จัด overlay ทีเดียวทั้งชุด

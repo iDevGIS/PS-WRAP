@@ -43,7 +43,7 @@ set(CHIAKI_VERSION_MINOR 10)
 set(CHIAKI_VERSION_PATCH 0)
 set(CHIAKI_VERSION ${CHIAKI_VERSION_MAJOR}.${CHIAKI_VERSION_MINOR}.${CHIAKI_VERSION_PATCH})
 # PS-WRAP: our own version (shown in the app / About) — CHIAKI_VERSION stays the upstream version we forked from
-set(PSWRAP_VERSION 0.4.0)
+set(PSWRAP_VERSION 0.5.0)
 
 set(CPACK_PACKAGE_NAME "chiaki-ng")
 set(CPACK_PACKAGE_DESCRIPTION "Open Source PlayStation Remote Play client for Linux, Mac, and Windows")
@@ -278,6 +278,11 @@ endif()
 
 if(CHIAKI_ENABLE_GUI)
 	add_subdirectory(gui)
+endif()
+
+# PS-WRAP: เครื่องมือวินิจฉัยปัญหา PS-WRAP-Diagnostics.exe (Windows เท่านั้น)
+if(WIN32 AND NOT CHIAKI_ENABLE_ANDROID AND NOT CHIAKI_ENABLE_BOREALIS)
+	add_subdirectory(diag)
 endif()
 
 if(CHIAKI_ENABLE_TESTS)

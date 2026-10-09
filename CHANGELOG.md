@@ -5,9 +5,15 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
 ## [Unreleased]
+
+## [0.5.0] — 2026-10-09
+Discord status, frame rate in the stats card, the PS-WRAP-Diagnostics troubleshooting tool, and a Steam shortcut fix.
 ### Added
 - **Discord status** (like regular games): your Discord profile shows *Playing PS-WRAP* with the game running on the console, PS5/PS4 Remote Play, Live or Recording, the play time and a *Get PS-WRAP* button. Talks to the Discord app on your PC directly (no extra DLLs); nothing happens if Discord isn't running. During a stream the console is asked for the game name every 30 seconds (one small packet to that console only). Settings › General: *Discord Status* and *Show Game On Discord*.
 - **Frame rate in the stats card**: *fps (stream)* is the frames the console sends per second, *fps on screen* is the new pictures shown per second (it reads about 120 with Frame Gen on, marked "· FG"). Redraws caused only by overlays are not counted.
+- **PS-WRAP-Diagnostics.exe** (next to PS-WRAP.exe): a troubleshooting tool for when PS-WRAP has problems, and it opens even if PS-WRAP won't. It checks the PS-WRAP files, Windows, the graphics driver, whether Vulkan works or freezes (tested in a separate process with a 20-second limit), overlay apps that hook into games, recent crashes and freezes from Windows Error Reporting and the Event Log, and PS-WRAP's logs. **Test launch** opens PS-WRAP and records its output, with an optional verbose log. If PS-WRAP stops responding, the tool saves where every thread is stuck plus a small dump. **Test with OpenGL (safe mode)** does the same without Vulkan. **Use OpenGL (fix freeze)** makes PS-WRAP always start with OpenGL. **Save report (.zip)**, **Copy summary** (fits one Discord message) and **Report on GitHub** make the result easy to send. The PSN sign-in, stream keys, console registration and channel names are never included. The Windows user name, PC name, home folder and internet IP addresses are replaced with placeholders.
+### Fixed
+- **Create Steam Shortcut** saved to the wrong place (`userdata//config/shortcuts.vdf`) on current Steam clients that no longer mark a *MostRecent* user, so the shortcut never showed up in Steam. The Steam user is now also found from *AutoLogin* (cpp-steam-tools `94a31a3`, from upstream chiaki-ng `6837fedc`, chiaki-ng#813).
 
 ## [0.4.0] — 2026-10-09
 Frame Gen (60 → 120 fps), Glow, controller light on screen, and one-click overlay Stack.

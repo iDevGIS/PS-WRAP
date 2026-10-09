@@ -10,7 +10,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $rootU = $root -replace '\\','/' -replace '^([A-Za-z]):','/$1'
 $out = Join-Path $root "dist\PS-WRAP"
 # กันพลาด: ถ้า dist ตัวเก่ายังรันอยู่ ลบไม่ได้ และห้ามเปิด exe จนกว่าสคริปต์จะพิมพ์ "deploy ผ่าน" (เคยเปิดชนกลาง deploy 2026-10-04 → "no Qt platform plugin could be initialized")
-$running = Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$out*" }
+$running = Get-Process PS-WRAP,PS-WRAP-Diagnostics,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$out*" }
 if ($running) { $running | Stop-Process -Force; Start-Sleep 1 }
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 New-Item -ItemType Directory -Force $out | Out-Null
@@ -20,6 +20,9 @@ $sw = [Diagnostics.Stopwatch]::StartNew()
 if ($LASTEXITCODE -ne 0) { Write-Error "deploy ล้มเหลว (exit $LASTEXITCODE)" }
 # qt.conf: ให้ Qt หา plugins/qml ข้าง exe เท่านั้น ไม่ fallback ไป C:\msys64 (windeployqt6 ของ MSYS2 ไม่เขียนให้)
 Set-Content -Path (Join-Path $out "qt.conf") -Value "[Paths]`nPrefix=.`nPlugins=.`nQmlImports=qml`nQml2Imports=qml" -Encoding ascii
+# PS-WRAP-Diagnostics.exe (เครื่องมือวินิจฉัย, static ไม่ต้องตาม DLL) วางข้าง PS-WRAP.exe
+$diag = Join-Path $root "ps-wrap\build\diag\PS-WRAP-Diagnostics.exe"
+if (Test-Path $diag) { Copy-Item $diag $out -Force } else { Write-Warning "ไม่มี $diag — build.ps1 ก่อน" }
 $sw.Stop()
 $dlls = (Get-ChildItem $out -Filter *.dll -Recurse | Measure-Object).Count
 $size = [math]::Round((Get-ChildItem $out -Recurse | Measure-Object Length -Sum).Sum / 1MB)

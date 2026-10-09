@@ -15,7 +15,7 @@ $cleanFlag = if ($Clean) { "--clean-first" } else { "" }
 $running = Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" }
 if ($running) { Write-Host "ปิด PS-WRAP.exe ที่รันจาก build dir (pid $($running.Id -join ',')) ก่อน build" -ForegroundColor Yellow; $running | Stop-Process -Force; Start-Sleep 1 }
 $sw = [Diagnostics.Stopwatch]::StartNew()
-& $bash -lc "set -e; cd '$src'; cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$type -DCHIAKI_ENABLE_CLI=OFF && cmake --build build $cleanFlag --target chiaki"
+& $bash -lc "set -e; cd '$src'; cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$type -DCHIAKI_ENABLE_CLI=OFF && cmake --build build $cleanFlag --target chiaki pswrap-diagnostics"
 $sw.Stop()
 if ($LASTEXITCODE -ne 0) { Write-Error "build ล้มเหลว (exit $LASTEXITCODE)" }
 Write-Host "build ผ่าน ใช้เวลา $([int]$sw.Elapsed.TotalSeconds)s → ps-wrap\build\gui\PS-WRAP.exe" -ForegroundColor Green

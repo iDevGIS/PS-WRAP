@@ -109,7 +109,19 @@ These settings gave the sharpest and smoothest picture in our tests: PS5 on ordi
 
 ## Reporting problems
 
-PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please report PS-WRAP bugs and ideas in this repository's [Issues](https://github.com/iDevGIS/PS-WRAP/issues), not to chiaki-ng. Attach the session log from `%APPDATA%\PS-WRAP\PS-WRAP\log` if you can. Stream keys and API keys are never written to it.
+PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please report PS-WRAP bugs and ideas in this repository's [Issues](https://github.com/iDevGIS/PS-WRAP/issues), not to chiaki-ng.
+
+**Easiest way: run `PS-WRAP-Diagnostics.exe`** (in the PS-WRAP folder, next to `PS-WRAP.exe`). It works even when PS-WRAP itself won't open:
+
+1. It checks your PC by itself: PS-WRAP files, Windows, graphics driver, whether Vulkan works or freezes, overlay apps that hook into games, recent crashes and freezes (Windows Error Reporting and Event Log), and PS-WRAP's logs.
+2. **Test launch** opens PS-WRAP and records everything it prints, with a detailed (verbose) log if you like. If PS-WRAP stops responding, the tool saves the exact place where it is stuck. **Test with OpenGL (safe mode)** does the same without Vulkan.
+3. **Save report (.zip)** puts one zip on your Desktop to attach to an issue. **Copy summary** gives a short text that fits in one Discord message. **Report on GitHub** opens a new issue with the summary already filled in.
+
+![PS-WRAP Diagnostics](screenshots/diagnostics.png)
+
+If PS-WRAP freezes with "Not responding" as soon as it opens, click **Use OpenGL (fix freeze)**. PS-WRAP will then start with OpenGL instead of Vulkan. You can switch back with the same button.
+
+The report never contains your PSN sign-in, stream keys, console registration or channel names. Your Windows user name, PC name, home folder and internet IP address are replaced with placeholders.
 
 ## What's new compared to chiaki-ng
 
@@ -148,6 +160,9 @@ PS-WRAP is an independent fork, **not an official chiaki-ng release**. Please re
   - Boost and noise gate.
   - Mic test page.
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
+- **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).
+- **Frame rate in the stats card**: fps from the console and fps shown on screen (about 120 with Frame Gen).
+- **Diagnostics tool** (`PS-WRAP-Diagnostics.exe`): checks the PC, catches where PS-WRAP freezes, fixes Vulkan freezes with one click and packs everything into one zip to send. See [Reporting problems](#reporting-problems).
 - **Picture size presets** (720p–1440p, exact 16:9 with no black bars), system tray menu, hide to tray, always on top, single instance.
 - **Stability fixes**:
   - Mid-stream crashes and freezes.

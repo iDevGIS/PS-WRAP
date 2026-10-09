@@ -117,6 +117,13 @@ static void pswrapMigrateLegacyChiakiSettings()
 
 int real_main(int argc, char *argv[])
 {
+	// PS-WRAP: เปิดโดย PS-WRAP-Diagnostics (ดัก stdout ผ่าน pipe) → ไม่ buffer ไม่งั้นแอปค้างแล้วบรรทัดสุดท้ายก่อนค้างหาย
+	if(qEnvironmentVariableIsSet("PSWRAP_DIAG"))
+	{
+		setvbuf(stdout, nullptr, _IONBF, 0);
+		setvbuf(stderr, nullptr, _IONBF, 0);
+	}
+
 	qRegisterMetaType<DiscoveryHost>();
 	qRegisterMetaType<RegisteredHost>();
 	qRegisterMetaType<HostMAC>();

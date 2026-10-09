@@ -109,7 +109,18 @@ Settings › Keys: ผูกปุ่ม PlayStation ทุกปุ่มกั
 
 ## แจ้งปัญหา
 
-PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทางการ** เจอบั๊กหรือมีไอเดีย แจ้งที่ [Issues](https://github.com/iDevGIS/PS-WRAP/issues) ของ repo นี้ ไม่ใช่ที่ chiaki-ng · แนบ session log จาก `%APPDATA%\PS-WRAP\PS-WRAP\log` มาด้วยถ้าได้ (log ไม่มี stream key หรือ API key)
+PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทางการ** เจอบั๊กหรือมีไอเดีย แจ้งที่ [Issues](https://github.com/iDevGIS/PS-WRAP/issues) ของ repo นี้ ไม่ใช่ที่ chiaki-ng
+
+**วิธีที่ง่ายที่สุด: เปิด `PS-WRAP-Diagnostics.exe`** (อยู่ในโฟลเดอร์ PS-WRAP ข้าง `PS-WRAP.exe`) ใช้ได้แม้ PS-WRAP เปิดไม่ขึ้น
+1. ตรวจเครื่องให้เอง: ไฟล์ของ PS-WRAP, Windows, ไดรเวอร์การ์ดจอ, Vulkan ใช้ได้หรือค้าง, แอป overlay ที่เกาะเกม, crash/ค้างล่าสุด (Windows Error Reporting + Event Log), log ของ PS-WRAP
+2. **Test launch** เปิด PS-WRAP แล้วบันทึกทุกอย่างที่แอปพิมพ์ออกมา (เลือก verbose ได้) ถ้าแอปไม่ตอบสนองจะเก็บจุดที่ค้างไว้ให้ · **Test with OpenGL (safe mode)** แบบเดียวกันแต่ไม่ใช้ Vulkan
+3. **Save report (.zip)** ได้ zip ไฟล์เดียวบน Desktop ไว้แนบ issue · **Copy summary** ข้อความสั้นพอดี 1 ข้อความ Discord · **Report on GitHub** เปิด issue ใหม่พร้อมสรุปให้
+
+![PS-WRAP Diagnostics](screenshots/diagnostics.png)
+
+ถ้า PS-WRAP ขึ้น "Not responding" ทันทีที่เปิด กด **Use OpenGL (fix freeze)** แล้ว PS-WRAP จะเปิดด้วย OpenGL แทน Vulkan (กดปุ่มเดิมเพื่อเปลี่ยนกลับ)
+
+รายงานไม่มีข้อมูลล็อกอิน PSN, stream key, การลงทะเบียนเครื่อง หรือชื่อช่อง · ชื่อ user, ชื่อเครื่อง, โฟลเดอร์ user และ IP อินเทอร์เน็ต ถูกแทนด้วยคำกลางๆ
 
 ## มีอะไรใหม่จาก chiaki-ng
 
@@ -122,6 +133,9 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 - **หน้าต่าง 9:16** — preview แนวตั้งสด 3 เลย์เอาต์, ลาก facecam/ตำแหน่งตัดได้, อัดคลิป 1080 × 1920
 - **ไมโครโฟน** — ลดเสียงรบกวน RNNoise + ตัดเสียงลำโพง ปรับกลางสตรีมได้, boost + noise gate, หน้าทดสอบไมค์
 - **Game presets** — ตั้งความละเอียด/bitrate/overlay ฯลฯ ต่อเกม ใช้อัตโนมัติ
+- **สถานะบน Discord** — โปรไฟล์ Discord ขึ้น *Playing PS-WRAP* พร้อมเกมที่เครื่องรันอยู่, Remote Play / Live / Recording และเวลาเล่น (คุยกับแอป Discord ตรงๆ ไม่มี DLL เพิ่ม)
+- **fps ในการ์ด Stats** — fps ที่เครื่องส่งมา และ fps ที่ขึ้นจอจริง (ราว 120 เมื่อเปิด Frame Gen)
+- **เครื่องมือวินิจฉัย** (`PS-WRAP-Diagnostics.exe`) — ตรวจเครื่อง, จับจุดที่ PS-WRAP ค้าง, แก้ Vulkan ค้างได้ในคลิกเดียว, รวมทุกอย่างเป็น zip เดียวส่งกลับมา ดู [แจ้งปัญหา](#แจ้งปัญหา)
 - **ขนาดภาพสำเร็จรูป** (720p–1440p 16:9 พอดี ไม่มีขอบดำ), เมนู system tray, hide to tray, always on top, single instance
 - **แก้ความเสถียร** — crash/ค้างกลางสตรีม, ปุ่มค้างบน PS5 ตอนเน็ตหลุด, overlay ซ้อนเป็นเงาบน Vulkan, ปุ่มไม่ติดหลังปิดเมนู ฯลฯ — รายละเอียดใน [CHANGELOG.th.md](CHANGELOG.th.md)
 - ที่เก็บข้อมูลแยกจาก chiaki-ng (`HKCU\Software\PS-WRAP`, `%APPDATA%\PS-WRAP`)

@@ -400,7 +400,7 @@ void Settings::ImportPlaceboSettings(QString filepath)
 uint32_t Settings::GetLogLevelMask()
 {
 	uint32_t mask = CHIAKI_LOG_ALL;
-	if(!GetLogVerbose())
+	if(!GetLogVerbose() && !qEnvironmentVariableIsSet("PSWRAP_DIAG_VERBOSE"))   // PS-WRAP: PS-WRAP-Diagnostics ขอ verbose โดยไม่เขียน setting
 		mask &= ~CHIAKI_LOG_VERBOSE;
 	return mask;
 }
