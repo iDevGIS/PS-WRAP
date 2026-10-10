@@ -1,8 +1,10 @@
 # PS-WRAP Terms of Service
 
-Effective date: 9 October 2026
+English · [ภาษาไทย](TERMS.th.md)
 
-These terms apply to the PS-WRAP app and to the *PS-WRAP* Discord application used for its Discord status. By using PS-WRAP you agree to them.
+Effective date: 11 October 2026
+
+These terms apply to the PS-WRAP app, to the *PS-WRAP* Discord application used for its Discord status, and to the PS-WRAP-AGENT helpdesk bot on the PS-WRAP Discord server. By using PS-WRAP you agree to them.
 
 ## 1. The software and its license
 
@@ -23,14 +25,18 @@ PS-WRAP is provided **"as is", without warranty of any kind**, as described in s
 
 The *PS-WRAP* Discord application exists only to show your PS-WRAP status on your Discord profile (Rich Presence). It does not run a bot, join servers, or read messages. You can turn the status off in *Settings › General › Discord Status*.
 
-## 5. Limitation of liability
+## 5. PS-WRAP-AGENT helpdesk bot
+
+PS-WRAP-AGENT is a separate bot that answers questions in the `#chatbot-helpdesk` channel of the PS-WRAP Discord server. Its answers are written by AI (Anthropic's Claude) from PS-WRAP's documentation and **can be wrong or out of date**. Check important steps yourself, and press *Ask a human* if an answer doesn't help. Don't use it to break the rules of the server or of the services above, and don't post passwords, keys or other personal details. The team may limit or stop the bot at any time. How the bot handles your messages is described in the [Privacy Policy](PRIVACY.md#ps-wrap-agent-helpdesk-bot-on-our-discord-server).
+
+## 6. Limitation of liability
 
 To the extent permitted by law, the PS-WRAP authors and contributors are not liable for any damage or loss arising from using or not being able to use PS-WRAP, including loss of data, account actions by third-party services, or hardware issues.
 
-## 6. Trademarks
+## 7. Trademarks
 
 PS-WRAP is not affiliated with or endorsed by Sony Interactive Entertainment, Discord Inc. or any streaming platform. "PlayStation", "PS4", "PS5" and "DualSense" are trademarks of Sony Interactive Entertainment Inc. Other names belong to their owners.
 
-## 7. Changes and contact
+## 8. Changes and contact
 
 These terms may be updated; the new version will be published in the PS-WRAP repository with a new effective date. Questions: <https://github.com/iDevGIS/PS-WRAP/issues>.
