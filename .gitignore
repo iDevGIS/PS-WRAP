@@ -51,3 +51,7 @@ Thumbs.db
 # upstream contribution worktree / patches (local only)
 /upstream-pr/
 /upstream-patches/
+# junction ไปโปรเจกต์ข้างๆ (เห็นใน VS Code explorer) — repo แยก ไม่ใช่ของ repo นี้
+/PS-WRAP-AGENT
+/PS-WRAP-LINK
+/PS-WRAP-WWW
