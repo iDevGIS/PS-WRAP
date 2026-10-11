@@ -109,6 +109,8 @@ class PsWrapRawTap
 public:
 	virtual ~PsWrapRawTap() = default;
 	virtual void videoFrame(const AVFrame *frame) = 0;
+	// PS-WRAP Link: เหมือน videoFrame แต่ได้เวลาที่ render thread จับภาพ (chiaki_time_now_monotonic_us) — วัด latency
+	virtual void videoFrameAt(const AVFrame *frame, int64_t capture_us) { (void)capture_us; videoFrame(frame); }
 	virtual void audioMix(const float *left, const float *right, int64_t frames, int64_t pos) = 0;
 	virtual void detached() {}
 };

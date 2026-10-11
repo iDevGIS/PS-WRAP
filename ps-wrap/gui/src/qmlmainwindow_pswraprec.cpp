@@ -172,6 +172,9 @@ void QmlMainWindow::pswrapInitRecording()
 		timer->start();
 	}
 	goLive();   // PS-WRAP: สร้าง Go Live พร้อม hook สตรีมจบ/สลับ profile (qmlmainwindow_pswraplive.cpp)
+#ifdef PSWRAP_LINK
+	pswrapLinkInit();
+#endif
 }
 
 static void pswrapMicPreviewCb(void *userdata, Uint8 *stream, int len)

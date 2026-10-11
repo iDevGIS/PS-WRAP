@@ -233,6 +233,7 @@ class StreamSession : public QObject
 		float PS_TOUCHPAD_MAX_X, PS_TOUCHPAD_MAX_Y;
 		ChiakiControllerState keyboard_state;
 		ChiakiControllerState touch_state;
+		ChiakiControllerState link_state; // PS-WRAP Link: จอยเพื่อน
 		QMap<int, uint8_t> touch_tracker;
 		int8_t mouse_touch_id;
 		ChiakiControllerState dpad_touch_state;
@@ -388,6 +389,8 @@ class StreamSession : public QObject
 		ChiakiPiDecoder *GetPiDecoder()	{ return pi_decoder; }
 #endif
 		void HandleKeyboardEvent(QKeyEvent *event);
+		// PS-WRAP Link: จอยของเพื่อน (GUI thread) — OR รวมกับจอยอื่นแล้วส่งทันที · ปล่อยด้วย state idle (streamsession_pswraplink.cpp)
+		void PsWrapSetLinkState(const ChiakiControllerState &state);
 		void HandleTouchEvent(QTouchEvent *event, qreal width, qreal height);
 		void HandleDpadTouchEvent(ChiakiControllerState *state, bool placeholder = false);
 		void HandleMouseReleaseEvent(QMouseEvent *event);

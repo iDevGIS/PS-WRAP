@@ -104,6 +104,7 @@ set(SOURCE_FILES
 	include/pswrapnetcheck.h
 	src/pswrapnetcheck.cpp
 	src/qmlbackend_pswraptools.cpp
+	src/streamsession_pswraplink.cpp
 	)
 set(RESOURCE_FILES "")
 
@@ -174,6 +175,24 @@ if(WIN32)
 endif()
 if(TARGET FFMPEG::swscale)
 	target_link_libraries(chiaki FFMPEG::swscale)   # PS-WRAP: Go Live ย่อภาพเป็น 16:9 (pswraplive.cpp) — ทุกแพลตฟอร์ม ไม่ใช่แค่ DirectShow
+endif()
+# PS-WRAP Link (spike): ส่งภาพ/รับจอยเพื่อนผ่าน WebRTC — ปิดไว้ก่อน · เปิดด้วย -DPSWRAP_LINK=ON -DPSWRAP_LIBDATACHANNEL_DIR=<source>
+# ทำงานจริงเฉพาะตอนตั้ง env PSWRAP_LINK_DEV (1 = ภาพ, 2 = ภาพ + จอยเพื่อน) — ดู pswraplink.h
+option(PSWRAP_LINK "PS-WRAP Link WebRTC spike" OFF)
+if(PSWRAP_LINK)
+	set(PSWRAP_LIBDATACHANNEL_DIR "" CACHE PATH "libdatachannel source (PS-WRAP-LINK/spike/deps/libdatachannel)")
+	set(NO_EXAMPLES ON CACHE BOOL "" FORCE)
+	set(NO_TESTS ON CACHE BOOL "" FORCE)
+	set(USE_GNUTLS OFF CACHE BOOL "" FORCE)
+	set(USE_NICE OFF CACHE BOOL "" FORCE)
+	set(ENABLE_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)   # libsrtp: -Werror กับ %x/u_long บน mingw
+	add_subdirectory(${PSWRAP_LIBDATACHANNEL_DIR} libdatachannel EXCLUDE_FROM_ALL)
+	target_sources(chiaki PRIVATE include/pswraplink.h src/pswraplink.cpp src/qmlmainwindow_pswraplink.cpp)
+	target_link_libraries(chiaki LibDataChannel::LibDataChannelStatic)   # static: ไม่ต้องวาง DLL เพิ่ม
+	target_compile_definitions(chiaki PRIVATE PSWRAP_LINK=1)
+	if(WIN32)
+		target_link_libraries(chiaki winmm)   # timeBeginPeriod ของ pacer
+	endif()
 endif()
 if (${Qt6DBus_FOUND} AND NOT WIN32)
 	target_link_libraries(chiaki Qt::DBus)

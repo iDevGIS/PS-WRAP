@@ -984,7 +984,7 @@ struct PsWrapRecorder::Impl
 		{
 			std::lock_guard<std::mutex> lock(taps_mtx);
 			for (auto &t : taps)
-				t->videoFrame(frame);
+				t->videoFrameAt(frame, item.capture_us);
 		}
 		{
 			std::lock_guard<std::mutex> lock(sinks_mtx);
