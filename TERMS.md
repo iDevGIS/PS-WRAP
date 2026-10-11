@@ -27,7 +27,7 @@ The *PS-WRAP* Discord application exists only to show your PS-WRAP status on you
 
 ## 5. PS-WRAP-AGENT helpdesk bot
 
-PS-WRAP-AGENT is a separate bot that answers questions in the `#chatbot-helpdesk` channel of the PS-WRAP Discord server. Its answers are written by an AI model running on our own computer, from PS-WRAP's documentation and **can be wrong or out of date**. Check important steps yourself, and press *Ask a human* if an answer doesn't help. Don't use it to break the rules of the server or of the services above, and don't post passwords, keys or other personal details. The team may limit or stop the bot at any time. How the bot handles your messages is described in the [Privacy Policy](PRIVACY.md#ps-wrap-agent-helpdesk-bot-on-our-discord-server).
+PS-WRAP-AGENT is a separate bot that answers questions in the `#chatbot-helpdesk` channel of the PS-WRAP Discord server. Its answers are written by AI (Anthropic's Claude) from PS-WRAP's documentation and **can be wrong or out of date**. Check important steps yourself, and press *Ask a human* if an answer doesn't help. Don't use it to break the rules of the server or of the services above, and don't post passwords, keys or other personal details. The team may limit or stop the bot at any time. How the bot handles your messages is described in the [Privacy Policy](PRIVACY.md#ps-wrap-agent-helpdesk-bot-on-our-discord-server).
 
 ## 6. Limitation of liability
 

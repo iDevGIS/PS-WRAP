@@ -73,7 +73,7 @@ PS-WRAP-AGENT is a bot in the `#chatbot-helpdesk` channel of the PS-WRAP Discord
 
 - Before anything else, the bot automatically removes IP addresses, e-mail addresses and anything that looks like a password, token or key from your message. This is automatic and can miss things, such as names, phone numbers or details inside pasted text, and it does not look inside images.
 - It searches PS-WRAP's public documentation on our own computer.
-- An AI model running on our own computer writes the answer from your question, the matching parts of the documentation and the last few messages of the same thread. Those messages can include ones posted by other people in the thread. Your question is not sent to any outside AI service.
+- It sends your question, the matching parts of the documentation and the last few messages of the same thread to Anthropic's Claude, which writes the answer. Those messages can include ones posted by other people in the thread. Anthropic handles this under [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy).
 - If you paste a *Copy summary* from PS-WRAP-Diagnostics, it is handled the same way. The summary never contains your PSN sign-in, stream keys or user name.
 
 **What we keep**
