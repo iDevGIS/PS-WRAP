@@ -25,7 +25,7 @@ PS-WRAP พัฒนาโดยทีม BudToZai และเผยแพร�
 |---|---|---|
 | ค่าตั้ง เครื่องที่ลงทะเบียน และคีย์ Remote Play ของเครื่อง | Windows registry `HKCU\Software\PS-WRAP` | จำเครื่องและค่าที่คุณตั้งไว้ |
 | token ล็อกอิน PlayStation Network และ PSN Account ID ของคุณ (เฉพาะเมื่อคุณกด *Login to PSN*) | Windows registry `HKCU\Software\PS-WRAP` โดย PS-WRAP ไม่ได้เข้ารหัส โปรแกรมอื่นที่รันภายใต้บัญชี Windows ของคุณจึงอ่านได้ | เชื่อมต่อผ่านอินเทอร์เน็ตอัตโนมัติ *Settings › Remote › Clear PSN Token* จะลบออก |
-| ข้อมูลจากหน้าล็อกอินของ Sony (cookie และ cache ของหน้าต่างล็อกอิน) | `%APPDATA%\PS-WRAP\PS-WRAP\QtWebEngine\psn-token` | ให้คุณยังล็อกอินหน้าของ Sony อยู่ *Clear PSN Token* **ไม่ได้**ลบส่วนนี้ ให้ลบโฟลเดอร์นี้เองตอนปิด PS-WRAP อยู่ |
+| ข้อมูลจากหน้าล็อกอินของ Sony (cookie และ cache ของหน้าต่างล็อกอิน ซึ่งใช้ Microsoft Edge WebView2) | `%LOCALAPPDATA%\PS-WRAP\PS-WRAP\psn-webview2` | ให้คุณยังล็อกอินหน้าของ Sony อยู่ *Clear PSN Token* **ไม่ได้**ลบส่วนนี้ ให้ลบโฟลเดอร์นี้เองตอนปิด PS-WRAP อยู่ |
 | stream key และ API key สำหรับ Go Live และแชตสด | Windows Credential Manager | ส่งไลฟ์และอ่านแชตของคุณ |
 | log ของแต่ละเซสชัน | `%APPDATA%\PS-WRAP\PS-WRAP\log` | ใช้แก้ปัญหา ไม่มีการเขียน stream key หรือ API key ลง log |
 | คลิป, Instant Replay และภาพหน้าจอ | โฟลเดอร์ที่คุณเลือก (ค่าเริ่มต้น `Videos\PS-WRAP`) | ไฟล์ที่คุณบันทึก |

@@ -23,7 +23,7 @@ PS-WRAP is made by the BudToZai team and published by iDevGIS on GitHub. We are 
 |---|---|---|
 | Settings, registered consoles and their Remote Play keys | Windows registry, `HKCU\Software\PS-WRAP` | To remember your consoles and preferences |
 | PlayStation Network sign-in tokens and your PSN Account ID (only if you choose *Login to PSN*) | Windows registry, `HKCU\Software\PS-WRAP`. They are not encrypted by PS-WRAP, so other programs running under your Windows account can read them | Automatic remote connection over the internet. *Settings › Remote › Clear PSN Token* removes them |
-| Data from Sony's sign-in page (cookies and cache of the sign-in window) | `%APPDATA%\PS-WRAP\PS-WRAP\QtWebEngine\psn-token` | Keeping you signed in to Sony's page. *Clear PSN Token* does **not** remove this; delete the folder while PS-WRAP is closed |
+| Data from Sony's sign-in page (cookies and cache of the sign-in window, which uses Microsoft Edge WebView2) | `%LOCALAPPDATA%\PS-WRAP\PS-WRAP\psn-webview2` | Keeping you signed in to Sony's page. *Clear PSN Token* does **not** remove this; delete the folder while PS-WRAP is closed |
 | Stream keys and API keys for Go Live and live chat | Windows Credential Manager | Sending your live stream and reading your chat |
 | Session logs | `%APPDATA%\PS-WRAP\PS-WRAP\log` | Troubleshooting. Stream keys and API keys are never written to logs |
 | Recordings, Instant Replays and screenshots | The folder you choose (default: `Videos\PS-WRAP`) | Your captures |
