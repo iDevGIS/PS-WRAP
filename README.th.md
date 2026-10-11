@@ -9,6 +9,8 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 💬 **Discord:** [discord.gg/6VTSxu8JRf](https://discord.gg/6VTSxu8JRf) ถามปัญหา ข่าว และ build ทดสอบ
 
+🌐 **เว็บไซต์:** [www.ps-wrap.com](https://www.ps-wrap.com)
+
 ![เล่นพร้อมเปิดหน้าต่าง 9:16](screenshots/stream-916.jpg)
 
 *เล่นพร้อมเปิดหน้าต่าง 9:16 — overlay บนจอเกม และข้างๆ เป็นภาพแนวตั้งสำหรับ Shorts / TikTok / Reels มีรูปด้านบน + facecam ด้านล่าง (เลย์เอาต์ Blur fill)*
@@ -23,10 +25,10 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 - แถบล่าง: ซ้ายเป็นคำใบ้ปุ่มจอย ขวาเป็นชิปสถานะ — ไมค์, ลำโพง (ปรับเสียงได้), กล้อง, จอย, **Recordings**, **Screenshots**, Discovery และ **ⓘ About** คลิกชิปเพื่อเปิดหน้าหรือเมนูนั้น คลิกนอกเมนูเพื่อปิด
 - ใช้จอยได้ทั้งหน้า: ✕ Play, △ ปลุกเครื่อง, □ ซ่อน, L1 ใส่ PIN, R3 เพิ่มเครื่อง, ☰ Settings · คำใบ้ปุ่มเหล่านี้กดด้วยเมาส์ได้ด้วย
 
-| ⓘ About และเครดิต | สถานะจอย | ทดสอบไมค์ |
+| ⓘ About และเครดิต | จอย | ทดสอบไมค์ |
 |---|---|---|
 | ![About](screenshots/about.png) | ![Controllers](screenshots/controllers.png) | ![ทดสอบไมค์](screenshots/mic-test.png) |
-| เวอร์ชัน, เครดิต chiaki-ng และ Chiaki, library ทุกตัวพร้อม license และปุ่ม **Licenses** | จอยที่ต่ออยู่ ชนิดการต่อ/แบต และภาพจอยที่สว่างตามปุ่มที่กดจริง | เลือกไมค์ ปรับลดเสียงรบกวน ตัดเสียงลำโพง mic boost และ noise gate พร้อมดูผลสด |
+| เวอร์ชัน, เครดิต chiaki-ng และ Chiaki, library ทุกตัวพร้อม license และปุ่ม **Licenses** | จอยที่ต่ออยู่ ชนิดการต่อ/แบต และภาพจอยที่สว่างตามปุ่มที่กดจริง · **Rumble Boost** พร้อมทดสอบสั่น △ และทดสอบไฟจอย **Light Bar** (□) ไฟจอยจริงกับรูปจอยเปลี่ยนสีตาม *(release ถัดไป)* | เลือกไมค์ ปรับลดเสียงรบกวน ตัดเสียงลำโพง mic boost และ noise gate พร้อมดูผลสด |
 
 ### ระหว่างสตรีม
 
@@ -155,6 +157,7 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 - **Go Live** — ไลฟ์ไป YouTube / Twitch / Facebook / Kick / Custom RTMP(S) พร้อมกัน ถึง 4K (YouTube/Custom) และปลายทาง **แนวตั้ง 9:16** สำหรับ TikTok / Shorts / Reels · stream key เก็บใน Windows Credential Manager
 - **หน้าต่าง 9:16** — preview แนวตั้งสด 3 เลย์เอาต์, ลาก facecam/ตำแหน่งตัดได้, อัดคลิป 1080 × 1920
 - **ไมโครโฟน** — ลดเสียงรบกวน RNNoise + ตัดเสียงลำโพง ปรับกลางสตรีมได้, boost + noise gate, หน้าทดสอบไมค์
+- **สั่นและไฟจอย** *(release ถัดไป ยังไม่มีใน v0.9.0)* — **Rumble Boost** เพิ่มแรงสั่นจอยได้ถึง 300% รวมเกมที่สั่ง rumble ธรรมดา (Settings › Controllers › Vibration หรือหน้าจอย) · หน้าจอยทดสอบสั่น (△, L1 / R1 ปรับ) และทดสอบไฟจอย 6 สี (□) ปิดหน้าแล้วหยุดสั่นและคืนสีไฟเดิม
 - **อัปเดตในแอป** — มีเวอร์ชันใหม่ขึ้นชิป **Update** กดทีเดียว ดาวน์โหลด ตรวจ ติดตั้ง แล้วเปิดใหม่ให้เอง
 - **ตรวจการเชื่อมต่อ** — วัด link และ ping ไปเครื่อง แล้วแนะนำ (และตั้งให้) resolution, fps, bitrate, codec
 - **ล็อกอิน PSN ง่าย** — หน้าล็อกอินของ Sony เปิดในแอป ล็อกอินเสร็จแอปทำต่อเอง (Microsoft Edge WebView2 ที่มากับ Windows 10/11)

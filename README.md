@@ -9,6 +9,8 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 
 💬 **Discord:** [discord.gg/6VTSxu8JRf](https://discord.gg/6VTSxu8JRf) for help, news and beta builds.
 
+🌐 **Website:** [www.ps-wrap.com](https://www.ps-wrap.com)
+
 ![Playing with the vertical 9:16 window open](screenshots/stream-916.jpg)
 
 *Playing with the 9:16 window open: overlays on the game screen, and next to it the vertical picture for Shorts / TikTok / Reels with an image on top and the facecam below (Blur fill layout).*
@@ -23,10 +25,10 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 - The bottom bar has controller hints on the left and status chips on the right: microphone, speaker (with volume), camera, controller, **Recordings**, **Screenshots**, Discovery and **ⓘ About**. Click a chip to open its page or menu; click outside a menu to close it.
 - Everything works with a controller: ✕ Play, △ wake up, □ hide, L1 PIN, R3 add console, ☰ Settings. The hints are buttons too, so you can click them with the mouse.
 
-| ⓘ About and credits | Controller status | Microphone test |
+| ⓘ About and credits | Controllers | Microphone test |
 |---|---|---|
 | ![About](screenshots/about.png) | ![Controllers](screenshots/controllers.png) | ![Microphone test](screenshots/mic-test.png) |
-| Version, credits for chiaki-ng and Chiaki, every bundled library with its license, and a **Licenses** button. | Connected controllers, connection type and battery, plus a live preview that lights up as you press buttons. | Pick the microphone and set noise reduction, speaker echo removal, mic boost and noise gate while you hear the result. |
+| Version, credits for chiaki-ng and Chiaki, every bundled library with its license, and a **Licenses** button. | Connected controllers, connection type and battery, plus a live preview that lights up as you press buttons. **Rumble Boost** with a △ vibration test and a **Light Bar** test (□) that lights the controller and its picture *(next release)*. | Pick the microphone and set noise reduction, speaker echo removal, mic boost and noise gate while you hear the result. |
 
 ### While streaming
 
@@ -190,6 +192,7 @@ The report never contains your PSN sign-in, stream keys, console registration or
 - **New stream menu**: compact cards (Picture, Quality, Overlay, Capture) that wrap instead of overflowing, a ✕ close button, and controller navigation that follows the layout.
 - **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
+- **Controller vibration and light** *(next release, not in v0.9.0)*: **Rumble Boost** makes the controller vibrate harder, up to 300%, including games that send plain rumble (Settings › Controllers › Vibration, or the controller panel). The controller panel tests vibration (△, L1 / R1 to adjust) and the light bar in six colors (□); closing it stops the vibration and restores the light.
 - **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).
 - **Frame rate in the stats card**: fps from the console and fps shown on screen (about 120 with Frame Gen).
 - **Diagnostics tool** (`PS-WRAP-Diagnostics.exe`): checks the PC, catches where PS-WRAP freezes, fixes Vulkan freezes with one click and packs everything into one zip to send. See [Reporting problems](#reporting-problems).
