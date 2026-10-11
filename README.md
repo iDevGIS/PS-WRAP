@@ -28,7 +28,7 @@ It is built on [chiaki-ng](https://github.com/streetpea/chiaki-ng) by the BudToZ
 | ⓘ About and credits | Controllers | Microphone test |
 |---|---|---|
 | ![About](screenshots/about.png) | ![Controllers](screenshots/controllers.png) | ![Microphone test](screenshots/mic-test.png) |
-| Version, credits for chiaki-ng and Chiaki, every bundled library with its license, and a **Licenses** button. | Connected controllers, connection type and battery, plus a live preview that lights up as you press buttons. **Rumble Boost** with a △ vibration test and a **Light Bar** test (□) that lights the controller and its picture *(next release)*. | Pick the microphone and set noise reduction, speaker echo removal, mic boost and noise gate while you hear the result. |
+| Version, credits for chiaki-ng and Chiaki, every bundled library with its license, and a **Licenses** button. | Connected controllers, connection type and battery, plus a live preview that lights up as you press buttons. **Rumble Boost** with a △ vibration test and a **Light Bar** test (□) that lights the controller and its picture. | Pick the microphone and set noise reduction, speaker echo removal, mic boost and noise gate while you hear the result. |
 
 ### While streaming
 
@@ -188,11 +188,11 @@ The report never contains your PSN sign-in, stream keys, console registration or
 - **Updates inside the app**: an **Update** chip when a new version is out; one click downloads, checks and installs it, then reopens PS-WRAP.
 - **Connection check**: measures the link and ping to the console and recommends (and applies) resolution, frame rate, bitrate and codec.
 - **Easy PSN sign-in**: Sony's sign-in page opens inside PS-WRAP and the setup finishes by itself (Microsoft Edge WebView2, part of Windows 10/11).
-- **Status bar while playing**: move the mouse to the bottom of the window for the mic, speaker, facecam, record, screenshot, Go Live and network chips; pin it to keep it on screen.
+- **Status bar while playing**: move the mouse to the bottom of the window for the mic, speaker, facecam, record, screenshot, Go Live and network chips; pin it to keep it on screen. On a PS4 played on your home network it also shows the name of the running game (also under the clock overlay); a PS5 doesn't report it.
 - **New stream menu**: compact cards (Picture, Quality, Overlay, Capture) that wrap instead of overflowing, a ✕ close button, and controller navigation that follows the layout.
 - **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
-- **Controller vibration and light** *(next release, not in v0.9.0)*: **Rumble Boost** makes the controller vibrate harder, up to 300%, including games that send plain rumble (Settings › Controllers › Vibration, or the controller panel). The controller panel tests vibration (△, L1 / R1 to adjust) and the light bar in six colors (□); closing it stops the vibration and restores the light.
+- **Controller vibration and light**: **Rumble Boost** makes the controller vibrate harder, up to 300%, including games that send plain rumble (Settings › Controllers › Vibration, or the controller panel). The controller panel tests vibration (△, L1 / R1 to adjust) and the light bar in six colors (□); closing it stops the vibration and restores the light.
 - **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).
 - **Frame rate in the stats card**: fps from the console and fps shown on screen (about 120 with Frame Gen).
 - **Diagnostics tool** (`PS-WRAP-Diagnostics.exe`): checks the PC, catches where PS-WRAP freezes, fixes Vulkan freezes with one click and packs everything into one zip to send. See [Reporting problems](#reporting-problems).

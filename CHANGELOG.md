@@ -5,6 +5,9 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
 ## [Unreleased]
+
+## [0.10.0] — 2026-10-11
+Rumble Boost, testing vibration and the light bar, and the game's name while playing.
 ### Added
 - **Rumble Boost**: make your controller vibrate harder, from 100% to 300%, in **Settings › Controllers › Vibration** or in the controller panel (the controller chip on the home screen). It boosts the vibration the game sends to the motors (rumble), which had no strength setting before, and the *Rumble Haptics* conversion. It helps most when the game asks for a light or medium rumble; a controller already shaking at full strength can't go further. On a DualSense the PS5's own *Vibration Intensity* still applies, so set it to Strong on the console as well.
 - **Test vibration and the light bar in the controller panel**: **△ Test** (or △ on the controller) plays three pulses, light, medium and strong, with your boost applied, and the controller also pulses when you let go of the slider. L1 / R1 change the boost by 10%. **Light Bar** (DualSense and DualShock 4) has six colors to try: click a dot or press □ for the next color, and both the controller and its picture on screen light up. Closing the panel stops the vibration and puts the light back.
