@@ -66,6 +66,13 @@ Item {
 
             Rectangle { width: 1; height: 24; color: Theme.border }
 
+            // ชื่อเกมที่เครื่องรันอยู่ (Chiaki.window.currentGame — จาก discovery ของเครื่อง · PSN remote ไม่มี)
+            Chip {
+                visible: text !== ""
+                text: Chiaki.window.currentGame || ""
+                maxTextWidth: 260
+            }
+
             Chip {
                 readonly property bool muted: !Chiaki.session || Chiaki.session.muted
                 iconSource: "qrc:/icons/menu/mic.svg"
@@ -198,6 +205,7 @@ Item {
         property bool showDot: false
         property bool caret: false
         property color dotColor: Theme.success
+        property int maxTextWidth: -1
         signal clicked()
         radius: height / 2
         color: chipMouse.containsMouse ? Theme.surfaceRaised : Qt.rgba(1, 1, 1, 0.04)
@@ -211,6 +219,7 @@ Item {
             anchors.centerIn: parent
             spacing: 6
             Image {
+                visible: chip.iconSource !== ""
                 Layout.preferredWidth: 20
                 Layout.preferredHeight: 20
                 sourceSize: Qt.size(20, 20)
@@ -225,6 +234,8 @@ Item {
             }
             Label {
                 visible: chip.text !== ""
+                Layout.maximumWidth: chip.maxTextWidth
+                elide: Text.ElideRight
                 text: chip.text
                 font.pixelSize: Theme.fontCaption
                 font.weight: Font.DemiBold

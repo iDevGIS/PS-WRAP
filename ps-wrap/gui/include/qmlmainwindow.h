@@ -91,6 +91,8 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool frameGenSupported READ frameGenSupported NOTIFY frameGenChanged)                    // Direct Mapping + Vulkan
     Q_PROPERTY(bool discordPresence READ discordPresence WRITE setDiscordPresence NOTIFY discordPresenceChanged)   // PS-WRAP: qmlmainwindow_pswrapdiscord.cpp
     Q_PROPERTY(bool discordShowGame READ discordShowGame WRITE setDiscordShowGame NOTIFY discordPresenceChanged)
+    Q_PROPERTY(QString currentGame READ currentGame NOTIFY currentGameChanged)        // PS-WRAP: เกมที่เครื่องรันอยู่ระหว่างสตรีม ("" = ไม่รู้/หน้า Home/PSN remote)
+    Q_PROPERTY(QString currentTitleId READ currentTitleId NOTIFY currentGameChanged)
     Q_PROPERTY(bool frameGenActive READ frameGenActive NOTIFY frameGenActiveChanged)                   // กำลังสร้างเฟรมจริงอยู่ (จอเร็วพอ + มีสตรีม)
     Q_PROPERTY(QObject *liveChat READ liveChatObject CONSTANT)                                         // PS-WRAP: PsWrapLiveChat (ข้อความ/สถานะ/แหล่ง)
     Q_PROPERTY(int camFx READ camFx WRITE setCamFx NOTIFY camFxChanged)                          // PS-WRAP: 0..13 (ดู WebcamOverlay.fx)
@@ -348,6 +350,7 @@ signals:
     void frameGenChanged();            // PS-WRAP
     void frameGenActiveChanged();      // PS-WRAP
     void discordPresenceChanged();     // PS-WRAP
+    void currentGameChanged();         // PS-WRAP
     void captureHeightChanged();       // PS-WRAP
     void verticalPreviewChanged();     // PS-WRAP
     void verticalLayoutChanged();
@@ -566,6 +569,14 @@ private:
     class QUdpSocket *pswrap_discord_udp = nullptr;   // SRCH unicast ถามเกมระหว่างสตรีม
     qint64 pswrap_discord_last_probe = 0;
     void pswrapProbeDiscordGame(const QString &host, bool ps5);
+    // PS-WRAP: ติดตามเกมระหว่างสตรีม (ทำงานเสมอ ไม่ขึ้นกับ Discord) — แถบสถานะ / นาฬิกา overlay / Discord ใช้ร่วมกัน
+    QString pswrap_title_id;
+    void pswrapTrackGame();
+    void pswrapSetGame(const QString &game, const QString &title_id);
+public:
+    QString currentGame() const;
+    QString currentTitleId() const;
+private:
     class PsWrapFrameGen *pswrap_fg = nullptr;
     QAtomicInteger<int> pswrap_stream_frames = 0;    // PS-WRAP: นับต่อวินาที (timer ของ dropped frames)
     QAtomicInteger<int> pswrap_shown_frames = 0;

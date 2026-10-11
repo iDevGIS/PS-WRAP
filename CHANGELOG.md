@@ -5,6 +5,8 @@ English · [ภาษาไทย](CHANGELOG.th.md)
 The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has its own version numbers (0.x releases are pre-releases). Upstream base: chiaki-ng `a9a2805`.
 
 ## [Unreleased]
+### Added
+- **The game's name while playing**: the name of the game running on the console now shows on the status bar and under the clock overlay. It is read from the console on your home network (not when playing over PSN from outside), and it is no longer tied to the Discord status setting. **PS4 only for now:** a PS5 doesn't report the running game this way.
 
 ## [0.9.0] — 2026-10-10
 Redesigned Settings, the console PIN with a controller, and the mouse wheel works again.

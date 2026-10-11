@@ -5,6 +5,8 @@ import org.streetpea.chiaking
 // PS-WRAP: overlay นาฬิกา + เวลาเล่น ขณะสตรีม — การ์ดกระจกแบบเดียวกับ MicSpectrumOverlay
 //  [ 21:47 ] | ● PLAYTIME
 //            |   1:23:45
+//  ─────────────────────
+//   Ghost of Yōtei          ← ชื่อเกม (Chiaki.window.currentGame) — ไม่รู้ชื่อ = ไม่มีบรรทัดนี้ การ์ดเตี้ยลง
 // วาดที่ขนาดออกแบบ 248×72 เสมอ — StreamView ย่อขยายด้วย scale (สัดส่วนคงที่ คมทุกขนาด)
 // ถูกบันทึกลงคลิปด้วย (ทุกอย่างใน QML scene) → ตัวเลข tabular (ไม่กระตุกตอนเลขเปลี่ยน) + คอนทราสต์สูงบนภาพเกมทุกแบบ
 Item {
@@ -20,6 +22,7 @@ Item {
     readonly property int elapsedSec: startMs > 0 ? Math.max(0, Math.floor((now.getTime() - startMs) / 1000)) : -1
 
     readonly property color ice: "#7fe8ff"
+    readonly property string game: Chiaki.window ? (Chiaki.window.currentGame || "") : ""
 
     component ClockDigits: Text {
         font.pixelSize: 32
@@ -31,7 +34,7 @@ Item {
     }
 
     implicitWidth: 248
-    implicitHeight: 72
+    implicitHeight: game !== "" ? 100 : 72   // StreamView คิดสัดส่วนจาก implicit size → กรอบสูงขึ้นตามเอง
     width: implicitWidth
     height: implicitHeight
     opacity: overlayOpacity
@@ -82,10 +85,17 @@ Item {
         }
     }
 
+    // แถวนาฬิกา/เวลาเล่น สูง 72 เสมอ (บรรทัดชื่อเกมต่อด้านล่าง)
+    Item {
+        id: topArea
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 72
+    }
+
     // ---------- เวลาท้องถิ่น (ซ้าย) — โคลอนกะพริบช้าๆ ตามวินาที ----------
     Row {
         id: clockRow
-        anchors { left: parent.left; leftMargin: 18; verticalCenter: parent.verticalCenter }
+        anchors { left: parent.left; leftMargin: 18; verticalCenter: topArea.verticalCenter }
         spacing: 0
         ClockDigits { text: Qt.formatTime(root.now, "HH") }
         ClockDigits {
@@ -99,15 +109,15 @@ Item {
     // ---------- เส้นคั่น ----------
     Rectangle {
         id: divider
-        anchors { left: clockRow.right; leftMargin: 16; verticalCenter: parent.verticalCenter }
+        anchors { left: clockRow.right; leftMargin: 16; verticalCenter: topArea.verticalCenter }
         width: 1
-        height: parent.height - 30
+        height: topArea.height - 30
         color: Qt.rgba(1, 1, 1, 0.14)
     }
 
     // ---------- เวลาเล่น (ขวา) ----------
     Column {
-        anchors { left: divider.right; leftMargin: 16; right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+        anchors { left: divider.right; leftMargin: 16; right: parent.right; rightMargin: 14; verticalCenter: topArea.verticalCenter }
         spacing: 1
         Row {
             spacing: 6
@@ -136,5 +146,24 @@ Item {
             style: Text.Raised
             styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
+    }
+
+    // ---------- ชื่อเกม ----------
+    Rectangle {
+        visible: root.game !== ""
+        anchors { left: parent.left; right: parent.right; top: topArea.bottom; leftMargin: 16; rightMargin: 16 }
+        height: 1
+        color: Qt.rgba(1, 1, 1, 0.10)
+    }
+    Text {
+        visible: root.game !== ""
+        anchors { left: parent.left; right: parent.right; top: topArea.bottom; leftMargin: 18; rightMargin: 14; topMargin: 5 }
+        text: root.game
+        elide: Text.ElideRight
+        font.pixelSize: 14
+        font.weight: Font.DemiBold
+        color: Theme.text
+        style: Text.Raised
+        styleColor: Qt.rgba(0, 0, 0, 0.35)
     }
 }

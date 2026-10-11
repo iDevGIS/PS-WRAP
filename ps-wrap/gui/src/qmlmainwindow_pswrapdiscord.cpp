@@ -40,6 +40,17 @@ bool findGame(const QVariantList &hosts, const QString &address, QString *game, 
 	return found;
 }
 
+// titleId ของรายการเครื่องเดียวกับ findGame (discovery เจอ)
+QString findTitleId(const QVariantList &hosts, const QString &address)
+{
+	for (const QVariant &hv : hosts) {
+		const QVariantMap h = hv.toMap();
+		if (h.value(QStringLiteral("address")).toString() == address && h.value(QStringLiteral("discovered")).toBool())
+			return h.value(QStringLiteral("titleId")).toString().trimmed();
+	}
+	return QString();
+}
+
 // Discord Developer Portal › Applications › PS-WRAP (ไม่ใช่ความลับ — client id ของ Rich Presence ฝังในแอปได้)
 const char *kDiscordAppId = "1557916650534346772";
 }
@@ -74,17 +85,24 @@ void QmlMainWindow::pswrapInitDiscord()
 	pswrap_discord->setEnabled(settings->GetDiscordPresence());
 	auto *timer = new QTimer(this);
 	timer->setInterval(5000);
-	connect(timer, &QTimer::timeout, this, &QmlMainWindow::pswrapUpdateDiscord);
+	connect(timer, &QTimer::timeout, this, [this]() {
+		pswrapTrackGame();
+		pswrapUpdateDiscord();
+	});
 	timer->start();
 	connect(backend, &QmlBackend::sessionChanged, this, [this](StreamSession *s) {
 		pswrap_discord_session_start = 0;
 		pswrap_discord_last_probe = 0;
 		// จำเกมไว้ตอน session เริ่ม — ระหว่างสตรีมรายการเครื่องไม่มีข้อมูล discovery แล้ว (พบ 2026-10-09)
-		pswrap_discord_game.clear();
+		QString game;
 		pswrap_discord_ps5 = true;
 		if (s)
-			findGame(backend->hosts(), s->GetHost(), &pswrap_discord_game, &pswrap_discord_ps5);
-		QTimer::singleShot(500, this, &QmlMainWindow::pswrapUpdateDiscord);
+			findGame(backend->hosts(), s->GetHost(), &game, &pswrap_discord_ps5);
+		pswrapSetGame(game, s ? findTitleId(backend->hosts(), s->GetHost()) : QString());
+		QTimer::singleShot(500, this, [this]() {
+			pswrapTrackGame();
+			pswrapUpdateDiscord();
+		});
 	});
 	pswrap_discord_udp = new QUdpSocket(this);
 	pswrap_discord_udp->bind(QHostAddress(QHostAddress::AnyIPv4), 0);
@@ -102,13 +120,15 @@ void QmlMainWindow::pswrapInitDiscord()
 				logged_reply = true;
 				qCInfo(chiakiGui) << "PSWRAP discord: console replied" << data.left(data.indexOf('\n')).trimmed();
 			}
-			QString game;
+			QString game, tid;
 			for (const QByteArray &line : data.split('\n')) {
 				if (line.startsWith("running-app-name:"))
 					game = QString::fromUtf8(line.mid(17)).trimmed();
+				else if (line.startsWith("running-app-titleid:"))
+					tid = QString::fromUtf8(line.mid(20)).trimmed();
 			}
-			if (game != pswrap_discord_game) {
-				pswrap_discord_game = game;
+			if (game != pswrap_discord_game || tid != pswrap_title_id) {
+				pswrapSetGame(game, tid);
 				pswrapUpdateDiscord();
 			}
 		}
@@ -127,6 +147,46 @@ void QmlMainWindow::pswrapProbeDiscordGame(const QString &host, bool ps5)
 		+ (ps5 ? QByteArrayLiteral("00030010") : QByteArrayLiteral("00020020")) + QByteArrayLiteral("\n");
 	pkt.append('\0');   // เหมือน chiaki_discovery_send (ส่ง NUL ปิดท้ายด้วย)
 	pswrap_discord_udp->writeDatagram(pkt, addr, ps5 ? 9302 : 987);
+}
+
+QString QmlMainWindow::currentGame() const
+{
+	StreamSession *s = backend ? backend->qmlSession() : nullptr;
+	return s ? pswrap_discord_game : QString();
+}
+
+QString QmlMainWindow::currentTitleId() const
+{
+	StreamSession *s = backend ? backend->qmlSession() : nullptr;
+	return s ? pswrap_title_id : QString();
+}
+
+void QmlMainWindow::pswrapSetGame(const QString &game, const QString &title_id)
+{
+	if (game == pswrap_discord_game && title_id == pswrap_title_id)
+		return;
+	pswrap_discord_game = game;
+	pswrap_title_id = title_id;
+	qCInfo(chiakiGui) << "PSWRAP game:" << (game.isEmpty() ? QStringLiteral("(none)") : game) << title_id;
+	emit currentGameChanged();
+}
+
+// ทุก 5 วิระหว่างสตรีม: รายการ discovery ยังเห็นเครื่อง = ใช้ค่านั้น · ไม่งั้นถาม SRCH ตรงไปเครื่องทุก 30 วิ (คำตอบอ่านที่ readyRead)
+// PSN remote ไม่มี discovery และ address ไม่ใช่ IP ในบ้าน → ไม่มีชื่อเกม
+void QmlMainWindow::pswrapTrackGame()
+{
+	StreamSession *s = backend ? backend->qmlSession() : nullptr;
+	if (!s || !s->GetConnected())
+		return;
+	QString game;
+	bool ps5 = pswrap_discord_ps5;
+	if (findGame(backend->hosts(), s->GetHost(), &game, &ps5) && !game.isEmpty())
+		pswrapSetGame(game, findTitleId(backend->hosts(), s->GetHost()));
+	const qint64 now = QDateTime::currentSecsSinceEpoch();
+	if (now - pswrap_discord_last_probe >= 30) {
+		pswrap_discord_last_probe = now;
+		pswrapProbeDiscordGame(s->GetHost(), ps5);
+	}
 }
 
 void QmlMainWindow::pswrapUpdateDiscord()
@@ -149,16 +209,9 @@ void QmlMainWindow::pswrapUpdateDiscord()
 	if (s && s->GetConnected()) {
 		// เกม + รุ่นเครื่อง: ค่าที่จำตอน session เริ่ม · ถ้า discovery ยังเห็นเครื่องอยู่ (เปลี่ยนเกมกลางสตรีม) ใช้ค่าล่าสุด
 		// PSN remote = ไม่มีข้อมูล discovery → ไม่มีชื่อเกม
-		QString game;
-		bool ps5 = pswrap_discord_ps5;
-		if (findGame(backend->hosts(), s->GetHost(), &game, &ps5) && !game.isEmpty())
-			pswrap_discord_game = game;
-		game = pswrap_discord_game;
-		const qint64 now = QDateTime::currentSecsSinceEpoch();
-		if (now - pswrap_discord_last_probe >= 30) {
-			pswrap_discord_last_probe = now;
-			pswrapProbeDiscordGame(s->GetHost(), ps5);
-		}
+		// ชื่อเกมมาจาก pswrapTrackGame (ทำงานเสมอ แม้ปิด Discord)
+		const QString game = pswrap_discord_game;
+		const bool ps5 = pswrap_discord_ps5;
 		const QString console = ps5 ? QStringLiteral("PS5") : QStringLiteral("PS4");
 		a[QStringLiteral("details")] = (settings->GetDiscordShowGame() && game.size() >= 2)
 			? game.left(128)
