@@ -189,6 +189,9 @@ if(PSWRAP_LINK)
 	add_subdirectory(${PSWRAP_LIBDATACHANNEL_DIR} libdatachannel EXCLUDE_FROM_ALL)
 	target_sources(chiaki PRIVATE include/pswraplink.h src/pswraplink.cpp src/qmlmainwindow_pswraplink.cpp)
 	target_link_libraries(chiaki LibDataChannel::LibDataChannelStatic)   # static: ไม่ต้องวาง DLL เพิ่ม
+	# signaling ผ่าน wss ใช้ QWebSocket — rtc::WebSocket บน Windows ไม่ตรวจใบรับรอง TLS (Qt6WebSockets.dll ต้องไปกับ release)
+	find_package(Qt6 REQUIRED COMPONENTS WebSockets)
+	target_link_libraries(chiaki Qt::WebSockets)
 	target_compile_definitions(chiaki PRIVATE PSWRAP_LINK=1)
 	if(WIN32)
 		target_link_libraries(chiaki winmm)   # timeBeginPeriod ของ pacer

@@ -3,7 +3,10 @@
 // ยังเป็นตัวทดลองวัด latency กับเกมจริง (repo PS-WRAP-LINK, ผลการทดลอง.md) — ยังไม่ใช่ฟีเจอร์ให้ผู้ใช้:
 //   - build: -DPSWRAP_LINK=ON -DPSWRAP_LIBDATACHANNEL_DIR=<PS-WRAP-LINK/spike/deps/libdatachannel>
 //   - เปิดด้วย env PSWRAP_LINK_DEV=1 (ส่งภาพ) หรือ 2 (ส่งภาพ + รับจอยเพื่อน) · ไม่ตั้ง = ไม่เปิดพอร์ตใดๆ
-//   - signaling = WebSocket :18800 ไม่มี auth (ใช้ใน LAN/ทดสอบเท่านั้น) · หน้าเว็บ = PS-WRAP-LINK/spike/latency/web/index.html
+//   - signaling มี 2 แบบ:
+//       ตั้ง PSWRAP_LINK_SIGNAL=wss://link.ps-wrap.com/ws/host + PSWRAP_LINK_HOST_KEY → ต่อออกไปที่เซิร์ฟเวอร์ (ไม่เปิดพอร์ต)
+//         ได้ลิงก์เชิญ → คัดลอกลง clipboard · เซิร์ฟเวอร์ให้ TURN credential · หน้าเว็บ = PS-WRAP-LINK/web
+//       ไม่ตั้ง → WebSocket server :18800 ใน LAN ไม่มี auth (ทดสอบเท่านั้น) · หน้าเว็บ = PS-WRAP-LINK/spike/latency/web
 //
 // ภาพ: raw tap ของ recorder (ภาพที่เห็นบนจอ รวม overlay) → NVENC low-latency → WebRTC H.264
 //   แปะบาร์โค้ดเวลา "ตอน render thread จับภาพ" ไว้แถบบนสุด → หน้าเว็บวัด latency จากจอเราถึงจอเพื่อน
@@ -18,8 +21,10 @@
 
 #include <functional>
 #include <memory>
+#include <string>
 
 class PsWrapRecorder;
+class QJsonObject;
 class StreamSession;
 struct PsWrapRecConfig;
 
@@ -44,6 +49,12 @@ private:
 	bool tryStart();
 	void stop();
 	void pollPad();
+	// signaling: openPeer สร้าง PeerConnection + track + data channel แล้วส่ง offer ผ่าน d->signal_out (thread ใดก็ได้)
+	void openPeer(int height, int kbps, double pace);
+	void onRemoteAnswer(const std::string &sdp);
+	void connectSignal();   // โหมดเซิร์ฟเวอร์ (PSWRAP_LINK_SIGNAL) — GUI thread
+	void sendSignal(const QJsonObject &msg);   // thread ใดก็ได้
+	void onSignalMessage(const QString &text); // GUI thread
 };
 
 #endif // PSWRAP_LINK_H

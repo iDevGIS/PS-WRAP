@@ -7,7 +7,9 @@
 #include <chiaki/time.h>
 #include <rtc/rtc.hpp>
 
+#include <QClipboard>
 #include <QDateTime>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,6 +17,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
+#include <QWebSocket>
 
 #include <algorithm>
 #include <atomic>
@@ -524,6 +527,14 @@ struct PsWrapLink::Impl
 	std::shared_ptr<LinkTap> tap;
 	bool tap_added = false;
 	std::unique_ptr<rtc::WebSocketServer> server;
+	std::weak_ptr<LinkTap> wtap;
+	std::vector<rtc::IceServer> ice;                         // STUN เสมอ + TURN จากเซิร์ฟเวอร์ (โหมดเซิร์ฟเวอร์)
+	std::function<void(const QJsonObject &desc)> signal_out; // ส่ง offer ให้เพื่อนคนปัจจุบัน (ใต้ m)
+	QString signal_url;                                      // ว่าง = โหมด LAN
+	QByteArray host_key;
+	QTimer reconnect_timer;
+	QWebSocket *sig = nullptr;                               // โหมดเซิร์ฟเวอร์ (GUI thread, ลูกของ PsWrapLink)
+	QString peer;                                            // เพื่อนคนปัจจุบัน (ใต้ m)
 
 	// ใช้ข้าม thread (rtc / tap) ใต้ m
 	std::mutex m;
@@ -567,9 +578,15 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 	});
 	d->pad_timer.setInterval(100);
 	connect(&d->pad_timer, &QTimer::timeout, this, &PsWrapLink::pollPad);
+	d->signal_url = QString::fromUtf8(qgetenv("PSWRAP_LINK_SIGNAL")).trimmed();
+	d->host_key = qgetenv("PSWRAP_LINK_HOST_KEY").trimmed();
+	d->reconnect_timer.setSingleShot(true);
+	d->reconnect_timer.setInterval(3000);
+	connect(&d->reconnect_timer, &QTimer::timeout, this, &PsWrapLink::connectSignal);
 	rtc::InitLogger(rtc::LogLevel::Warning);
 	qCWarning(pswrapLink).noquote() << "PS-WRAP Link DEV mode" << (mode == Mode::VideoInput ? "video + friend input" : "video only")
-		<< "— signaling ws://0.0.0.0:" << kPort << "(no auth, LAN/test only)" << d->kbps << "kbps";
+		<< (d->signal_url.isEmpty() ? QStringLiteral("— LAN signaling ws://0.0.0.0:%1 (no auth, test only)").arg(kPort)
+		                            : QStringLiteral("— signaling ") + d->signal_url) << d->kbps << "kbps";
 }
 
 PsWrapLink::~PsWrapLink()
@@ -632,177 +649,318 @@ bool PsWrapLink::tryStart()
 	d->tap_added = true;
 	tap->on_detached = [this]() { d->tap_added = false; };
 
-	// ---- signaling (spike: ทีละคน คนใหม่มาแทนคนเก่า)
-	rtc::WebSocketServerConfiguration wscfg;
-	wscfg.port = kPort;
-	wscfg.bindAddress = "0.0.0.0";
-	try {
-		d->server = std::make_unique<rtc::WebSocketServer>(wscfg);
-	} catch (const std::exception &e) {
-		qCWarning(pswrapLink) << "signaling server failed:" << e.what();
-		return true;   // ภาพยัง encode อยู่ (ดู log [enc]) แม้ไม่มีคนต่อ
-	}
 	const uint64_t my_gen = ++d->gen;
-	std::weak_ptr<LinkTap> wtap = tap;   // rtc thread อ่าน d->tap ตรงๆ ไม่ได้ (GUI reset ได้ทุกเมื่อ)
-	d->server->onClient([this, dd, wtap, my_gen](std::shared_ptr<rtc::WebSocket> ws) {
-		if (dd->gen != my_gen)
-			return;
-		qCInfo(pswrapLink).noquote() << "client" << QString::fromStdString(ws->remoteAddress().value_or("?"));
-		{
-			std::lock_guard<std::mutex> lock(dd->m);
-			dd->ws = ws;
+	d->wtap = tap;   // rtc thread อ่าน d->tap ตรงๆ ไม่ได้ (GUI reset ได้ทุกเมื่อ)
+	d->ice.clear();
+	d->ice.emplace_back(d->stun);
+	if (!d->signal_url.isEmpty()) {
+		connectSignal();
+	} else {
+		// ---- โหมด LAN: WebSocket server ในเครื่อง (spike: ทีละคน คนใหม่มาแทนคนเก่า)
+		rtc::WebSocketServerConfiguration wscfg;
+		wscfg.port = kPort;
+		wscfg.bindAddress = "0.0.0.0";
+		try {
+			d->server = std::make_unique<rtc::WebSocketServer>(wscfg);
+		} catch (const std::exception &e) {
+			qCWarning(pswrapLink) << "signaling server failed:" << e.what();
+			return true;   // ภาพยัง encode อยู่ (ดู log [enc]) แม้ไม่มีคนต่อ
 		}
-		std::weak_ptr<rtc::WebSocket> wws = ws;
-		ws->onOpen([this, dd, wws, wtap, my_gen]() {
-			auto ws = wws.lock();
-			if (!ws || dd->gen != my_gen)
+		d->server->onClient([this, dd, my_gen](std::shared_ptr<rtc::WebSocket> ws) {
+			if (dd->gen != my_gen)
 				return;
-			rtc::Configuration cfg;
-			cfg.iceServers.emplace_back(dd->stun);
-			cfg.disableAutoNegotiation = true;
-			auto pc = std::make_shared<rtc::PeerConnection>(cfg);
-			std::weak_ptr<rtc::PeerConnection> wpc = pc;
-			pc->onStateChange([](rtc::PeerConnection::State st) {
-				std::ostringstream s;
-				s << st;
-				qCInfo(pswrapLink).noquote() << "pc" << QString::fromStdString(s.str());
-			});
-			pc->onGatheringStateChange([wws, wpc](rtc::PeerConnection::GatheringState st) {
-				if (st != rtc::PeerConnection::GatheringState::Complete)
-					return;
-				auto pc = wpc.lock();
+			qCInfo(pswrapLink).noquote() << "client" << QString::fromStdString(ws->remoteAddress().value_or("?"));
+			{
+				std::lock_guard<std::mutex> lock(dd->m);
+				dd->ws = ws;
+			}
+			std::weak_ptr<rtc::WebSocket> wws = ws;
+			ws->onOpen([this, dd, wws, my_gen]() {
 				auto ws = wws.lock();
-				if (!pc || !ws)
+				if (!ws || dd->gen != my_gen)
 					return;
-				auto desc = pc->localDescription();
-				QJsonObject o{{QStringLiteral("type"), QString::fromStdString(desc->typeString())},
-				              {QStringLiteral("sdp"), QString::fromStdString(std::string(*desc))}};
-				ws->send(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString());
+				{
+					std::lock_guard<std::mutex> lock(dd->m);
+					dd->signal_out = [wws](const QJsonObject &desc) {
+						if (auto ws = wws.lock())
+							ws->send(QJsonDocument(desc).toJson(QJsonDocument::Compact).toStdString());
+					};
+				}
+				// เพื่อนบอกค่าที่อยากได้ใน path ของ WebSocket (ws://host/?h=720&kbps=4000&pace=1.5) — ต้องรู้ก่อนสร้าง pacer
+				const QUrlQuery q(QUrl(QString::fromStdString(ws->path().value_or("/"))).query());
+				openPeer(q.queryItemValue(QStringLiteral("h")).toInt(), q.queryItemValue(QStringLiteral("kbps")).toInt(),
+				         q.hasQueryItem(QStringLiteral("pace")) ? q.queryItemValue(QStringLiteral("pace")).toDouble() : 0.0);
 			});
-
-			rtc::Description::Video media("video", rtc::Description::Direction::SendOnly);
-			media.addH264Codec(kPayloadType, "profile-level-id=42e02a;packetization-mode=1;level-asymmetry-allowed=1");
-			media.addSSRC(kSsrc, "pswrap", "pswrap-stream", "pswrap-video");
-			media.addExtMap(rtc::Description::Entry::ExtMap(kPlayoutDelayExtId, "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay"));
-			auto track = pc->addTrack(media);
-			auto rtp = std::make_shared<rtc::RtpPacketizationConfig>(kSsrc, "pswrap", kPayloadType, rtc::H264RtpPacketizer::ClockRate);
-			rtp->playoutDelayId = kPlayoutDelayExtId;   // 0/0 = เบราว์เซอร์แสดงทันที
-			rtp->playoutDelayMin = 0;
-			rtp->playoutDelayMax = 0;
-			auto packetizer = std::make_shared<rtc::H264RtpPacketizer>(rtc::NalUnit::Separator::StartSequence, rtp);
-			packetizer->addToChain(std::make_shared<rtc::RtcpSrReporter>(rtp));
-			packetizer->addToChain(std::make_shared<rtc::RtcpNackResponder>());
-			packetizer->addToChain(std::make_shared<rtc::PliHandler>([wtap]() {
-				if (auto t = wtap.lock())
-					t->want_idr = true;
-			}));
-
-			// เพื่อนบอกค่าที่อยากได้ใน path ของ WebSocket (ws://host/?h=720&kbps=4000&pace=1.5) — ต้องรู้ก่อนสร้าง pacer
-			// pace = อัตราปล่อย packet เทียบ bitrate (0 = ปล่อยทั้งเฟรมทีเดียว) — เครื่องปลายทางบางตัวรับ burst ไม่ไหว (packet หาย ~20%)
-			const QUrlQuery q(QUrl(QString::fromStdString(ws->path().value_or("/"))).query());
-			int kbps = q.queryItemValue(QStringLiteral("kbps")).toInt();
-			const int h = q.queryItemValue(QStringLiteral("h")).toInt();
-			const double pace = q.hasQueryItem(QStringLiteral("pace")) ? q.queryItemValue(QStringLiteral("pace")).toDouble() : 0.0;
-			if (auto t = wtap.lock()) {
-				// ไม่ระบุ = กลับค่าตั้งต้น (เดิมค่าของเพื่อนคนก่อนค้างอยู่ใน tap — L11: เปิดใหม่ไม่ใส่ kbps ยังได้ 4M)
-				t->target_kbps = (kbps >= 500 && kbps <= 50000) ? kbps : 0;
-				t->max_height = (h >= 360 && h <= 2160) ? h : 1080;
-				kbps = t->target_kbps.load() > 0 ? t->target_kbps.load() : dd->kbps;
-			}
-			if (pace > 0.0) {
-				packetizer->addToChain(std::make_shared<SmoothPacer>(kbps * 1000.0 / 8.0 * pace));
-			}
-			qCInfo(pswrapLink).nospace() << "friend wants h=" << h << " kbps=" << kbps << " pace=" << pace;
-			track->setMediaHandler(packetizer);
-			track->onOpen([dd, wtap, my_gen]() {
-				if (dd->gen != my_gen)
-					return;
-				qCInfo(pswrapLink) << "video open";
-				if (auto t = wtap.lock())
-					t->want_idr = true;
-				dd->track_open = true;
-			});
-			track->onClosed([dd]() { dd->track_open = false; });
-
-			rtc::DataChannelInit init;
-			init.reliability.unordered = true;   // จอย: สถานะล่าสุดสำคัญกว่าของเก่า ไม่ส่งซ้ำ
-			init.reliability.maxRetransmits = 0;
-			auto dc = pc->createDataChannel("input", init);
-			std::weak_ptr<rtc::DataChannel> wdc = dc;
-			dc->onMessage([this, dd, wdc, wtap, my_gen](rtc::message_variant msg) {
+			ws->onMessage([this, dd, my_gen](rtc::message_variant msg) {
 				auto str = std::get_if<std::string>(&msg);
-				auto dc = wdc.lock();
-				if (!str || !dc || dd->gen != my_gen)
+				if (!str || dd->gen != my_gen)
 					return;
 				const QJsonObject o = QJsonDocument::fromJson(QByteArray::fromStdString(*str)).object();
-				const QString type = o.value(QStringLiteral("type")).toString();
-				if (type == QLatin1String("ping")) {
-					QJsonObject r{{QStringLiteral("type"), QStringLiteral("pong")}, {QStringLiteral("t"), o.value(QStringLiteral("t"))},
-					              {QStringLiteral("host"), double(wallMs())}};
-					dc->send(QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString());
-				} else if (type == QLatin1String("pad")) {
-					QJsonObject r{{QStringLiteral("type"), QStringLiteral("pad-ack")}, {QStringLiteral("t"), o.value(QStringLiteral("t"))}};
-					dc->send(QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString());
-					if (dd->mode == Mode::VideoInput && o.contains(QStringLiteral("b"))) {
-						const ChiakiControllerState st = padToState(o);
-						dd->last_pad_us = monoUs();
-						QMetaObject::invokeMethod(this, [this, st]() {
-							if (d->session) {
-								d->session->PsWrapSetLinkState(st);
-								d->pad_held = true;
-							}
-						}, Qt::QueuedConnection);
-					}
-				} else if (type == QLatin1String("config")) {
-					// เพื่อนบอกความสูงที่อยากได้ (มือถือ 720, PC 1080) — spike: คนเดียว ใช้ค่าล่าสุด
-					const int h = std::clamp(o.value(QStringLiteral("h")).toInt(1080), 360, 2160);
-					if (auto t = wtap.lock()) {
-						t->max_height = h;
-						t->want_idr = true;
-					}
-					qCInfo(pswrapLink) << "friend asked for height" << h;
-				} else if (type == QLatin1String("report")) {
-					QString line = QStringLiteral("[browser] latency ") + o.value(QStringLiteral("now")).toString();
-					const QJsonObject rows = o.value(QStringLiteral("rows")).toObject();
-					for (auto it = rows.begin(); it != rows.end(); ++it)
-						line += QStringLiteral(" | ") + it.key() + QStringLiteral(": ") + it.value().toString();
-					qCInfo(pswrapLink).noquote() << line;
-				}
+				if (o.value(QStringLiteral("type")).toString() == QLatin1String("answer"))
+					onRemoteAnswer(o.value(QStringLiteral("sdp")).toString().toStdString());
 			});
-			dc->onClosed([dd]() { dd->pad_pending_release = true; });
-
-			{
-				std::lock_guard<std::mutex> lock(dd->m);
-				if (dd->pc)
-					dd->pc->close();
-				dd->track_open = false;
-				dd->pc = pc;
-				dd->track = track;
-				dd->dc = dc;
-			}
-			pc->setLocalDescription();   // offer
 		});
-		ws->onMessage([dd, my_gen](rtc::message_variant msg) {
-			auto str = std::get_if<std::string>(&msg);
-			if (!str || dd->gen != my_gen)
-				return;
-			const QJsonObject o = QJsonDocument::fromJson(QByteArray::fromStdString(*str)).object();
-			if (o.value(QStringLiteral("type")).toString() != QLatin1String("answer"))
-				return;
-			std::shared_ptr<rtc::PeerConnection> pc;
-			{
-				std::lock_guard<std::mutex> lock(dd->m);
-				pc = dd->pc;
-			}
-			if (pc)
-				pc->setRemoteDescription(rtc::Description(o.value(QStringLiteral("sdp")).toString().toStdString(), "answer"));
-		});
-	});
+	}
 	d->pad_timer.start();
-	qCInfo(pswrapLink).nospace() << "started: tap " << cfg.width << "x" << cfg.height << "@" << cfg.fps << ", signaling :" << kPort;
+	qCInfo(pswrapLink).nospace() << "started: tap " << cfg.width << "x" << cfg.height << "@" << cfg.fps;
 	return true;
 }
 
+void PsWrapLink::openPeer(int height, int kbps, double pace)
+{
+	// thread ใดก็ได้ (rtc) — เพื่อนคนใหม่มาแทนคนเก่า (spike: ทีละคน)
+	Impl *dd = d.get();
+	const uint64_t my_gen = dd->gen;
+	std::weak_ptr<LinkTap> wtap = dd->wtap;
+	rtc::Configuration cfg;
+	{
+		std::lock_guard<std::mutex> lock(dd->m);
+		cfg.iceServers = dd->ice;
+	}
+	cfg.disableAutoNegotiation = true;
+	auto pc = std::make_shared<rtc::PeerConnection>(cfg);
+	std::weak_ptr<rtc::PeerConnection> wpc = pc;
+	pc->onStateChange([](rtc::PeerConnection::State st) {
+		std::ostringstream s;
+		s << st;
+		qCInfo(pswrapLink).noquote() << "pc" << QString::fromStdString(s.str());
+	});
+	// ไม่ทำ trickle: รอ gather เสร็จแล้วส่ง SDP ก้อนเดียว
+	pc->onGatheringStateChange([dd, wpc, my_gen](rtc::PeerConnection::GatheringState st) {
+		if (st != rtc::PeerConnection::GatheringState::Complete || dd->gen != my_gen)
+			return;
+		auto pc = wpc.lock();
+		if (!pc)
+			return;
+		auto desc = pc->localDescription();
+		std::function<void(const QJsonObject &)> out;
+		{
+			std::lock_guard<std::mutex> lock(dd->m);
+			if (dd->pc != pc)
+				return;   // มีเพื่อนคนใหม่มาแทนแล้ว
+			out = dd->signal_out;
+		}
+		if (out)
+			out(QJsonObject{{QStringLiteral("type"), QString::fromStdString(desc->typeString())},
+			                {QStringLiteral("sdp"), QString::fromStdString(std::string(*desc))}});
+	});
+
+	rtc::Description::Video media("video", rtc::Description::Direction::SendOnly);
+	media.addH264Codec(kPayloadType, "profile-level-id=42e02a;packetization-mode=1;level-asymmetry-allowed=1");
+	media.addSSRC(kSsrc, "pswrap", "pswrap-stream", "pswrap-video");
+	media.addExtMap(rtc::Description::Entry::ExtMap(kPlayoutDelayExtId, "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay"));
+	auto track = pc->addTrack(media);
+	auto rtp = std::make_shared<rtc::RtpPacketizationConfig>(kSsrc, "pswrap", kPayloadType, rtc::H264RtpPacketizer::ClockRate);
+	rtp->playoutDelayId = kPlayoutDelayExtId;   // 0/0 = เบราว์เซอร์แสดงทันที
+	rtp->playoutDelayMin = 0;
+	rtp->playoutDelayMax = 0;
+	auto packetizer = std::make_shared<rtc::H264RtpPacketizer>(rtc::NalUnit::Separator::StartSequence, rtp);
+	packetizer->addToChain(std::make_shared<rtc::RtcpSrReporter>(rtp));
+	packetizer->addToChain(std::make_shared<rtc::RtcpNackResponder>());
+	packetizer->addToChain(std::make_shared<rtc::PliHandler>([wtap]() {
+		if (auto t = wtap.lock())
+			t->want_idr = true;
+	}));
+	if (auto t = wtap.lock()) {
+		// ไม่ระบุ = กลับค่าตั้งต้น (เดิมค่าของเพื่อนคนก่อนค้างอยู่ใน tap — L11: เปิดใหม่ไม่ใส่ kbps ยังได้ 4M)
+		t->target_kbps = (kbps >= 500 && kbps <= 50000) ? kbps : 0;
+		t->max_height = (height >= 360 && height <= 2160) ? height : 1080;
+		kbps = t->target_kbps.load() > 0 ? t->target_kbps.load() : dd->kbps;
+	}
+	// pace = อัตราปล่อย packet เทียบ bitrate (0 = ปล่อยทั้งเฟรมทีเดียว) — เครื่องปลายทางบางตัวรับ burst ไม่ไหว
+	if (pace > 0.0)
+		packetizer->addToChain(std::make_shared<SmoothPacer>(kbps * 1000.0 / 8.0 * pace));
+	qCInfo(pswrapLink).nospace() << "friend wants h=" << height << " kbps=" << kbps << " pace=" << pace;
+	track->setMediaHandler(packetizer);
+	track->onOpen([dd, wtap, my_gen]() {
+		if (dd->gen != my_gen)
+			return;
+		qCInfo(pswrapLink) << "video open";
+		if (auto t = wtap.lock())
+			t->want_idr = true;
+		dd->track_open = true;
+	});
+	track->onClosed([dd]() { dd->track_open = false; });
+
+	rtc::DataChannelInit init;
+	init.reliability.unordered = true;   // จอย: สถานะล่าสุดสำคัญกว่าของเก่า ไม่ส่งซ้ำ
+	init.reliability.maxRetransmits = 0;
+	auto dc = pc->createDataChannel("input", init);
+	std::weak_ptr<rtc::DataChannel> wdc = dc;
+	dc->onMessage([this, dd, wdc, wtap, my_gen](rtc::message_variant msg) {
+		auto str = std::get_if<std::string>(&msg);
+		auto dc = wdc.lock();
+		if (!str || !dc || dd->gen != my_gen)
+			return;
+		const QJsonObject o = QJsonDocument::fromJson(QByteArray::fromStdString(*str)).object();
+		const QString type = o.value(QStringLiteral("type")).toString();
+		if (type == QLatin1String("ping")) {
+			QJsonObject r{{QStringLiteral("type"), QStringLiteral("pong")}, {QStringLiteral("t"), o.value(QStringLiteral("t"))},
+			              {QStringLiteral("host"), double(wallMs())}};
+			dc->send(QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString());
+		} else if (type == QLatin1String("pad")) {
+			QJsonObject r{{QStringLiteral("type"), QStringLiteral("pad-ack")}, {QStringLiteral("t"), o.value(QStringLiteral("t"))}};
+			dc->send(QJsonDocument(r).toJson(QJsonDocument::Compact).toStdString());
+			if (dd->mode == Mode::VideoInput && o.contains(QStringLiteral("b"))) {
+				const ChiakiControllerState st = padToState(o);
+				dd->last_pad_us = monoUs();
+				QMetaObject::invokeMethod(this, [this, st]() {
+					if (d->session) {
+						d->session->PsWrapSetLinkState(st);
+						d->pad_held = true;
+					}
+				}, Qt::QueuedConnection);
+			}
+		} else if (type == QLatin1String("config")) {
+			// เพื่อนบอกความสูงที่อยากได้ (มือถือ 720, PC 1080)
+			const int h = std::clamp(o.value(QStringLiteral("h")).toInt(1080), 360, 2160);
+			if (auto t = wtap.lock()) {
+				t->max_height = h;
+				t->want_idr = true;
+			}
+			qCInfo(pswrapLink) << "friend asked for height" << h;
+		} else if (type == QLatin1String("report")) {
+			QString line = QStringLiteral("[browser] latency ") + o.value(QStringLiteral("now")).toString();
+			const QJsonObject rows = o.value(QStringLiteral("rows")).toObject();
+			for (auto it = rows.begin(); it != rows.end(); ++it)
+				line += QStringLiteral(" | ") + it.key() + QStringLiteral(": ") + it.value().toString();
+			qCInfo(pswrapLink).noquote() << line;
+		}
+	});
+	dc->onClosed([dd]() { dd->pad_pending_release = true; });
+
+	{
+		std::lock_guard<std::mutex> lock(dd->m);
+		if (dd->pc)
+			dd->pc->close();
+		dd->track_open = false;
+		dd->pc = pc;
+		dd->track = track;
+		dd->dc = dc;
+	}
+	pc->setLocalDescription();   // offer
+}
+
+void PsWrapLink::onRemoteAnswer(const std::string &sdp)
+{
+	std::shared_ptr<rtc::PeerConnection> pc;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		pc = d->pc;
+	}
+	if (!pc)
+		return;
+	try {
+		pc->setRemoteDescription(rtc::Description(sdp, "answer"));
+	} catch (const std::exception &e) {
+		qCWarning(pswrapLink) << "bad answer:" << e.what();
+	}
+}
+
+void PsWrapLink::connectSignal()
+{
+	// GUI thread — โหมดเซิร์ฟเวอร์: ต่อออกไปที่ link.ps-wrap.com (ไม่เปิดพอร์ตรับในเครื่อง)
+	// ใช้ QWebSocket ไม่ใช่ rtc::WebSocket: libdatachannel บน Windows ปิดการตรวจใบรับรอง TLS ตายตัว (#ifdef _WIN32)
+	// → MITM ปลอมเป็นเซิร์ฟเวอร์แล้วขโมย HOST_KEY ได้ · Qt ตรวจกับที่เก็บ CA ของ Windows และไม่ยอมต่อถ้าไม่ผ่าน
+	if (!d->tap_added)
+		return;
+	if (d->host_key.isEmpty()) {
+		qCWarning(pswrapLink) << "PSWRAP_LINK_SIGNAL set but PSWRAP_LINK_HOST_KEY is empty";
+		return;
+	}
+	if (!d->sig) {
+		d->sig = new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this);
+		connect(d->sig, &QWebSocket::connected, this, [this]() {
+			d->sig->sendTextMessage(QString::fromUtf8(QJsonDocument(QJsonObject{{QStringLiteral("type"), QStringLiteral("host-hello")},
+			                                                                  {QStringLiteral("key"), QString::fromLatin1(d->host_key)}})
+			                                              .toJson(QJsonDocument::Compact)));
+		});
+		connect(d->sig, &QWebSocket::textMessageReceived, this, &PsWrapLink::onSignalMessage);
+		connect(d->sig, &QWebSocket::disconnected, this, [this]() {
+			if (!d->tap_added)
+				return;   // stop() ปิดเอง
+			qCWarning(pswrapLink) << "signaling disconnected — retry in 3 s";
+			d->reconnect_timer.start();
+		});
+		connect(d->sig, &QWebSocket::sslErrors, this, [](const QList<QSslError> &errors) {
+			// ไม่ ignore — ใบรับรองไม่ผ่าน = ไม่ต่อ
+			for (const auto &e : errors)
+				qCWarning(pswrapLink).noquote() << "signaling TLS error:" << e.errorString();
+		});
+		connect(d->sig, &QWebSocket::errorOccurred, this, [this](QAbstractSocket::SocketError) {
+			qCWarning(pswrapLink).noquote() << "signaling error:" << d->sig->errorString();
+		});
+	}
+	d->sig->open(QUrl(d->signal_url));
+}
+
+void PsWrapLink::sendSignal(const QJsonObject &msg)
+{
+	// thread ใดก็ได้ → ส่งผ่าน QWebSocket บน GUI thread
+	const QString text = QString::fromUtf8(QJsonDocument(msg).toJson(QJsonDocument::Compact));
+	QMetaObject::invokeMethod(this, [this, text]() {
+		if (d->sig && d->sig->state() == QAbstractSocket::ConnectedState)
+			d->sig->sendTextMessage(text);
+	}, Qt::QueuedConnection);
+}
+
+void PsWrapLink::onSignalMessage(const QString &text)
+{
+	// GUI thread
+	const QJsonObject o = QJsonDocument::fromJson(text.toUtf8()).object();
+	const QString type = o.value(QStringLiteral("type")).toString();
+	if (type == QLatin1String("room")) {
+		const QJsonObject turn = o.value(QStringLiteral("turn")).toObject();
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			d->ice.clear();
+			for (const auto &u : turn.value(QStringLiteral("urls")).toArray()) {
+				rtc::IceServer s(u.toString().toStdString());
+				if (s.type == rtc::IceServer::Type::Turn) {
+					s.username = turn.value(QStringLiteral("username")).toString().toStdString();
+					s.password = turn.value(QStringLiteral("credential")).toString().toStdString();
+				}
+				d->ice.push_back(s);
+			}
+		}
+		// ลิงก์มีรหัสเชิญ — ไม่ลง log (log ส่งให้ทีมดูได้) · คัดลอกให้ลูกพี่วางส่งเพื่อนได้เลย
+		QGuiApplication::clipboard()->setText(o.value(QStringLiteral("invite")).toString());
+		qCWarning(pswrapLink).noquote() << "room" << o.value(QStringLiteral("room")).toString() << "ready — invite link copied to the clipboard";
+	} else if (type == QLatin1String("join")) {
+		const QString peer = o.value(QStringLiteral("peer")).toString();
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			d->peer = peer;
+			d->signal_out = [this, peer](const QJsonObject &desc) {
+				sendSignal(QJsonObject{{QStringLiteral("type"), QStringLiteral("signal")}, {QStringLiteral("peer"), peer},
+				                       {QStringLiteral("data"), desc}});
+			};
+		}
+		qCInfo(pswrapLink).noquote() << "friend" << peer << "joined";
+		openPeer(o.value(QStringLiteral("h")).toInt(), o.value(QStringLiteral("kbps")).toInt(), o.value(QStringLiteral("pace")).toDouble());
+	} else if (type == QLatin1String("signal")) {
+		const QJsonObject data = o.value(QStringLiteral("data")).toObject();
+		bool current;
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			current = o.value(QStringLiteral("peer")).toString() == d->peer;
+		}
+		if (current && data.value(QStringLiteral("type")).toString() == QLatin1String("answer"))
+			onRemoteAnswer(data.value(QStringLiteral("sdp")).toString().toStdString());
+	} else if (type == QLatin1String("leave")) {
+		std::lock_guard<std::mutex> lock(d->m);
+		if (o.value(QStringLiteral("peer")).toString() == d->peer) {
+			qCInfo(pswrapLink).noquote() << "friend" << d->peer << "left";
+			if (d->pc)
+				d->pc->close();
+			d->track_open = false;
+			d->peer.clear();
+			d->pad_pending_release = true;
+		}
+	} else if (type == QLatin1String("error")) {
+		qCWarning(pswrapLink).noquote() << "signaling server:" << o.value(QStringLiteral("error")).toString();
+	}
+}
 void PsWrapLink::pollPad()
 {
 	// GUI thread: เพื่อนเงียบเกิน 500 ms หรือ data channel ปิด → ปล่อยทุกปุ่ม (กันปุ่มค้างตอนเน็ตหลุด)
@@ -824,6 +982,7 @@ void PsWrapLink::stop()
 {
 	d->start_timer.stop();
 	d->pad_timer.stop();
+	d->reconnect_timer.stop();
 	d->gen++;
 	if (d->pad_held && d->session) {
 		ChiakiControllerState idle;
@@ -840,6 +999,8 @@ void PsWrapLink::stop()
 		d->track.reset();
 		d->dc.reset();
 		d->ws.reset();
+		d->signal_out = nullptr;
+		d->peer.clear();
 	}
 	d->server.reset();
 	if (d->tap) {
@@ -849,5 +1010,7 @@ void PsWrapLink::stop()
 		d->tap.reset();
 	}
 	d->tap_added = false;
+	if (d->sig)
+		d->sig->close();   // ห้องบนเซิร์ฟเวอร์ปิดตาม → เพื่อนได้ host-left
 	d->session.clear();
 }
