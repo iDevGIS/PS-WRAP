@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QStyleHints>
 #include <QGuiApplication>
+#include <QColor>
 
 static QVector<QPair<uint32_t, Qt::Key>> key_map = {
     { CHIAKI_CONTROLLER_BUTTON_DPAD_UP, Qt::Key_Up },
@@ -87,7 +88,65 @@ QmlController::QmlController(Controller *c, uint32_t shortcut, QObject *t, QObje
 
 QmlController::~QmlController()
 {
+    stopRumble();
     controller->Unref();
+}
+
+// PS-WRAP: {ระดับที่เกมสั่ง 0-255, ระยะเวลา ms} · ระดับ 0 = ช่วงพัก
+static const QVector<QPair<int, int>> preview_rumble_steps = {
+    { 64, 220 }, { 0, 160 }, { 128, 220 }, { 0, 160 }, { 192, 320 },
+};
+
+void QmlController::previewRumble(qreal boost)
+{
+    if (!rumble_timer) {
+        rumble_timer = new QTimer(this);
+        rumble_timer->setSingleShot(true);
+        connect(rumble_timer, &QTimer::timeout, this, [this]() {
+            if (rumble_step >= preview_rumble_steps.size()) {
+                stopRumble();
+                return;
+            }
+            const auto &step = preview_rumble_steps[rumble_step++];
+            const uint8_t v = static_cast<uint8_t>(qMin(255.0, step.first * rumble_boost));
+            controller->SetRumble(v, v);
+            rumble_timer->start(step.second);
+        });
+    }
+    rumble_boost = qBound(1.0, boost, 3.0);
+    rumble_step = 0;
+    rumble_timer->start(0);
+}
+
+void QmlController::setLightbar(const QColor &color)
+{
+    const uint8_t rgb[3] = { static_cast<uint8_t>(color.red()), static_cast<uint8_t>(color.green()), static_cast<uint8_t>(color.blue()) };
+    controller->ChangeLEDColor(rgb);
+}
+
+void QmlController::restoreLightbar()
+{
+    // สีเดียวกับที่ SDL HIDAPI (PS4/PS5) ตั้งให้ตามลำดับผู้เล่น
+    static const uint8_t player_colors[][3] = {
+        { 0x00, 0x00, 0x40 }, { 0x40, 0x00, 0x00 }, { 0x00, 0x40, 0x00 }, { 0x20, 0x00, 0x20 },
+    };
+    int index = 0;
+#ifdef CHIAKI_GUI_ENABLE_SDL_GAMECONTROLLER
+    if (controller->GetController())
+        index = SDL_GameControllerGetPlayerIndex(controller->GetController());
+#endif
+    if (index < 0 || index > 3)
+        index = 0;
+    controller->ChangeLEDColor(player_colors[index]);
+}
+
+void QmlController::stopRumble()
+{
+    if (rumble_timer && (rumble_timer->isActive() || rumble_step > 0)) {
+        rumble_timer->stop();
+        rumble_step = 0;
+        controller->SetRumble(0, 0);
+    }
 }
 
 bool QmlController::isDualSense() const

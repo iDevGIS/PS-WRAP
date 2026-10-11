@@ -15,7 +15,9 @@ Item {
     readonly property real maxOffset: 15                // จาก JS ของ tracker (หน่วย viewBox)
     readonly property int buttons: controller ? controller.buttons : 0   // QML ไม่มี type uint; mask สูงสุด 1<<17 พอใน int
     // PS-WRAP: สีไฟจอยที่เครื่องสั่ง (เกมเปลี่ยนสีได้ เช่น เลือด/ตำรวจ) · ยังไม่มีสี/ไม่ได้สตรีม = ซ่อน
-    readonly property color lightbarColor: Chiaki.session ? Chiaki.session.lightbarColor : "transparent"
+    // previewColor: หน้า Controllers ทดสอบสีไฟ (ชนะสีจากเครื่อง)
+    property color previewColor: "transparent"
+    readonly property color lightbarColor: previewColor.a > 0 ? previewColor : (Chiaki.session ? Chiaki.session.lightbarColor : "transparent")
     readonly property bool lightbarOn: lightbarColor.a > 0 && (lightbarColor.r + lightbarColor.g + lightbarColor.b) > 0.3   // PS5 ส่ง 13,13,13 = ไฟดับ
 
     implicitWidth: 320

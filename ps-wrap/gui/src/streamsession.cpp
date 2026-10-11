@@ -326,6 +326,7 @@ StreamSessionConnectInfo::StreamSessionConnectInfo(
 	this->packet_loss_max = settings->GetPacketLossReportedMax();
 	this->audio_video_disabled = settings->GetAudioVideoDisabled();
 	this->haptic_override = settings->GetHapticOverride();
+	this->rumble_boost = settings->GetRumbleBoost();
 #if CHIAKI_GUI_ENABLE_STEAMDECK_NATIVE
 	this->enable_steamdeck_haptics = settings->GetSteamDeckHapticsEnabled();
 	this->vertical_sdeck = settings->GetVerticalDeckEnabled();
@@ -485,6 +486,7 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 	dpad_touch_shortcut3 = connect_info.dpad_touch_shortcut3;
 	dpad_touch_shortcut4 = connect_info.dpad_touch_shortcut4;
 	haptic_override = connect_info.haptic_override;
+	rumble_boost = connect_info.rumble_boost;
 #if CHIAKI_LIB_ENABLE_PI_DECODER
 	if(connect_info.decoder == Decoder::Pi && chiaki_connect_info.video_profile.codec != CHIAKI_CODEC_H264)
 	{
@@ -2275,6 +2277,12 @@ void StreamSession::PushHapticsFrame(uint8_t *buf, size_t buf_size)
 				right = temp_right;
 				break;
 		}
+		// PS-WRAP: Rumble Boost
+		if(rumble_boost > 1.01f)
+		{
+			left = static_cast<uint16_t>(qMin<float>(UINT16_MAX, left * rumble_boost));
+			right = static_cast<uint16_t>(qMin<float>(UINT16_MAX, right * rumble_boost));
+		}
 		// Set minimum rumble value if above rumble min for controllers that shift up to 9 bits when rumbling
 		left = ((left > 0 && left < (1 << 9)) ? (1 << 9) : left);
 		right = ((right > 0 && right < (1 << 9)) ? (1 << 9) : right);
@@ -2381,8 +2389,9 @@ void StreamSession::Event(ChiakiEvent *event)
 		case CHIAKI_EVENT_RUMBLE: {
 			if(ps5_rumble_intensity < 0)
 				return;
-			uint8_t left = event->rumble.left;
-			uint8_t right = event->rumble.right;
+			// PS-WRAP: Rumble Boost
+			uint8_t left = static_cast<uint8_t>(qMin<float>(UINT8_MAX, event->rumble.left * rumble_boost));
+			uint8_t right = static_cast<uint8_t>(qMin<float>(UINT8_MAX, event->rumble.right * rumble_boost));
 			uint8_t left_adj = left * rumble_multiplier;
 			uint8_t right_adj = right * rumble_multiplier;
 			QMetaObject::invokeMethod(this, [this, left, right, left_adj, right_adj]() {

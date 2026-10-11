@@ -133,6 +133,17 @@ void QmlSettings::setHapticOverride(float override)
     emit hapticOverrideChanged();
 }
 
+float QmlSettings::rumbleBoost() const
+{
+    return settings->GetRumbleBoost();
+}
+
+void QmlSettings::setRumbleBoost(float boost)
+{
+    settings->SetRumbleBoost(boost);
+    emit rumbleBoostChanged();
+}
+
 int QmlSettings::audioVideoDisabled() const
 {
     return static_cast<int>(settings->GetAudioVideoDisabled());
@@ -1892,6 +1903,7 @@ void QmlSettings::refreshAllKeys()
     emit logSanitizeChanged();
     emit vSyncEnabledChanged();
     emit hapticOverrideChanged();
+    emit rumbleBoostChanged();
     emit rumbleHapticsIntensityChanged();
     emit buttonsByPositionChanged();
     emit allowJoystickBackgroundEventsChanged();

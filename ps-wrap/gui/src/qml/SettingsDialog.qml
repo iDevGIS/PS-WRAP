@@ -1491,6 +1491,26 @@ DialogView {
                     }
                     C.Hint { text: qsTr("(Normal)") }
 
+                    C.RowLabel { text: qsTr("Rumble Boost") }
+                    C.Slider {
+                        id: rumbleBoost
+                        Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
+                        from: 1
+                        to: 3
+                        stepSize: 0.1
+                        value: Chiaki.settings.rumbleBoost
+                        onMoved: Chiaki.settings.rumbleBoost = value;
+                        Label {
+                            anchors {
+                                left: parent.right
+                                verticalCenter: parent.verticalCenter
+                                leftMargin: 10
+                            }
+                            text: (parent.value * 100).toFixed(0) + " %"
+                        }
+                    }
+                    C.Hint { text: qsTr("(100 %)") }
+
                     C.RowLabel { text: qsTr("True Haptics Intensity") }
                     C.Slider {
                         id: hapticOverride

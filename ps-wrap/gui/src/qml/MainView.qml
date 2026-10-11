@@ -75,7 +75,7 @@ Pane {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         padding: Theme.space6
         onOpened: { popupTick.restart(); Qt.callLater(function() { keyTrap.forceActiveFocus(); }); }
-        onClosed: { popupTick.stop(); consolePane.forceActiveFocus(Qt.TabFocusReason); }
+        onClosed: { popupTick.stop(); stopRumblePreview(); restoreLight(); consolePane.forceActiveFocus(Qt.TabFocusReason); }
         background: Rectangle {
             color: Theme.surfaceRaised
             radius: Theme.radiusCard
@@ -87,6 +87,51 @@ Pane {
         // รีเฟรชแบตทุก 3 วิ ระหว่างเปิด (powerLevel เป็น invokable ไม่มี notify)
         property int tick: 0
         Timer { id: popupTick; interval: 3000; repeat: true; onTriggered: controllerPopup.tick++ }
+
+        // PS-WRAP: พรีวิวแรงสั่น (Rumble Boost) — สั่นทุกจอยที่ต่ออยู่
+        function previewRumble() {
+            for (let i = 0; i < Chiaki.controllers.length; ++i)
+                Chiaki.controllers[i].previewRumble(Chiaki.settings.rumbleBoost);
+        }
+        function stopRumblePreview() {
+            for (let i = 0; i < Chiaki.controllers.length; ++i)
+                Chiaki.controllers[i].stopRumble();
+        }
+        // PS-WRAP: ทดสอบไฟจอย — จอยจริง + รูปจอยใน popup เปลี่ยนพร้อมกัน · ปิด popup = คืนสีเดิม
+        readonly property var lightColors: ["#0070ff", "#ff2a2a", "#22e055", "#a04cff", "#ff8a00", "#ffffff"]
+        property int lightIndex: -1
+        readonly property bool anyLightbar: {
+            for (let i = 0; i < Chiaki.controllers.length; ++i)
+                if (Chiaki.controllers[i].hasLightbar)
+                    return true;
+            return false;
+        }
+        function previewLight(index) {
+            lightIndex = index;
+            livePad.previewColor = lightColors[index];
+            for (let i = 0; i < Chiaki.controllers.length; ++i)
+                Chiaki.controllers[i].setLightbar(lightColors[index]);
+        }
+        function nextLight() {
+            previewLight((lightIndex + 1) % lightColors.length);
+        }
+        function restoreLight() {
+            if (lightIndex < 0)
+                return;
+            lightIndex = -1;
+            livePad.previewColor = "transparent";
+            const sessionColor = Chiaki.session ? Chiaki.session.lightbarColor : null;
+            for (let i = 0; i < Chiaki.controllers.length; ++i) {
+                if (sessionColor && sessionColor.a > 0)
+                    Chiaki.controllers[i].setLightbar(sessionColor);
+                else
+                    Chiaki.controllers[i].restoreLightbar();
+            }
+        }
+        function stepRumbleBoost(delta) {
+            Chiaki.settings.rumbleBoost = Math.round(Math.max(1, Math.min(3, Chiaki.settings.rumbleBoost + delta)) * 10) / 10;
+            previewRumble();
+        }
 
         ColumnLayout {
             anchors {
@@ -105,6 +150,15 @@ Pane {
                 Keys.onPressed: (event) => {
                     if (event.key === Qt.Key_Escape)
                         controllerPopup.close();
+                    // PS-WRAP: △ = ทดสอบสั่น · □ = สีไฟถัดไป · L1/R1 = Rumble Boost -/+10%
+                    else if (event.key === Qt.Key_Yes && !event.isAutoRepeat)
+                        controllerPopup.previewRumble();
+                    else if (event.key === Qt.Key_No && !event.isAutoRepeat && controllerPopup.anyLightbar)
+                        controllerPopup.nextLight();
+                    else if (event.key === Qt.Key_PageUp)
+                        controllerPopup.stepRumbleBoost(-0.1);
+                    else if (event.key === Qt.Key_PageDown)
+                        controllerPopup.stepRumbleBoost(0.1);
                     event.accepted = true;
                 }
                 Keys.onReleased: (event) => { event.accepted = true; }
@@ -277,6 +331,151 @@ Pane {
                     text: qsTr("Press buttons to test · ◯ / Esc closes")
                     font.pixelSize: Theme.fontCaption
                     color: Theme.textMuted
+                }
+            }
+
+            // PS-WRAP: แรงสั่น — ค่าเดียวกับ Settings > Controllers > Vibration > Rumble Boost
+            Rectangle {
+                visible: Chiaki.controllers.length > 0
+                Layout.fillWidth: true
+                implicitHeight: vibRow.implicitHeight + Theme.space3 * 2
+                radius: Theme.radiusControl
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.border
+                RowLayout {
+                    id: vibRow
+                    anchors {
+                        fill: parent
+                        leftMargin: Theme.space4
+                        rightMargin: Theme.space4
+                        topMargin: Theme.space3
+                        bottomMargin: Theme.space3
+                    }
+                    spacing: Theme.space3
+                    Image {
+                        Layout.preferredWidth: 22
+                        Layout.preferredHeight: 22
+                        sourceSize: Qt.size(22, 22)
+                        source: "qrc:/icons/settings/vibration.svg"
+                    }
+                    ColumnLayout {
+                        spacing: 0
+                        Label {
+                            text: qsTr("Rumble Boost")
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Font.DemiBold
+                            color: Theme.text
+                        }
+                        Label {
+                            text: qsTr("L1 / R1 adjust · △ test")
+                            font.pixelSize: Theme.fontCaption
+                            color: Theme.textMuted
+                        }
+                    }
+                    C.Slider {
+                        id: popupRumbleBoost
+                        Layout.fillWidth: true
+                        focusPolicy: Qt.NoFocus
+                        from: 1
+                        to: 3
+                        stepSize: 0.1
+                        value: Chiaki.settings.rumbleBoost
+                        onMoved: Chiaki.settings.rumbleBoost = value
+                        onPressedChanged: if (!pressed) controllerPopup.previewRumble()
+                    }
+                    Label {
+                        Layout.preferredWidth: 52
+                        horizontalAlignment: Text.AlignRight
+                        text: (Chiaki.settings.rumbleBoost * 100).toFixed(0) + " %"
+                        font.pixelSize: Theme.fontBody
+                        font.weight: Font.DemiBold
+                        color: Theme.accent
+                    }
+                    C.Button {
+                        text: qsTr("Test")
+                        focusPolicy: Qt.NoFocus
+                        icon.source: root.controllerButton("pyramid")
+                        icon.width: 22
+                        icon.height: 22
+                        icon.color: "transparent"
+                        onClicked: controllerPopup.previewRumble()
+                    }
+                }
+            }
+
+            // PS-WRAP: ทดสอบไฟจอย (เฉพาะจอยที่มีไฟ เช่น DualSense / DualShock 4)
+            Rectangle {
+                visible: controllerPopup.anyLightbar
+                Layout.fillWidth: true
+                implicitHeight: lightRow.implicitHeight + Theme.space3 * 2
+                radius: Theme.radiusControl
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.border
+                RowLayout {
+                    id: lightRow
+                    anchors {
+                        fill: parent
+                        leftMargin: Theme.space4
+                        rightMargin: Theme.space4
+                        topMargin: Theme.space3
+                        bottomMargin: Theme.space3
+                    }
+                    spacing: Theme.space3
+                    Rectangle {
+                        Layout.preferredWidth: 22
+                        Layout.preferredHeight: 22
+                        radius: 11
+                        color: controllerPopup.lightIndex >= 0 ? controllerPopup.lightColors[controllerPopup.lightIndex] : "transparent"
+                        border.width: 2
+                        border.color: Theme.textMuted
+                    }
+                    ColumnLayout {
+                        spacing: 0
+                        Label {
+                            text: qsTr("Light Bar")
+                            font.pixelSize: Theme.fontBody
+                            font.weight: Font.DemiBold
+                            color: Theme.text
+                        }
+                        Label {
+                            text: qsTr("□ next color · restored on close")
+                            font.pixelSize: Theme.fontCaption
+                            color: Theme.textMuted
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    Repeater {
+                        model: controllerPopup.lightColors
+                        delegate: Rectangle {
+                            required property string modelData
+                            required property int index
+                            readonly property bool selected: controllerPopup.lightIndex === index
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
+                            radius: 15
+                            color: modelData
+                            border.width: selected ? 3 : 1
+                            border.color: selected ? Theme.text : Theme.border
+                            scale: selected ? 1.12 : 1.0
+                            Behavior on scale { NumberAnimation { duration: 120 } }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: controllerPopup.previewLight(index)
+                            }
+                        }
+                    }
+                    C.Button {
+                        text: qsTr("Test")
+                        focusPolicy: Qt.NoFocus
+                        icon.source: root.controllerButton("box")
+                        icon.width: 22
+                        icon.height: 22
+                        icon.color: "transparent"
+                        onClicked: controllerPopup.nextLight()
+                    }
                 }
             }
 

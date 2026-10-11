@@ -100,6 +100,7 @@ class SdeckHapticsWorker;
 		bool enable_dualsense;
 		bool auto_regist;
 		float haptic_override;
+		float rumble_boost; // PS-WRAP
 		ChiakiDisableAudioVideo audio_video_disabled;
 		RumbleHapticsIntensity rumble_haptics_intensity;
 		bool buttons_by_pos;
@@ -238,6 +239,7 @@ class StreamSession : public QObject
 		uint16_t dpad_touch_increment;
 		float trigger_override;
 		float haptic_override;
+		float rumble_boost; // PS-WRAP
 		bool keyboard_controller_enabled;
 		bool mouse_touch_enabled;
 		bool dpad_regular;

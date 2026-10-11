@@ -17,6 +17,7 @@ class QmlController : public QObject
     Q_PROPERTY(QString type READ type CONSTANT)
     Q_PROPERTY(QString vidpid READ vidpid CONSTANT)
     Q_PROPERTY(QString guid READ guid CONSTANT)
+    Q_PROPERTY(bool hasLightbar READ hasLightbar CONSTANT)
     // PS-WRAP: สถานะ input สดสำหรับ overlay ขณะสตรีม (bitmask CHIAKI_CONTROLLER_BUTTON_*, แกน -1..1, trigger 0..1)
     Q_PROPERTY(uint buttons READ buttons NOTIFY inputChanged)
     Q_PROPERTY(qreal leftX READ leftX NOTIFY inputChanged)
@@ -61,6 +62,21 @@ public:
 #endif
         return QStringLiteral("unknown");
     }
+    // PS-WRAP: พรีวิวแรงสั่นในหน้า Controllers — สั่น 3 จังหวะ (25/50/75% แบบที่เกมสั่ง) คูณ boost แล้ว
+    Q_INVOKABLE void previewRumble(qreal boost);
+    Q_INVOKABLE void stopRumble();
+    // PS-WRAP: ทดสอบไฟจอย — restoreLightbar() คืนสีตั้งต้นของ SDL ตามลำดับผู้เล่น (ใช้ตอนไม่ได้สตรีม)
+    Q_INVOKABLE void setLightbar(const QColor &color);
+    Q_INVOKABLE void restoreLightbar();
+    bool hasLightbar() const
+    {
+#ifdef CHIAKI_GUI_ENABLE_SDL_GAMECONTROLLER
+        return controller && controller->GetController() && SDL_GameControllerHasLED(controller->GetController());
+#else
+        return false;
+#endif
+    }
+
     QmlController(Controller *controller, uint32_t shortcut, QObject *target, QObject *parent = nullptr);
     ~QmlController();
 
@@ -85,4 +101,7 @@ private:
     QTimer *repeat_timer = {};
     int repeat_running = 0;
     Qt::Key pressed_key = Qt::Key_unknown;
+    QTimer *rumble_timer = {};
+    int rumble_step = 0;
+    qreal rumble_boost = 1.0;
 };

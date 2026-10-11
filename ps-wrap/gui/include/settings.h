@@ -384,6 +384,10 @@ class Settings : public QObject
 		float GetHapticOverride() const 			{ return settings.value("settings/haptic_override", 1.0).toFloat(); }
 		void SetHapticOverride(float override)	{ settings.setValue("settings/haptic_override", override); }
 
+		// PS-WRAP: คูณแรงสั่นของมอเตอร์ (rumble + rumble haptics) 1.0-3.0
+		float GetRumbleBoost() const 			{ return qBound(1.0f, settings.value("settings/rumble_boost", 1.0).toFloat(), 3.0f); }
+		void SetRumbleBoost(float boost)		{ settings.setValue("settings/rumble_boost", qBound(1.0f, boost, 3.0f)); }
+
 		ChiakiVideoResolutionPreset GetResolutionLocalPS4() const;
 		ChiakiVideoResolutionPreset GetResolutionRemotePS4() const;
 		ChiakiVideoResolutionPreset GetResolutionLocalPS5() const;
