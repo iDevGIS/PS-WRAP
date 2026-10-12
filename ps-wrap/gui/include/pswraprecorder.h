@@ -112,6 +112,11 @@ public:
 	// PS-WRAP Link: เหมือน videoFrame แต่ได้เวลาที่ render thread จับภาพ (chiaki_time_now_monotonic_us) — วัด latency
 	virtual void videoFrameAt(const AVFrame *frame, int64_t capture_us) { (void)capture_us; videoFrame(frame); }
 	virtual void audioMix(const float *left, const float *right, int64_t frames, int64_t pos) = 0;
+	// PS-WRAP Link: เสียงชุดเดียวกับ audioMix แต่แยกเกม / ไมค์ (เพื่อนปรับความดังแยกกันได้) · เรียกหลัง audioMix ทุกครั้ง
+	virtual void audioSplit(const float *gameL, const float *gameR, const float *micL, const float *micR, int64_t frames, int64_t pos)
+	{
+		(void)gameL; (void)gameR; (void)micL; (void)micR; (void)frames; (void)pos;
+	}
 	virtual void detached() {}
 };
 

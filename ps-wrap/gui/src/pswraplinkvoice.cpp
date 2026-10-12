@@ -1,10 +1,8 @@
-// PS-WRAP Link: เสียงไมค์ของเพื่อน (ดู pswraplinkvoice.h)
+// PS-WRAP Link: เสียงไมค์ของเพื่อน (ดู pswraplinkvoice.h) · ผสมเข้าเสียงเกมใน StreamSession (ไม่เปิดอุปกรณ์เสียงของตัวเอง)
 #include <pswraplinkvoice.h>
 
 #include <QDateTime>
 #include <QLoggingCategory>
-
-#include <SDL.h>
 
 #include <algorithm>
 #include <cmath>
@@ -113,89 +111,38 @@ struct PsWrapLinkVoice::Impl
 {
 	mutable std::mutex m;
 	std::map<QString, std::unique_ptr<Voice>> voices;
-	SDL_AudioDeviceID dev = 0;
-	bool open_failed = false;
-	QString device_name;
-
-	static void SDLCALL callback(void *user, Uint8 *stream, int len)
-	{
-		auto *self = static_cast<Impl *>(user);
-		auto *out = reinterpret_cast<float *>(stream);
-		const size_t want = static_cast<size_t>(len) / sizeof(float);
-		std::fill(out, out + want, 0.0f);
-		std::lock_guard<std::mutex> lock(self->m);
-		for (auto &[id, v] : self->voices) {
-			if (!v->playing && v->available() >= kPrebuffer)
-				v->playing = true;
-			if (!v->playing)
-				continue;
-			const size_t n = std::min(want, v->available());
-			const float *src = v->fifo.data() + v->read;
-			for (size_t i = 0; i < n; i++)
-				out[i] += src[i];
-			v->read += n;
-			if (v->available() == 0)
-				v->playing = false;   // หมด = รอสะสมใหม่ (เพื่อนหยุดพูด/เน็ตสะดุด)
-			v->compact();
-		}
-		for (size_t i = 0; i < want; i++)
-			out[i] = std::clamp(out[i], -1.0f, 1.0f);
-	}
-
-	// เปิดอุปกรณ์ครั้งแรกที่มีเสียงเข้า (ไม่เปิดถ้าไม่มีใครพูด) · เรียกนอก m
-	void ensureDevice()
-	{
-		QString name;
-		{
-			std::lock_guard<std::mutex> lock(m);
-			if (dev || open_failed)
-				return;
-			name = device_name;
-		}
-		if (!SDL_WasInit(SDL_INIT_AUDIO) && SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
-			qCWarning(pswrapLink) << "voice: SDL audio init failed:" << SDL_GetError();
-			std::lock_guard<std::mutex> lock(m);
-			open_failed = true;
-			return;
-		}
-		SDL_AudioSpec want = {};
-		want.freq = kRate;
-		want.format = AUDIO_F32SYS;
-		want.channels = kCh;
-		want.samples = 480;   // 10 ms
-		want.callback = &Impl::callback;
-		want.userdata = this;
-		SDL_AudioSpec have = {};
-		const QByteArray utf8 = name.toUtf8();
-		const bool named = !name.isEmpty() && name != QLatin1String("Auto");
-		SDL_AudioDeviceID id = SDL_OpenAudioDevice(named ? utf8.constData() : nullptr, 0, &want, &have, 0);
-		if (!id && named)
-			id = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);   // อุปกรณ์ถูกถอด → ค่าเริ่มต้น
-		std::lock_guard<std::mutex> lock(m);
-		if (!id) {
-			qCWarning(pswrapLink) << "voice: can't open audio output:" << SDL_GetError();
-			open_failed = true;
-			return;
-		}
-		if (dev) {   // อีก thread เปิดไปแล้ว
-			SDL_CloseAudioDevice(id);
-			return;
-		}
-		dev = id;
-		SDL_PauseAudioDevice(dev, 0);
-		qCInfo(pswrapLink).noquote() << "voice: playing on" << (named ? name : QStringLiteral("default device"));
-	}
 };
 
 PsWrapLinkVoice::PsWrapLinkVoice() : d(std::make_unique<Impl>()) {}
 
 PsWrapLinkVoice::~PsWrapLinkVoice() { stop(); }
 
-void PsWrapLinkVoice::setDevice(const QString &name)
+// thread เสียงของ StreamSession: บวกเสียงเพื่อนที่สะสมพอแล้วเข้าเสียงเกม (s16 interleaved) — นาฬิกาเล่น = เสียงเกมที่มาจาก PS5
+void PsWrapLinkVoice::mix(int16_t *pcm, size_t frames, unsigned channels, unsigned rate)
 {
+	if (!pcm || !frames || channels == 0 || rate != unsigned(kRate))
+		return;
 	std::lock_guard<std::mutex> lock(d->m);
-	d->device_name = name;
-	d->open_failed = false;
+	for (auto &[id, v] : d->voices) {
+		if (v->muted)
+			continue;
+		if (!v->playing && v->available() >= kPrebuffer)
+			v->playing = true;
+		if (!v->playing)
+			continue;
+		const size_t n = std::min(frames, v->available() / kCh);
+		const float *src = v->fifo.data() + v->read;
+		for (size_t i = 0; i < n; i++)
+			for (unsigned c = 0; c < channels; c++) {
+				const float f = src[i * kCh + std::min<unsigned>(c, kCh - 1)];
+				const int x = int(pcm[i * channels + c]) + int(std::lround(f * 32767.0f));
+				pcm[i * channels + c] = int16_t(std::clamp(x, -32768, 32767));
+			}
+		v->read += n * kCh;
+		if (v->available() < kCh)
+			v->playing = false;   // หมด = รอสะสมใหม่ (เพื่อนหยุดพูด/เน็ตสะดุด)
+		v->compact();
+	}
 }
 
 void PsWrapLinkVoice::push(const QString &peer, const uint8_t *data, size_t size, uint32_t timestamp)
@@ -237,7 +184,6 @@ void PsWrapLinkVoice::push(const QString &peer, const uint8_t *data, size_t size
 		if (peak > kSpeakLevel)
 			v.loud_ms = QDateTime::currentMSecsSinceEpoch();
 	}
-	d->ensureDevice();
 }
 
 void PsWrapLinkVoice::removePeer(const QString &peer)
@@ -284,15 +230,6 @@ bool PsWrapLinkVoice::anyVoice() const
 
 void PsWrapLinkVoice::stop()
 {
-	SDL_AudioDeviceID dev;
-	{
-		std::lock_guard<std::mutex> lock(d->m);
-		dev = d->dev;
-		d->dev = 0;
-		d->open_failed = false;
-	}
-	if (dev)
-		SDL_CloseAudioDevice(dev);   // รอ callback รอบสุดท้ายจบก่อนคืน (นอก m — callback ล็อก m)
 	std::lock_guard<std::mutex> lock(d->m);
 	d->voices.clear();
 }

@@ -1955,6 +1955,29 @@ void StreamSession::PushAudioFrame(int16_t *og_buf, size_t samples_count)
 	QMutexLocker switch_lock(&audio_out_switch_mutex);   // PS-WRAP: สลับลำโพงอยู่ = รอ (ไม่ใช้ device ที่กำลังปิด)
 	if(!audio_out || !audio_volume)
 		return;
+	// PS-WRAP: ลำโพงค้าง (Windows ไม่ดึงเสียงจากคิวเลย 2 วิ — เคยเจอตอนเปิดอุปกรณ์ซ้อนบนลำโพงเดียวกัน) → เปิดใหม่เอง
+	{
+		const uint32_t queued = SDL_GetQueuedAudioSize(audio_out);
+		const int64_t now_ms = (int64_t)SDL_GetTicks64();
+		if(queued >= 2 * audio_buffer_size && queued == pswrap_out_last_queued)
+		{
+			if(!pswrap_out_stuck_since_ms)
+				pswrap_out_stuck_since_ms = now_ms;
+			else if(now_ms - pswrap_out_stuck_since_ms > 2000)
+			{
+				CHIAKI_LOGW(log.GetChiakiLog(), "Audio output '%s' stalled for 2 s (%u bytes queued, status %d), reopening",
+					qPrintable(audio_out_device_name), queued, (int)SDL_GetAudioDeviceStatus(audio_out));
+				pswrap_out_stuck_since_ms = 0;
+				pswrap_out_last_queued = 0;
+				OpenAudioOut(pswrap_audio_channels, pswrap_audio_rate);
+				if(!audio_out)
+					return;
+			}
+		}
+		else
+			pswrap_out_stuck_since_ms = 0;
+		pswrap_out_last_queued = queued;
+	}
 
 	QByteArray buf((int)(samples_count * audio_out_sample_size), 0);
 
@@ -1970,6 +1993,8 @@ void StreamSession::PushAudioFrame(int16_t *og_buf, size_t samples_count)
 		audio_out_ring_fill = 0;
 		audio_out_overflow_logged = false;
 	}
+	// PS-WRAP Link: ไมค์เพื่อนผสมเข้าหลังส่งให้ตัวอัด (ไม่เข้าไฟล์) ก่อนปรับ volume (ตามสไลเดอร์ลำโพงเดียวกัน)
+	PsWrapMixExtraAudio(og_buf, samples_count, pswrap_audio_channels, pswrap_audio_rate);
 	if(audio_volume < SDL_MIX_MAXVOLUME)
 		SDL_MixAudioFormat((uint8_t *)buf.data(), (uint8_t *)og_buf, AUDIO_S16SYS, buf.size(), audio_volume);
 	else

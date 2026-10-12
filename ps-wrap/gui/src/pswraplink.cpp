@@ -70,6 +70,7 @@ constexpr int64_t kPadTimeoutUs = 500000;   // ผู้ถือจอยเง
 constexpr float kStickDeadzone = 0.12f;     // OR ของจอยใช้ค่าสัมบูรณ์มากสุด — stick เพื่อนที่ลอยนิดๆ จะแย่ง stick เรา
 constexpr int kMaxFriends = 4;              // เน็ตขาขึ้น: P2P ส่งแยกทุกคน (8 Mbps × คน)
 constexpr int kAudioKbps = 96;
+constexpr int kVoiceKbps = 32;   // ไมค์เจ้าของเครื่อง (mono) แยก track
 const char *const kHostKeyTarget = "PS-WRAP/link/host-key";
 const char *const kDefaultSignal = "wss://link.ps-wrap.com/ws/host";
 
@@ -391,11 +392,12 @@ private:
 	}
 };
 
-// ---------------------------------------------------------------- เสียง: "Game + Mic" → Opus 10 ms (1 ตัว ส่งทุกคน)
-class LinkAudioTap : public PsWrapRawTap
+// ---------------------------------------------------------------- เสียง: Opus 10 ms (1 ชุด ส่งทุกคน)
+// เกม (stereo) กับไมค์ของเจ้าของเครื่อง (mono) แยกกันคนละ track — หน้าเว็บเพื่อนปรับความดังแยกได้
+class LinkOpusOut
 {
 public:
-	~LinkAudioTap() override
+	~LinkOpusOut()
 	{
 		av_frame_free(&frame);
 		av_packet_free(&pkt);
@@ -404,20 +406,20 @@ public:
 	}
 
 	std::function<void(const uint8_t *data, size_t size, int64_t pos)> send;   // worker ของ recorder
-	std::function<void()> on_detached;                                          // GUI thread
 
-	bool open(QString *error)
+	bool open(int channels, int kbps, QString *error)
 	{
 		const AVCodec *codec = avcodec_find_encoder_by_name("libopus");
 		if (!codec) {
 			*error = QStringLiteral("libopus not available");
 			return false;
 		}
+		ch = channels;
 		enc = avcodec_alloc_context3(codec);
 		enc->sample_rate = 48000;
-		av_channel_layout_default(&enc->ch_layout, 2);
+		av_channel_layout_default(&enc->ch_layout, channels);
 		enc->sample_fmt = AV_SAMPLE_FMT_FLT;
-		enc->bit_rate = kAudioKbps * 1000;
+		enc->bit_rate = kbps * 1000;
 		enc->time_base = AVRational{1, 48000};
 		av_opt_set(enc->priv_data, "application", "lowdelay", 0);
 		av_opt_set(enc->priv_data, "frame_duration", "10", 0);
@@ -435,27 +437,28 @@ public:
 		if (av_frame_get_buffer(frame, 0) < 0)
 			return false;
 		pkt = av_packet_alloc();
-		qCInfo(pswrapLink) << "audio encoder libopus" << kAudioKbps << "kbps frame" << enc->frame_size;
+		qCInfo(pswrapLink) << "audio encoder libopus" << kbps << "kbps" << channels << "ch frame" << enc->frame_size;
 		return true;
 	}
-
-	void videoFrame(const AVFrame *) override {}
-	void audioMix(const float *left, const float *right, int64_t n, int64_t pos) override
+	void reset() { buf.clear(); }
+	// planar L/R → interleaved (หรือ mono = เฉลี่ย) → Opus ทีละ 10 ms
+	void push(const float *left, const float *right, int64_t n)
 	{
 		if (!enc || n <= 0)
 			return;
-		if (expected >= 0 && pos != expected)
-			buf.clear();   // ช่องว่าง (ไม่ควรเกิด — pipeline เติมเงียบเอง)
-		expected = pos + n;
 		for (int64_t i = 0; i < n; i++) {
-			buf.push_back(left[i]);
-			buf.push_back(right[i]);
+			if (ch == 1) {
+				buf.push_back(0.5f * (left[i] + right[i]));
+			} else {
+				buf.push_back(left[i]);
+				buf.push_back(right[i]);
+			}
 		}
-		const size_t fs = size_t(enc->frame_size);
-		while (buf.size() / 2 >= fs) {
+		const size_t fs = size_t(enc->frame_size), per = fs * size_t(ch);
+		while (buf.size() >= per) {
 			av_frame_make_writable(frame);
-			memcpy(frame->data[0], buf.data(), fs * 2 * sizeof(float));
-			buf.erase(buf.begin(), buf.begin() + std::ptrdiff_t(fs * 2));
+			memcpy(frame->data[0], buf.data(), per * sizeof(float));
+			buf.erase(buf.begin(), buf.begin() + std::ptrdiff_t(per));
 			frame->pts = out_pos;
 			out_pos += int64_t(fs);
 			if (avcodec_send_frame(enc, frame) < 0)
@@ -468,6 +471,42 @@ public:
 			}
 		}
 	}
+
+private:
+	AVCodecContext *enc = nullptr;
+	AVFrame *frame = nullptr;
+	AVPacket *pkt = nullptr;
+	std::vector<float> buf;
+	int ch = 2;
+	int64_t out_pos = 0, sent_pos = 0;
+};
+
+class LinkAudioTap : public PsWrapRawTap
+{
+public:
+	LinkOpusOut game;    // track "audio" (เพื่อนส่งไมค์กลับมาทาง track นี้ด้วย — sendrecv)
+	LinkOpusOut voice;   // track "voice": ไมค์ของเจ้าของเครื่อง
+	std::function<void()> on_detached;   // GUI thread
+
+	bool open(QString *error)
+	{
+		return game.open(2, kAudioKbps, error) && voice.open(1, kVoiceKbps, error);
+	}
+
+	void videoFrame(const AVFrame *) override {}
+	void audioMix(const float *, const float *, int64_t, int64_t) override {}   // ใช้ audioSplit แทน
+	void audioSplit(const float *gameL, const float *gameR, const float *micL, const float *micR, int64_t n, int64_t pos) override
+	{
+		if (n <= 0)
+			return;
+		if (expected >= 0 && pos != expected) {   // ช่องว่าง (ไม่ควรเกิด — pipeline เติมเงียบเอง)
+			game.reset();
+			voice.reset();
+		}
+		expected = pos + n;
+		game.push(gameL, gameR, n);
+		voice.push(micL, micR, n);
+	}
 	void detached() override
 	{
 		if (on_detached)
@@ -475,11 +514,7 @@ public:
 	}
 
 private:
-	AVCodecContext *enc = nullptr;
-	AVFrame *frame = nullptr;
-	AVPacket *pkt = nullptr;
-	std::vector<float> buf;   // interleaved L R
-	int64_t expected = -1, out_pos = 0, sent_pos = 0;
+	int64_t expected = -1;
 };
 
 // ---------------------------------------------------------------- pacer
@@ -679,10 +714,10 @@ struct PsWrapLink::Peer
 	QString id, name;
 	int height = 1080;
 	std::shared_ptr<rtc::PeerConnection> pc;
-	std::shared_ptr<rtc::Track> video, audio;
+	std::shared_ptr<rtc::Track> video, audio, voice;   // audio = เสียงเกม (+ไมค์เพื่อนขาเข้า) · voice = ไมค์เจ้าของเครื่อง
 	std::shared_ptr<rtc::DataChannel> input;     // unordered + ไม่ส่งซ้ำ: สถานะจอยล่าสุดสำคัญกว่าของเก่า
 	std::shared_ptr<rtc::DataChannel> control;   // reliable: บทบาท, ขอจอย, สถิติ
-	std::atomic<bool> video_open{false}, audio_open{false};
+	std::atomic<bool> video_open{false}, audio_open{false}, voice_open{false};
 	std::weak_ptr<LinkVideoTap> tap;             // encoder ของกลุ่มความสูงปัจจุบัน (ใต้ m — PLI อ่านจาก rtc thread)
 	// GUI thread (อ่านใต้ m ด้วยเพราะ friends() อ่าน)
 	QString status = QStringLiteral("connecting");
@@ -892,7 +927,10 @@ void PsWrapLink::start()
 	d->announce_invite = true;
 	setState(QStringLiteral("connecting"));
 	d->pad_timer.start();
-	d->voice.setDevice(d->session->GetAudioOutDevice());   // ลำโพงเดียวกับเสียงเกม
+	// เสียงเพื่อนผสมเข้าเสียงเกม (ลำโพง/volume/echo cancel ชุดเดียวกัน)
+	StreamSession::PsWrapSetAudioMixer([](void *ctx, int16_t *pcm, size_t frames, unsigned ch, unsigned rate) {
+		static_cast<PsWrapLinkVoice *>(ctx)->mix(pcm, frames, ch, rate);
+	}, &d->voice);
 	d->voice_timer.start();
 	connectSignal();
 	qCInfo(pswrapLink) << "Link on";
@@ -918,6 +956,7 @@ void PsWrapLink::stop()
 		if (p->pc)
 			p->pc->close();
 	dropUnusedTaps();
+	StreamSession::PsWrapSetAudioMixer(nullptr, nullptr);
 	d->voice.stop();
 	if (d->sig)
 		d->sig->close();   // ห้องบนเซิร์ฟเวอร์ปิดตาม → เพื่อนได้ host-left
@@ -1133,23 +1172,28 @@ void PsWrapLink::ensureAudioTap()
 		return;
 	}
 	Impl *dd = d.get();
-	tap->send = [dd](const uint8_t *data, size_t size, int64_t pos) {
-		std::vector<std::shared_ptr<rtc::Track>> tracks;
-		{
-			std::lock_guard<std::mutex> lock(dd->m);
-			for (const auto &[id, p] : dd->peers)
-				if (p->audio_open)
-					tracks.push_back(p->audio);
-		}
-		for (auto &t : tracks) {
-			try {
-				t->sendFrame(reinterpret_cast<const std::byte *>(data), size,
-				             rtc::FrameInfo(std::chrono::duration<double>(double(pos) / 48000.0)));
-			} catch (const std::exception &e) {
-				qCWarning(pswrapLink) << "send audio:" << e.what();
+	// ส่ง packet เดียวกันให้ทุกคนที่ track เปิดแล้ว · voice = true → track ไมค์เจ้าของเครื่อง
+	auto sender = [dd](bool voice) {
+		return [dd, voice](const uint8_t *data, size_t size, int64_t pos) {
+			std::vector<std::shared_ptr<rtc::Track>> tracks;
+			{
+				std::lock_guard<std::mutex> lock(dd->m);
+				for (const auto &[id, p] : dd->peers)
+					if (voice ? p->voice_open.load() : p->audio_open.load())
+						tracks.push_back(voice ? p->voice : p->audio);
 			}
-		}
+			for (auto &t : tracks) {
+				try {
+					t->sendFrame(reinterpret_cast<const std::byte *>(data), size,
+					             rtc::FrameInfo(std::chrono::duration<double>(double(pos) / 48000.0)));
+				} catch (const std::exception &e) {
+					qCWarning(pswrapLink) << "send audio:" << e.what();
+				}
+			}
+		};
 	};
+	tap->game.send = sender(false);
+	tap->voice.send = sender(true);
 	QPointer<PsWrapLink> self(this);
 	LinkAudioTap *raw = tap.get();
 	tap->on_detached = [self, raw]() {
@@ -1327,6 +1371,25 @@ void PsWrapLink::addPeer(const QString &peer, const QString &name, int height, i
 	p->audio->onClosed([wp]() {
 		if (auto p = wp.lock())
 			p->audio_open = false;
+	});
+
+	// ---- ไมค์เจ้าของเครื่อง (แยกจากเสียงเกม — หน้าเว็บปรับความดังแยก) · หน้าเว็บรุ่นเก่าที่ไม่รู้จัก track นี้ก็แค่ไม่เล่น
+	const uint32_t host_mic_ssrc = QRandomGenerator::global()->generate() | 1;
+	rtc::Description::Audio hm("voice", rtc::Description::Direction::SendOnly);
+	hm.addOpusCodec(kAudioPt);
+	hm.addSSRC(host_mic_ssrc, "pswrap", "pswrap-voice", "voice");
+	p->voice = p->pc->addTrack(hm);
+	auto hm_rtp = std::make_shared<rtc::RtpPacketizationConfig>(host_mic_ssrc, "pswrap", kAudioPt, rtc::OpusRtpPacketizer::DefaultClockRate);
+	auto hm_pk = std::make_shared<rtc::OpusRtpPacketizer>(hm_rtp);
+	hm_pk->addToChain(std::make_shared<rtc::RtcpSrReporter>(hm_rtp));
+	p->voice->setMediaHandler(hm_pk);
+	p->voice->onOpen([wp]() {
+		if (auto p = wp.lock())
+			p->voice_open = true;
+	});
+	p->voice->onClosed([wp]() {
+		if (auto p = wp.lock())
+			p->voice_open = false;
 	});
 
 	// ---- จอย (ไม่ส่งซ้ำ) + ควบคุม (reliable)

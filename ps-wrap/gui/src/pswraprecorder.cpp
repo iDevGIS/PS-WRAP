@@ -1068,8 +1068,10 @@ struct PsWrapRecorder::Impl
 		}
 		{
 			std::lock_guard<std::mutex> lock(taps_mtx);
-			for (auto &t : taps)
+			for (auto &t : taps) {
 				t->audioMix(mixL, mixR, n, audio_pos);
+				t->audioSplit(gL, gR, mL, mR, n, audio_pos);
+			}
 		}
 		void *data[kAudioTracks][2] = {{mixL, mixR}, {gL, gR}, {mL, mR}};
 		for (int t = 0; t < kAudioTracks; t++) {

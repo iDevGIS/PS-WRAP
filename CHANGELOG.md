@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.11.6] — 2026-10-12
+Link fixes: the speaker no longer goes quiet, and friends can set the game and voice volume separately.
+### Changed
+- **PS-WRAP Link: game and voice volume for friends.** Your microphone now goes to friends on its own channel, separate from the game sound, so the 🔊 button on the friend page opens two sliders, **Game** and **Voices**, plus Mute all. The page remembers the levels (iPhone included).
+- **Friends' voices play through PS-WRAP's own sound output.** The speaker volume, the speaker you pick in the stream menu and the echo cancellation now apply to friends' voices too. They are still not saved in recordings.
+### Fixed
+- **No sound from the speakers after a while with Link on.** Friends' voices opened a second sound stream on the same speaker, and the speaker could stop playing altogether (changing the volume or the device didn't bring it back). PS-WRAP now also watches the speaker: if Windows stops taking sound for 2 seconds, it reopens the speaker by itself.
+
 ## [0.11.5] — 2026-10-12
 **PS-WRAP Link (beta)**: friends watch your game in a web browser, chat, send reactions, talk, and play when you hand them the controller.
 ### Added

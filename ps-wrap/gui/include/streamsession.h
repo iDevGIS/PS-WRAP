@@ -278,6 +278,8 @@ class StreamSession : public QObject
 		size_t audio_out_ring_write_pos = 0;
 		size_t audio_out_ring_fill = 0;
 		bool audio_out_overflow_logged = false;
+		uint32_t pswrap_out_last_queued = 0;      // PS-WRAP: เฝ้าลำโพงค้าง (คิว SDL เต็มและไม่ขยับ)
+		int64_t pswrap_out_stuck_since_ms = 0;
 		QMutex audio_out_drain_mutex;
 		QMutex audio_out_switch_mutex;   // PS-WRAP: กัน PushAudioFrame (thread เสียงของ lib) ใช้ audio_out ระหว่างสลับลำโพง
 		QWaitCondition audio_out_drain_wait;
@@ -391,6 +393,11 @@ class StreamSession : public QObject
 		void HandleKeyboardEvent(QKeyEvent *event);
 		// PS-WRAP Link: จอยของเพื่อน (GUI thread) — OR รวมกับจอยอื่นแล้วส่งทันที · ปล่อยด้วย state idle (streamsession_pswraplink.cpp)
 		void PsWrapSetLinkState(const ChiakiControllerState &state);
+		// PS-WRAP Link: เสียงเพิ่ม (ไมค์เพื่อน) ผสมเข้าเสียงเกมก่อนปรับ volume — ใช้ลำโพง/volume/echo cancel ชุดเดียวกับเกม
+		// ไม่เข้าไฟล์อัด (tap อยู่ก่อน) · fn เรียกจาก thread เสียงของ lib · nullptr = ปิด
+		using PsWrapAudioMixFn = void (*)(void *ctx, int16_t *pcm, size_t frames, unsigned channels, unsigned rate);
+		static void PsWrapSetAudioMixer(PsWrapAudioMixFn fn, void *ctx);
+		static void PsWrapMixExtraAudio(int16_t *pcm, size_t frames, unsigned channels, unsigned rate);
 		void HandleTouchEvent(QTouchEvent *event, qreal width, qreal height);
 		void HandleDpadTouchEvent(ChiakiControllerState *state, bool placeholder = false);
 		void HandleMouseReleaseEvent(QMouseEvent *event);
