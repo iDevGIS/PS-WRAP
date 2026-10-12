@@ -63,7 +63,7 @@ PS-WRAP Link lets friends watch your stream in a web browser, chat, and play whe
 
 **How it travels.** The picture, sound, controller input, chat and voice go directly between your PC and each friend's browser, encrypted end to end (WebRTC). When a direct connection isn't possible, they pass through our relay, still encrypted, so the relay can't see or hear them. The Link server only passes the messages that set up each connection: network addresses, the friend's display name and the chosen quality. Nothing is recorded.
 
-**What the server keeps.** System logs of when a room opens and closes and when a friend joins or leaves, with the room code and the IP addresses involved, and the relay's connection logs with IP addresses. They are used to fix problems and stop abuse, and are deleted within 30 days. Names, chat, pictures, voice and video are not logged.
+**What the server keeps.** System logs of when a room opens and closes and when a friend joins or leaves, with the room code and the IP addresses involved, and the relay's connection logs with IP addresses. They are used to fix problems and stop abuse, and are deleted within 30 days. Names, chat, pictures, voice and video are not logged. While rooms are open, the PS-WRAP team can see a live list of them (room code, how long it has been open, friends' display names and partial IP addresses such as 203.0.113.x) to keep the service running; this list isn't saved.
 
 **On your PC and your friend's device.** Your own Link key, if you have one, is kept in Windows Credential Manager; public builds have a beta key built in. The friend page remembers the friend's name, picture, quality, picture size and keyboard layout in that browser's local storage on their own device; it sends nothing anywhere else.
 
