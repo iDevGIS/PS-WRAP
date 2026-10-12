@@ -1,6 +1,6 @@
 # สร้าง portable folder ที่เปิด PS-WRAP.exe ได้ตรงๆ (copy DLL/Qt plugins/QML ทั้งหมดมาไว้ข้าง exe) — ใช้ deploy script ของ upstream
 # ใช้: .\scripts\deploy.ps1        → dist\PS-WRAP\PS-WRAP.exe (+ shortcut PS-WRAP.lnk บน Desktop ถ้าใส่ -Shortcut, ใน Start Menu ถ้าใส่ -StartMenu)
-param([switch]$Shortcut, [switch]$StartMenu)
+param([switch]$Shortcut, [switch]$StartMenu, [switch]$Force)
 $ErrorActionPreference = "Stop"
 $env:MSYSTEM = "MINGW64"
 $env:USERPROFILE = [Environment]::GetFolderPath("UserProfile")
@@ -11,6 +11,13 @@ $rootU = $root -replace '\\','/' -replace '^([A-Za-z]):','/$1'
 $out = Join-Path $root "dist\PS-WRAP"
 # กันพลาด: ถ้า dist ตัวเก่ายังรันอยู่ ลบไม่ได้ และห้ามเปิด exe จนกว่าสคริปต์จะพิมพ์ "deploy ผ่าน" (เคยเปิดชนกลาง deploy 2026-10-04 → "no Qt platform plugin could be initialized")
 $running = Get-Process PS-WRAP,PS-WRAP-Diagnostics,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$out*" }
+# กันปิดแอปกลางเกม (2026-10-12 เคยตัดสตรีมที่กำลังเล่นอยู่): log สตรีมเขียนภายใน 2 นาที = มีคนเล่นอยู่ → ไม่ทำต่อ เว้นแต่ใส่ -Force
+if ($running -and -not $Force) {
+	$log = Get-ChildItem (Join-Path $env:APPDATA "PS-WRAP\PS-WRAP\log") -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+	if ($log -and ((Get-Date) - $log.LastWriteTime).TotalSeconds -lt 120 -and -not ((Get-Content $log.FullName -Tail 1) -match 'Session has quit')) {
+		Write-Error "PS-WRAP ใน dist กำลังสตรีมอยู่ (log $($log.Name) เพิ่งเขียน) — ไม่ปิดให้ รอเล่นเสร็จ หรือรันใหม่ด้วย -Force"
+	}
+}
 if ($running) { $running | Stop-Process -Force; Start-Sleep 1 }
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 New-Item -ItemType Directory -Force $out | Out-Null

@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.11.8] — 2026-10-12
+The Link card can be moved and folded so it doesn't cover the game.
+### Changed
+- **PS-WRAP Link card: move and fold.** Drag the card by its top row (LINK · watching) anywhere on the picture; it stays there next time. Double-click the top row to put it back in the top-left corner. The **–** button folds it to just that row and **+** opens it again (also remembered). A friend asking for the controller still shows while it is folded.
+
 ## [0.11.7] — 2026-10-12
 Link: the friend's controller vibrates, and a friend who refreshes gets back in (and gets the controller back).
 ### Added

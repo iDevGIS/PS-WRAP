@@ -574,6 +574,10 @@ Item {
         property real micX: -1          // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น กลางล่าง)
         property real micY: -1
         property real micW: 0.17        // ความกว้างเป็นสัดส่วนของ overlayBaseW (≈320px ที่ 1920)
+        // PS-WRAP Link card (ลากที่หัวการ์ด · -1 = ซ้ายบน)
+        property real linkX: -1
+        property real linkY: -1
+        property bool linkMini: false
         // clock overlay (นาฬิกา + เวลาเล่น)
         property real clockX: -1        // สัดส่วนของกรอบวิดีโอ (-1 = ค่าเริ่มต้น ขวาบน)
         property real clockY: -1
@@ -2450,8 +2454,33 @@ Item {
         z: 61
         scale: Math.max(0.75, Math.min(1.4, videoH / 1080))
         transformOrigin: Item.TopLeft
-        x: videoX + 24
-        y: videoY + 24
+        mini: pswrapPrefs.linkMini
+        readonly property real shownW: width * scale
+        readonly property real shownH: height * scale
+        dragMinX: videoX
+        dragMaxX: videoX + Math.max(0, videoW - shownW)
+        dragMinY: videoY
+        dragMaxY: videoY + Math.max(0, videoH - shownH)
+        function layout() {
+            const maxX = Math.max(0, videoW - shownW), maxY = Math.max(0, videoH - shownH);
+            x = videoX + (pswrapPrefs.linkX < 0 ? 24 : Math.round(Math.min(maxX, Math.max(0, pswrapPrefs.linkX * videoW))));
+            y = videoY + (pswrapPrefs.linkY < 0 ? 24 : Math.round(Math.min(maxY, Math.max(0, pswrapPrefs.linkY * videoH))));
+        }
+        onDragFinished: {
+            pswrapPrefs.linkX = videoW > 0 ? (x - videoX) / videoW : -1;
+            pswrapPrefs.linkY = videoH > 0 ? (y - videoY) / videoH : -1;
+        }
+        onResetPosition: { pswrapPrefs.linkX = -1; pswrapPrefs.linkY = -1; layout(); }
+        onToggleMini: pswrapPrefs.linkMini = !pswrapPrefs.linkMini
+        Component.onCompleted: layout()
+        Connections {
+            target: view
+            function onWidthChanged() { linkCard.layout() }
+            function onHeightChanged() { linkCard.layout() }
+            function onVideoXChanged() { linkCard.layout() }
+            function onVideoYChanged() { linkCard.layout() }
+        }
+        onWidthChanged: Qt.callLater(layout)   // ย่อ/ขยาย → ไม่ให้หลุดขอบ
         visible: !useSeparateMenuWindow && !!Chiaki.link && Chiaki.link.active && !!Chiaki.session
                  && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
         // กรอบเปลี่ยน (โผล่/ซ่อน/มีคนขอจอยแล้วสูงขึ้น/หน้าต่างย่อขยาย) → แจ้ง C++ ให้เมาส์ในกรอบมาที่ QML

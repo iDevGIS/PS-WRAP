@@ -81,8 +81,18 @@ Item {
             onClicked: pill.clicked()
         }
     }
+    // ย้าย/ย่อได้ (StreamView เก็บตำแหน่ง+สถานะย่อใน pswrapPrefs): ลากที่หัวการ์ด · ดับเบิลคลิกหัว = คืนที่เดิม · ปุ่ม – / + = ย่อเหลือหัว
+    property bool mini: false
+    property real dragMinX: 0
+    property real dragMaxX: 0
+    property real dragMinY: 0
+    property real dragMaxY: 0
+    signal dragFinished()
+    signal resetPosition()
+    signal toggleMini()
+
     implicitHeight: col.implicitHeight + 24
-    width: implicitWidth
+    width: mini ? headerRow.implicitWidth + 24 : implicitWidth
     height: implicitHeight
 
     // ---------- การ์ดกระจก (แบบเดียวกับ ClockOverlay) ----------
@@ -104,13 +114,31 @@ Item {
         }
     }
 
+    // ลากที่แถบหัว (อยู่ใต้ปุ่มในหัวการ์ด — ปุ่มย่อยังกดได้)
+    MouseArea {
+        x: 0; y: 0
+        width: root.width
+        height: headerRow.height + 18
+        hoverEnabled: true
+        cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+        drag.target: root
+        drag.minimumX: root.dragMinX
+        drag.maximumX: root.dragMaxX
+        drag.minimumY: root.dragMinY
+        drag.maximumY: root.dragMaxY
+        drag.threshold: 4
+        onReleased: root.dragFinished()
+        onDoubleClicked: root.resetPosition()
+    }
+
     ColumnLayout {
         id: col
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
         spacing: 8
 
-        // หัว: จุดเต้น + LINK + จำนวนคน
+        // หัว: จุดเต้น + LINK + จำนวนคน + ปุ่มย่อ
         RowLayout {
+            id: headerRow
             Layout.fillWidth: true
             spacing: 8
             Item {
@@ -151,11 +179,32 @@ Item {
                 font.weight: Font.DemiBold
                 color: Qt.rgba(1, 1, 1, 0.75)
             }
+            // ย่อ/ขยาย (ย่ออยู่ก็ยังเห็นแถบคำขอจอยถ้ามีคนขอ)
+            Rectangle {
+                Layout.preferredWidth: 20
+                Layout.preferredHeight: 20
+                radius: 6
+                color: miniArea.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.06)
+                Text {
+                    anchors.centerIn: parent
+                    text: root.mini ? "+" : "–"
+                    font.pixelSize: 14
+                    font.weight: Font.Bold
+                    color: Qt.rgba(1, 1, 1, 0.8)
+                }
+                MouseArea {
+                    id: miniArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.toggleMini()
+                }
+            }
         }
 
         // ยังไม่มีใคร: บอกทางเอาลิงก์
         Text {
-            visible: !!root.link && root.link.state === "ready" && root.friends.length === 0
+            visible: !root.mini && !!root.link && root.link.state === "ready" && root.friends.length === 0
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             font.pixelSize: 12
@@ -165,7 +214,7 @@ Item {
 
         // เพื่อนแต่ละคน
         Repeater {
-            model: root.friends
+            model: root.mini ? [] : root.friends
             delegate: RowLayout {
                 required property var modelData
                 Layout.fillWidth: true
@@ -290,7 +339,7 @@ Item {
 
         // มีคนถือจอยอยู่: คีย์ลัดดึงคืน (ปุ่มอยู่ในแถวของคนนั้น)
         Text {
-            visible: !!root.holder && !root.requester
+            visible: !root.mini && !!root.holder && !root.requester
             Layout.fillWidth: true
             text: qsTr("Take back: Ctrl+Shift+U")
             font.pixelSize: 11
