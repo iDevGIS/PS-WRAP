@@ -1,0 +1,4 @@
+heart.svg, flower.svg, rock.svg, wai.svg
+Twemoji 15.1.0 (https://github.com/jdecked/twemoji) — Copyright 2019 Twitter, Inc and other contributors
+Graphics licensed under CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/
+Files: 2764.svg, 1f338.svg, 1f918.svg, 1f64f.svg (unmodified)

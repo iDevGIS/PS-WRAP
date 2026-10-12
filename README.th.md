@@ -62,6 +62,21 @@ PS4 / PS5 Remote Play client สำหรับ Windows ที่ออกแบ
 
 **Size ▾** ตั้งหน้าต่างให้พื้นที่ภาพเป็น 720p, 900p, 1080p หรือ 1440p พอดี (16:9 ไม่มีขอบดำ pixel จริงแม้จอ scale 150%) ป้าย **STREAM** บอกขนาดที่ตรงกับความละเอียดสตรีม และซ่อนขนาดที่ใหญ่กว่าจอ
 
+### PS-WRAP Link (beta)
+
+![เพื่อนดูผ่านเว็บเบราว์เซอร์ พร้อมแชทและรีแอคชัน](screenshots/link-friend.jpg)
+
+**PS-WRAP Link** ให้เพื่อนดูเกมของคุณในเว็บเบราว์เซอร์ แชท ส่งรีแอคชัน คุยกัน และเล่นได้เมื่อคุณส่งจอยให้ · เปิดที่ **Link** ในเมนูสตรีม (CAPTURE) หรือ **Ctrl+Shift+J** แอปคัดลอกลิงก์เชิญให้ · เพื่อนสูงสุด 4 คนเปิดใน Chrome, Edge หรือ Safari ไม่ต้องติดตั้งอะไร (ดีเลย์ราว 20 ms ในเน็ตบ้านที่เราทดสอบ)
+
+<img src="screenshots/link-phone.jpg" alt="จอยบนจอในมือถือ" width="260" align="right">
+
+- **ส่งจอย**: เพื่อนขอ คุณกด **Give controller** บนการ์ด Link (Ctrl+Shift+G) และ **Take back** เมื่ออยากเล่นเอง (Ctrl+Shift+U) · เพื่อนเล่นด้วยจอยของตัวเอง, คีย์บอร์ดกับเมาส์ (แผนผัง มาตรฐาน / Ghost of Tsushima แบบปุ่ม PC / เกมยิง / แข่งรถ) หรือจอยบนจอในมือถือ
+- **แชทและเสียง**: ข้อความขึ้นใน overlay Live Chat พร้อมรูปเพื่อน รีแอคชัน ❤️ 🌸 🤘 🙏 ลอยบนเกม และเพื่อนคุยผ่านไมค์ได้ · ปิดเสียงใครก็ได้จากการ์ด Link
+- **ความเป็นส่วนตัวตอนไลฟ์**: QR ในแผง Link ซ่อนไว้จนกว่าจะกด *Show* และ **New link** ยกเลิกลิงก์เก่า
+- **ข้อจำกัด beta**: SDR เท่านั้น (ปิด HDR บน PS5) · เพื่อนยังไม่ได้ยินกันเอง · เสียงเพื่อนไม่ถูกอัด · ยังปัดทัชแพดไม่ได้ · ไม่เกิน 2 ห้องต่อการเชื่อมต่ออินเทอร์เน็ต · เซิร์ฟเวอร์เก็บ log อะไรบ้าง ดู[นโยบายความเป็นส่วนตัว](PRIVACY.th.md#ps-wrap-link-beta)
+
+<br clear="right">
+
 ### แนวตั้ง 9:16 และ Go Live
 
 | หน้าต่าง 9:16 | Settings › Go Live + แชทบนจอ |
@@ -150,6 +165,7 @@ PS-WRAP เป็น fork อิสระ **ไม่ใช่ chiaki-ng ทา�
 ## มีอะไรใหม่จาก chiaki-ng
 
 - **UI ใหม่ทั้งชุด** — หน้าหลักแบบ console card, Settings แบบ sidebar มีไอคอนจัดกลุ่มตามงาน (Play, Controls, Connection, Create, App) และการ์ดมีหัวข้อทุกหน้า, ใส่ PIN เครื่องด้วยจอย (แป้นแบบ PS5), เมนูสตรีมใหม่, หน้า Keys ใหม่, responsive ทุกขนาดหน้าต่าง, ใช้จอยนำทางได้ทุกหน้า (Steam Deck / TV)
+- **PS-WRAP Link (beta)** — เพื่อนดูในเว็บเบราว์เซอร์ แชท ส่งรีแอคชัน คุย และเล่นได้เมื่อคุณส่งจอยให้ ([รายละเอียด](#ps-wrap-link-beta))
 - **Overlay ระหว่างสตรีม** — จอย, network stats, facecam, mic visualizer, นาฬิกา และ **แชทไลฟ์ (YouTube + Twitch)** วางอิสระได้ทุกตัว หรือเปิด **Stack** ให้เรียงเป็นคอลัมน์เดียวกว้างเท่ากัน แล้วย้าย/ย่อขยาย/สลับลำดับทั้งชุดทีเดียว
 - **ภาพ** — **Frame Gen** สร้างเฟรมกลาง 60 → 120 fps บนจอเร็ว (หา motion บน GPU) · **Glow** แถบดำรอบภาพเป็นแสงเบลอจากเกม (เหมาะจอ ultrawide) · **Light** สีไฟจอยที่เกมสั่งเรืองรอบภาพและบนรูปจอย · AI upscale (FSRCNNX) จาก preset QUALITY — ดู [ค่าที่ทดสอบแล้วดีที่สุด](#ค่าที่ทดสอบแล้วดีที่สุด)
 - **Facecam** — กล้องทุกตัวรวมกล้องเสมือน DirectShow, zoom/pan/mirror/วงกลม, ตัดพื้นหลังด้วย chroma key หรือ AI (ไม่ต้องใช้ฉากเขียว), face effects 3D ที่เกาะหน้า (MediaPipe Face Landmarker)
@@ -206,6 +222,8 @@ PS-WRAP เกิดขึ้นไม่ได้ถ้าไม่มีโป
 - [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT) — headers ใน `ps-wrap/third-party/onnxruntime`
 - โมเดล AI (Apache-2.0, Google MediaPipe): Selfie Segmentation (ONNX โดย onnx-community), BlazeFace (ONNX โดย garavv/blazeface-onnx), Face Landmarker 478 จุด (ONNX โดย senty-au)
 - [RNNoise](https://github.com/xiph/rnnoise) และ SpeexDSP (BSD) — ลดเสียงรบกวน/ตัดเสียงสะท้อนของไมค์
+- [libdatachannel](https://github.com/paullouisageneau/libdatachannel) (MPL-2.0) with libjuice (MPL-2.0), usrsctp (BSD-3) and libsrtp (BSD-3): WebRTC for PS-WRAP Link. Qt WebSockets (LGPL-3.0) for its signaling. [QR Code generator](https://github.com/nayuki/QR-Code-generator) by Project Nayuki (MIT): the invite QR code.
+- [Twemoji](https://github.com/jdecked/twemoji) (CC-BY 4.0, © Twitter, Inc and other contributors): the ❤️ 🌸 🤘 🙏 reaction images.
 - [Input Prompts](https://kenney.nl/assets/input-prompts) โดย Kenney (CC0) — ภาพจอย PS4/PS5
 - ภาพเกราะซามูไร `samurai_photo.png`: Wikimedia Commons *MAP Expo Sujibachi kabuto Menpo 06 01 2012.jpg* (CC0) — ตัดพื้นหลังและเจาะช่องตา
 

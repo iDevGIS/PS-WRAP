@@ -26,7 +26,7 @@ class QNetworkReply;
 class PsWrapLiveChat : public QObject
 {
 	Q_OBJECT
-	Q_PROPERTY(QVariantList messages READ messages NOTIFY messagesChanged)   // [{platform, author, color, text, badge}] เก่า → ใหม่
+	Q_PROPERTY(QVariantList messages READ messages NOTIFY messagesChanged)   // [{platform, author, color, text, badge, avatar}] เก่า → ใหม่
 	Q_PROPERTY(QString status READ status NOTIFY statusChanged)             // สถานะสั้นๆ (เชื่อมต่อ / ไม่มีไลฟ์ / quota หมด …)
 	Q_PROPERTY(bool running READ isRunning NOTIFY runningChanged)
 	Q_PROPERTY(QString youtubeSource READ youtubeSource WRITE setYoutubeSource NOTIFY sourcesChanged)
@@ -50,6 +50,8 @@ public:
 	Q_INVOKABLE void start();   // ต่อทุกแหล่งที่ตั้งไว้ (ไม่มีแหล่งไหนเลย = status บอก)
 	Q_INVOKABLE void stop();
 	Q_INVOKABLE void clear();
+	// แหล่งอื่นในแอป (PS-WRAP Link: แชทจากเพื่อนในเบราว์เซอร์) — platform = "link" · avatar = data URI ที่ตรวจแล้ว หรือว่าง
+	void addExternal(const QString &platform, const QString &author, const QString &color, const QString &text, const QString &avatar = QString());
 
 signals:
 	void messagesChanged();

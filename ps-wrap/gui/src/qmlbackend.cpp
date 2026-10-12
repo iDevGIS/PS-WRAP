@@ -524,6 +524,12 @@ QObject *QmlBackend::goLiveObject() const
     return window ? window->goLiveObject() : nullptr;
 }
 
+// PS-WRAP Link — ลูกของ window เหมือน Go Live · QML ใช้ Chiaki.link
+QObject *QmlBackend::linkObject() const
+{
+    return window ? window->linkObject() : nullptr;
+}
+
 QmlSettings *QmlBackend::qmlSettings() const
 {
     return settings_qml;

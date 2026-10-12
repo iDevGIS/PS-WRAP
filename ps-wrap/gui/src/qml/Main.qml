@@ -775,6 +775,14 @@ Item {
             recToast.show({ kind: kind, title: title, detail: detail, timeout: kind === "error" ? 6000 : 3500 });
         }
     }
+    // PS-WRAP Link — เปิด/ลิงก์คัดลอกแล้ว · เพื่อนเข้า/ออก · ขอจอย · ผิดพลาด (pswraplink.cpp)
+    Connections {
+        target: Chiaki.link !== undefined ? Chiaki.link : null
+        ignoreUnknownSignals: true
+        function onToast(kind, title, detail) {
+            recToast.show({ kind: kind, title: title, detail: detail, timeout: kind === "error" ? 6000 : 3500 });
+        }
+    }
     // PS-WRAP: ภาพหน้าจอ (F12 / Ctrl+Shift+P / ปุ่ม Screenshot) — toast เดียวกับผลการอัด
     Connections {
         target: Chiaki.window

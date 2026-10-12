@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.11.5] — 2026-10-12
+**PS-WRAP Link (beta)**: friends watch your game in a web browser, chat, send reactions, talk, and play when you hand them the controller.
+### Added
+- **PS-WRAP Link (beta)**: turn it on with **Link** in the stream menu (CAPTURE) or **Ctrl+Shift+J**. The invite link is copied for you; send it to up to **4 friends**. They open it in a web browser (Chrome, Edge or Safari, on a PC or a phone), with nothing to install, and see and hear the game with very little delay: about 20 ms on a home network in our tests.
+  - **Hand over the controller**: a friend presses *Ask to play* and you press **Give controller** on the Link card (or Ctrl+Shift+G); take it back with **Take back** (or Ctrl+Shift+U). One friend at a time, because the console accepts one remote controller. Friends can play with a controller plugged into their PC or phone, with **keyboard and mouse** (layouts: Standard, Ghost of Tsushima using its PC keys, Shooter, Racing), or with the **on-screen controller** on a phone (two sticks, D-pad, all buttons; portrait and landscape).
+  - **Chat, reactions and voice**: friends' messages show in the Live Chat overlay with their profile picture; ❤️ 🌸 🤘 🙏 reactions float up over the game; friends can turn on their **mic** and you hear them through your speakers. Mute any friend from the Link card or the menu.
+  - **Link card** (top left while streaming): who is watching, their ping, who is talking, who asked for the controller, and buttons to give, take back or mute.
+  - **The menu › Link panel**: copy the invite, make a **New link** (the old one stops working), a **QR code that stays hidden until you press Show** (so viewers of your live stream can't scan it), the friend list, and Turn Link off.
+  - Friends pick the quality (Auto, 1080p, 720p, 480p) and the picture size, and the page remembers their name and picture.
+  - **Limits of this beta**: SDR streams only (turn off HDR on the PS5); friends hear the game and you, but not each other; friends' voices are not in your recordings; touchpad swipes (for example Guiding Wind in Ghost of Tsushima) can't be sent yet; up to 2 Link rooms per internet connection. Friends see your screen with the overlays you have on. How the data travels and what our server logs (IP addresses, up to 30 days) is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
+### Changed
+- Privacy Policy and Terms: new **PS-WRAP Link** sections.
+
 ## [0.10.0] — 2026-10-11
 Rumble Boost, testing vibration and the light bar, and the game's name while playing.
 ### Added

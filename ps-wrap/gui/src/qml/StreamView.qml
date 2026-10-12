@@ -700,7 +700,9 @@ Item {
     function rectOf(item) { return item.visible ? Qt.rect(item.x, item.y, item.width, item.height) : Qt.rect(0, 0, 0, 0) }
     function pushOverlayHitRects() {
         if (!Chiaki.window) return;
-        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor), rectOf(statusBar)]);
+        // PS-WRAP Link: ป้ายย่อขยายด้วย scale (มุมซ้ายบนคงที่) → กรอบจริง = ขนาด × scale · ปุ่ม "Give controller" คลิกได้
+        const linkRect = linkCard.visible ? Qt.rect(linkCard.x, linkCard.y, linkCard.width * linkCard.scale, linkCard.height * linkCard.scale) : Qt.rect(0, 0, 0, 0);
+        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor), rectOf(statusBar), linkRect]);
         // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
         const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
         Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
@@ -986,6 +988,16 @@ Item {
             console.log("PSWRAP shortcut go live");
             if (Chiaki.goLive)
                 Chiaki.goLive.toggle();
+        }
+    }
+    // ---- PS-WRAP Link: Ctrl+Shift+J เปิด/ปิด (Chiaki.link — ลิงก์เชิญคัดลอกให้ + toast ที่ Main.qml · จัดการเพื่อนในเมนูสตรีม) ----
+    Shortcut {
+        sequence: "Ctrl+Shift+J"
+        autoRepeat: false
+        onActivated: {
+            console.log("PSWRAP shortcut link");
+            if (Chiaki.link && Chiaki.link.available)
+                Chiaki.link.toggle();
         }
     }
     // นับ marker ต่อคลิป: เริ่มอัดใหม่ = เริ่มนับ 1 ใหม่
@@ -2420,5 +2432,44 @@ Item {
                 sessionLoading = false;
             view.noteSessionStart();
         }
+    }
+
+    // ---- PS-WRAP Link: ป้ายมุมซ้ายบน (LinkOverlay.qml) — โผล่เองตอนเปิด Link · ซ่อนตอนเมนูเปิด · ติดไปในภาพของเพื่อน/คลิปด้วย ----
+    // PS-WRAP Link: หัวใจที่เพื่อนกดรัวๆ ลอยมุมขวาล่างของภาพ (ไม่รับเมาส์)
+    HeartsOverlay {
+        z: 60
+        scale: Math.max(0.75, Math.min(1.4, videoH / 1080))
+        transformOrigin: Item.BottomRight
+        x: videoX + videoW - width - 24
+        y: videoY + videoH - height - 24
+        visible: !!Chiaki.link && Chiaki.link.active && !!Chiaki.session && !sessionLoading && !sessionError
+    }
+
+    LinkOverlay {
+        id: linkCard
+        z: 61
+        scale: Math.max(0.75, Math.min(1.4, videoH / 1080))
+        transformOrigin: Item.TopLeft
+        x: videoX + 24
+        y: videoY + 24
+        visible: !useSeparateMenuWindow && !!Chiaki.link && Chiaki.link.active && !!Chiaki.session
+                 && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
+        // กรอบเปลี่ยน (โผล่/ซ่อน/มีคนขอจอยแล้วสูงขึ้น/หน้าต่างย่อขยาย) → แจ้ง C++ ให้เมาส์ในกรอบมาที่ QML
+        onVisibleChanged: view.pushOverlayHitRects()
+        onHeightChanged: view.pushOverlayHitRects()
+        onScaleChanged: view.pushOverlayHitRects()
+        onXChanged: view.pushOverlayHitRects()
+        onYChanged: view.pushOverlayHitRects()
+    }
+    // Ctrl+Shift+G ให้จอยคนที่ขอ · Ctrl+Shift+U ดึงจอยคืน (ใช้ได้แม้ป้ายถูกซ่อน)
+    Shortcut {
+        sequence: "Ctrl+Shift+G"
+        autoRepeat: false
+        onActivated: { console.log("PSWRAP shortcut link give"); linkCard.giveToRequester(); }
+    }
+    Shortcut {
+        sequence: "Ctrl+Shift+U"
+        autoRepeat: false
+        onActivated: { console.log("PSWRAP shortcut link take back"); linkCard.takeBack(); }
     }
 }

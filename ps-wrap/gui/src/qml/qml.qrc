@@ -32,6 +32,9 @@
     <file>SettingsKeysPage.qml</file>
     <file>SettingsGamePresetsPage.qml</file>
     <file>GoLiveSettingsPage.qml</file>
+    <file>LinkPanel.qml</file>
+    <file>LinkOverlay.qml</file>
+    <file>HeartsOverlay.qml</file>
     <file>DisplaySettingsDialog.qml</file>
     <file>PlaceboSettingsDialog.qml</file>
     <file>PlaceboColorMappingDialog.qml</file>

@@ -2,7 +2,7 @@ import QtQuick
 
 import org.streetpea.chiaking
 
-// PS-WRAP: overlay แชทไลฟ์ขณะสตรีม (YouTube + Twitch จาก Chiaki.window.liveChat) — การ์ดกระจกแบบเดียวกับ ClockOverlay
+// PS-WRAP: overlay แชทไลฟ์ขณะสตรีม (YouTube + Twitch + เพื่อนใน Link จาก Chiaki.window.liveChat) — การ์ดกระจกแบบเดียวกับ ClockOverlay
 // วาดที่ขนาดออกแบบ 340×420 เสมอ — StreamView ย่อขยายด้วย scale · ข้อความใหม่อยู่ล่างสุด ของเก่าเลื่อนขึ้นแล้วจางหาย
 // ถูกบันทึกลงคลิป/ไลฟ์แนวนอนด้วย (อยู่ใน QML scene เหมือน overlay อื่น)
 Item {
@@ -70,21 +70,45 @@ Item {
         verticalLayoutDirection: ListView.TopToBottom
         onCountChanged: positionViewAtEnd()
         onHeightChanged: positionViewAtEnd()
-        delegate: Text {
+        delegate: Item {
+            id: row
             required property var modelData
             required property int index
+            readonly property bool hasAvatar: !!modelData.avatar
             width: ListView.view.width
-            wrapMode: Text.Wrap
-            textFormat: Text.StyledText
-            font.pixelSize: 15
-            color: Theme.text
-            style: Text.Raised
-            styleColor: Qt.rgba(0, 0, 0, 0.45)
+            height: Math.max(hasAvatar ? 24 : 0, msg.implicitHeight)
             // ข้อความเก่าจางลงตามลำดับ (12 ล่าสุดชัด)
             opacity: Math.max(0.35, 1.0 - Math.max(0, root.messages.length - 1 - index - 11) * 0.08)
-            readonly property string platformMark: modelData.platform === "twitch" ? "<font color='#a970ff'>●</font> " : "<font color='#ff4e45'>●</font> "
-            readonly property string badgeMark: modelData.badge === "owner" ? "★ " : modelData.badge === "mod" ? "MOD " : modelData.badge === "super" ? "$ " : ""
-            text: platformMark + "<b><font color='" + modelData.color + "'>" + badgeMark + root.esc(modelData.author) + "</font></b>  " + root.esc(modelData.text)
+            // PS-WRAP Link: รูปโปรไฟล์เพื่อน (PNG 64×64 ที่ pswraplink encode เอง)
+            Rectangle {
+                id: avatarBox
+                visible: row.hasAvatar
+                width: 24; height: 24; radius: 7
+                color: Qt.rgba(1, 1, 1, 0.1)
+                Image {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    source: row.hasAvatar ? row.modelData.avatar : ""
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize: Qt.size(48, 48)
+                    smooth: true
+                }
+            }
+            Text {
+                id: msg
+                anchors { left: row.hasAvatar ? avatarBox.right : parent.left; leftMargin: row.hasAvatar ? 8 : 0; right: parent.right }
+                wrapMode: Text.Wrap
+                textFormat: Text.StyledText
+                font.pixelSize: 15
+                color: Theme.text
+                style: Text.Raised
+                styleColor: Qt.rgba(0, 0, 0, 0.45)
+                readonly property string platformMark: row.modelData.platform === "twitch" ? "<font color='#a970ff'>●</font> "
+                                                     : row.modelData.platform === "link" ? "<font color='#00a7ff'>●</font> "
+                                                     : "<font color='#ff4e45'>●</font> "
+                readonly property string badgeMark: row.modelData.badge === "owner" ? "★ " : row.modelData.badge === "mod" ? "MOD " : row.modelData.badge === "super" ? "$ " : ""
+                text: platformMark + "<b><font color='" + row.modelData.color + "'>" + badgeMark + root.esc(row.modelData.author) + "</font></b>  " + root.esc(row.modelData.text)
+            }
         }
     }
 

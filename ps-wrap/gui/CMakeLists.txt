@@ -105,6 +105,7 @@ set(SOURCE_FILES
 	src/pswrapnetcheck.cpp
 	src/qmlbackend_pswraptools.cpp
 	src/streamsession_pswraplink.cpp
+	src/qmlmainwindow_pswraplink.cpp
 	)
 set(RESOURCE_FILES "")
 
@@ -176,9 +177,9 @@ endif()
 if(TARGET FFMPEG::swscale)
 	target_link_libraries(chiaki FFMPEG::swscale)   # PS-WRAP: Go Live ย่อภาพเป็น 16:9 (pswraplive.cpp) — ทุกแพลตฟอร์ม ไม่ใช่แค่ DirectShow
 endif()
-# PS-WRAP Link (spike): ส่งภาพ/รับจอยเพื่อนผ่าน WebRTC — ปิดไว้ก่อน · เปิดด้วย -DPSWRAP_LINK=ON -DPSWRAP_LIBDATACHANNEL_DIR=<source>
-# ทำงานจริงเฉพาะตอนตั้ง env PSWRAP_LINK_DEV (1 = ภาพ, 2 = ภาพ + จอยเพื่อน) — ดู pswraplink.h
-option(PSWRAP_LINK "PS-WRAP Link WebRTC spike" OFF)
+# PS-WRAP Link: ส่งภาพ/รับจอยเพื่อนผ่าน WebRTC · เปิดด้วย -DPSWRAP_LINK=ON -DPSWRAP_LIBDATACHANNEL_DIR=<source> (scripts/build.ps1 ทำให้)
+# เปิด/ปิดจากเมนูสตรีม (Chiaki.link) · ต้องมี host key ใน Credential Manager — ดู pswraplink.h
+option(PSWRAP_LINK "PS-WRAP Link (WebRTC)" OFF)
 if(PSWRAP_LINK)
 	set(PSWRAP_LIBDATACHANNEL_DIR "" CACHE PATH "libdatachannel source (PS-WRAP-LINK/spike/deps/libdatachannel)")
 	set(NO_EXAMPLES ON CACHE BOOL "" FORCE)
@@ -187,12 +188,42 @@ if(PSWRAP_LINK)
 	set(USE_NICE OFF CACHE BOOL "" FORCE)
 	set(ENABLE_WARNINGS_AS_ERRORS OFF CACHE BOOL "" FORCE)   # libsrtp: -Werror กับ %x/u_long บน mingw
 	add_subdirectory(${PSWRAP_LIBDATACHANNEL_DIR} libdatachannel EXCLUDE_FROM_ALL)
-	target_sources(chiaki PRIVATE include/pswraplink.h src/pswraplink.cpp src/qmlmainwindow_pswraplink.cpp)
+	target_sources(chiaki PRIVATE include/pswraplink.h src/pswraplink.cpp include/pswraplinkvoice.h src/pswraplinkvoice.cpp ${CMAKE_SOURCE_DIR}/third-party/qrcodegen/qrcodegen.cpp)
+	target_include_directories(chiaki PRIVATE ${CMAKE_SOURCE_DIR}/third-party/qrcodegen)   # QR ลิงก์เชิญ (nayuki, MIT)
 	target_link_libraries(chiaki LibDataChannel::LibDataChannelStatic)   # static: ไม่ต้องวาง DLL เพิ่ม
 	# signaling ผ่าน wss ใช้ QWebSocket — rtc::WebSocket บน Windows ไม่ตรวจใบรับรอง TLS (Qt6WebSockets.dll ต้องไปกับ release)
 	find_package(Qt6 REQUIRED COMPONENTS WebSockets)
 	target_link_libraries(chiaki Qt::WebSockets)
 	target_compile_definitions(chiaki PRIVATE PSWRAP_LINK=1)
+	# beta key ของ Link (ให้ผู้ใช้ทั่วไปเปิดห้องได้) — อ่านจากไฟล์นอก repo ตอน configure · ไม่มีไฟล์ = build ปกติที่ต้องใช้ host key เอง
+	# เก็บแบบสลับบิต (ไม่ใช่การเข้ารหัส — กันแค่ strings ตรงๆ; เซิร์ฟเวอร์จำกัดห้อง/IP ของ key นี้แยก และถอนได้)
+	set(PSWRAP_LINK_BETA_KEY_FILE "$ENV{LOCALAPPDATA}/PS-WRAP-build/link-beta-key" CACHE FILEPATH "Link beta key file (hex, outside the repo)")
+	if(EXISTS "${PSWRAP_LINK_BETA_KEY_FILE}")
+		file(READ "${PSWRAP_LINK_BETA_KEY_FILE}" _beta)
+		string(STRIP "${_beta}" _beta)
+		if(NOT _beta MATCHES "^[0-9a-f]+$")
+			message(FATAL_ERROR "PS-WRAP Link: beta key file must be lowercase hex")
+		endif()
+		string(LENGTH "${_beta}" _n)
+		math(EXPR _last "${_n} - 1")
+		set(_arr "")
+		foreach(_i RANGE ${_last})
+			string(SUBSTRING "${_beta}" ${_i} 1 _ch)
+			string(FIND "0123456789abcdef" "${_ch}" _v)
+			math(EXPR _m "(${_i} * 7 + 3) % 16")
+			math(EXPR _x "${_v} ^ ${_m}")
+			string(APPEND _arr "${_x},")
+		endforeach()
+		file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/pswraplink_betakey.h"
+			CONTENT "// generated — ไม่ commit
+static const unsigned char kBetaKey[] = {${_arr}};
+")
+		set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PSWRAP_LINK_BETA_KEY_FILE}")
+		target_include_directories(chiaki PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+		target_compile_definitions(chiaki PRIVATE PSWRAP_LINK_BETA=1)
+		message(STATUS "PS-WRAP Link: beta key embedded")
+		unset(_beta)
+	endif()
 	if(WIN32)
 		target_link_libraries(chiaki winmm)   # timeBeginPeriod ของ pacer
 	endif()

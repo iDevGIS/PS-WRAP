@@ -62,6 +62,21 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 
 **Size ▾** sets the window so the video area is exactly 720p, 900p, 1080p or 1440p (16:9, no black bars, real pixels even at 150 % display scaling). The **STREAM** tag marks the size that matches the stream resolution, and sizes larger than your screen are hidden.
 
+### PS-WRAP Link (beta)
+
+![A friend watching in a web browser, with chat and reactions](screenshots/link-friend.jpg)
+
+**PS-WRAP Link** lets friends watch your game in a web browser, chat, send reactions, talk, and play when you hand them the controller. Turn it on with **Link** in the stream menu (CAPTURE) or **Ctrl+Shift+J**; the invite link is copied for you. Up to 4 friends open it in Chrome, Edge or Safari, with nothing to install (about 20 ms of delay on a home network in our tests).
+
+<img src="screenshots/link-phone.jpg" alt="On-screen controller on a phone" width="260" align="right">
+
+- **The controller**: a friend asks, you press **Give controller** on the Link card (Ctrl+Shift+G) and **Take back** when you want it (Ctrl+Shift+U). Friends play with their own controller, keyboard and mouse (Standard, Ghost of Tsushima PC keys, Shooter and Racing layouts), or the on-screen controller on a phone.
+- **Chat and voice**: messages show in the Live Chat overlay with the friend's picture, ❤️ 🌸 🤘 🙏 reactions float over the game, and friends can talk on their mic. Mute anyone from the Link card.
+- **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
+- **Beta limits**: SDR only (turn off HDR on the PS5); friends don't hear each other yet; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
+
+<br clear="right">
+
 ### Vertical 9:16 and Go Live
 
 | Vertical 9:16 window | Settings › Go Live and chat on screen |
@@ -156,6 +171,7 @@ The report never contains your PSN sign-in, stream keys, console registration or
   - A redesigned stream menu and a new Keys page.
   - Responsive at any window size.
   - Every screen works with a controller (Steam Deck / TV friendly).
+- **PS-WRAP Link (beta)**: friends watch in a web browser, chat, react, talk and play when you hand over the controller ([more](#ps-wrap-link-beta)).
 - **Overlays while streaming**: controller, network stats, facecam, mic visualizer, clock and **live chat (YouTube + Twitch)**. Place each one freely, or turn on **Stack** to line them all up in one column at the same width and move, resize and reorder the whole column at once.
 - **Picture**:
   - **Frame Gen**: an in-between frame for every stream frame, 60 → 120 fps on fast displays (motion estimated on the GPU).
@@ -242,6 +258,8 @@ PS-WRAP would not exist without these projects. The same credits are shown in th
   - BlazeFace (ONNX by garavv/blazeface-onnx).
   - Face Landmarker 478 points (ONNX by senty-au).
 - [RNNoise](https://github.com/xiph/rnnoise) and SpeexDSP (BSD) for microphone noise reduction and echo cancellation.
+- [libdatachannel](https://github.com/paullouisageneau/libdatachannel) (MPL-2.0) with libjuice (MPL-2.0), usrsctp (BSD-3) and libsrtp (BSD-3): WebRTC for PS-WRAP Link. Qt WebSockets (LGPL-3.0) for its signaling. [QR Code generator](https://github.com/nayuki/QR-Code-generator) by Project Nayuki (MIT): the invite QR code.
+- [Twemoji](https://github.com/jdecked/twemoji) (CC-BY 4.0, © Twitter, Inc and other contributors): the ❤️ 🌸 🤘 🙏 reaction images.
 - [Input Prompts](https://kenney.nl/assets/input-prompts) by Kenney (CC0): PS4/PS5 controller art.
 - Samurai armor image `samurai_photo.png`: Wikimedia Commons *MAP Expo Sujibachi kabuto Menpo 06 01 2012.jpg* (CC0), background removed and eye holes cut.
 

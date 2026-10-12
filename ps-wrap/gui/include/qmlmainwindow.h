@@ -247,6 +247,7 @@ public:
     QObject *gameProfilesObject();
     PsWrapGoLive *goLive();               // PS-WRAP: สร้างครั้งแรกที่เรียก (ลูกของ window) — qmlmainwindow_pswraplive.cpp
     QObject *goLiveObject();
+    QObject *linkObject();               // PS-WRAP Link (Chiaki.link) — nullptr ถ้า build ไม่เปิด PSWRAP_LINK
     QString recordingFolder() const;
     void setRecordingFolder(const QString &folder);
     int captureHeight() const;              // PS-WRAP: qmlmainwindow_pswraprec.cpp
@@ -595,7 +596,7 @@ private:
     void pswrapSetupTrayRecording(class QMenu *menu);
     void pswrapSetupTrayView(class QMenu *menu);   // PS-WRAP: Stream menu / Settings / Picture size (qmlmainwindow_pswrapsize.cpp)
     bool pswrapBuildRecConfig(struct PsWrapRecConfig *cfg, QString *error);   // PS-WRAP: สเปคไฟล์อัด/replay จากหน้าต่าง + สตรีม
-    void pswrapLinkInit();              // PS-WRAP Link (spike, build PSWRAP_LINK + env PSWRAP_LINK_DEV) — qmlmainwindow_pswraplink.cpp
+    void pswrapLinkInit();              // PS-WRAP Link — qmlmainwindow_pswraplink.cpp
     void pswrapSyncReplay();            // PS-WRAP: เปิด/ปิด pipeline replay ตาม replayEnabled + สถานะสตรีม
     void pswrapRecordCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
                              const struct pl_frame &screen_target, const struct pl_overlay *overlay, const struct pl_frame *hint);

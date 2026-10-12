@@ -122,6 +122,11 @@ Dialog {
                             .arg(about.link("https://github.com/xiph/rnnoise", "RNNoise")),
                         qsTr("%1 loader (BSD-3-Clause) for the PlayStation Network sign-in window")
                             .arg(about.link("https://learn.microsoft.com/microsoft-edge/webview2/", "Microsoft Edge WebView2")),
+                        qsTr("PS-WRAP Link: %1 (MPL-2.0) with libjuice (MPL-2.0), usrsctp and libsrtp (BSD-3), Qt WebSockets (LGPL-3.0), %2 by Project Nayuki (MIT)")
+                            .arg(about.link("https://github.com/paullouisageneau/libdatachannel", "libdatachannel"))
+                            .arg(about.link("https://github.com/nayuki/QR-Code-generator", "QR Code generator")),
+                        qsTr("Reaction images: %1 (CC-BY 4.0, © Twitter, Inc and other contributors)")
+                            .arg(about.link("https://github.com/jdecked/twemoji", "Twemoji")),
                         qsTr("Controller art: %1 by Kenney (CC0) · Samurai armor photo: Wikimedia Commons (CC0)")
                             .arg(about.link("https://kenney.nl/assets/input-prompts", "Input Prompts"))
                     ].join("<br>")

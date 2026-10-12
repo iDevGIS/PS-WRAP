@@ -192,6 +192,17 @@ void PsWrapLiveChat::addMessage(const QString &platform, const QString &author, 
 	emit messagesChanged();
 }
 
+void PsWrapLiveChat::addExternal(const QString &platform, const QString &author, const QString &color, const QString &text, const QString &avatar)
+{
+	addMessage(platform, author, color, text, QString());
+	if (!avatar.isEmpty() && !message_list.isEmpty() && message_list.last().toMap().value(QStringLiteral("text")).toString() == text) {
+		QVariantMap m = message_list.last().toMap();
+		m[QStringLiteral("avatar")] = avatar;
+		message_list.last() = m;
+		emit messagesChanged();
+	}
+}
+
 void PsWrapLiveChat::setYtStatus(const QString &s) { yt_status = s; updateStatus(); }
 void PsWrapLiveChat::setTwStatus(const QString &s) { tw_status = s; updateStatus(); }
 

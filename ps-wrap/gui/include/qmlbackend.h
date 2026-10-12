@@ -81,6 +81,7 @@ class QmlBackend : public QObject
     Q_PROPERTY(QmlMainWindow* window READ qmlWindow CONSTANT)
     Q_PROPERTY(QmlSettings* settings READ qmlSettings CONSTANT)
     Q_PROPERTY(QObject *goLive READ goLiveObject CONSTANT)   // PS-WRAP: Go Live (= Chiaki.window.goLive · pswraplive.h)
+    Q_PROPERTY(QObject *link READ linkObject CONSTANT)       // PS-WRAP Link (pswraplink.h) — null ถ้า build ไม่เปิด
     Q_PROPERTY(QObject *updater READ updaterObject CONSTANT)  // PS-WRAP: อัปเดตในแอป (pswrapupdater.h)
     Q_PROPERTY(QObject *netCheck READ netCheckObject CONSTANT) // PS-WRAP: ตรวจการเชื่อมต่อ (pswrapnetcheck.h)
     Q_PROPERTY(StreamSession* session READ qmlSession NOTIFY sessionChanged)
@@ -120,6 +121,7 @@ public:
     QmlMainWindow *qmlWindow() const;
     QmlSettings *qmlSettings() const;
     QObject *goLiveObject() const;   // PS-WRAP
+    QObject *linkObject() const;     // PS-WRAP Link
     StreamSession *qmlSession() const;
     QList<QmlController*> qmlControllers() const;
 

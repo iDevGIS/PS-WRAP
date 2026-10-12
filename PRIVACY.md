@@ -2,7 +2,7 @@
 
 English · [ภาษาไทย](PRIVACY.th.md)
 
-Effective date: 11 October 2026
+Effective date: 12 October 2026
 
 PS-WRAP is a free, open-source desktop app for Windows that lets you play your own PlayStation 4 / PlayStation 5 over Remote Play. This policy explains what data the app handles and where it goes. The full source code is public at <https://github.com/iDevGIS/PS-WRAP>, so every statement here can be checked.
 
@@ -11,6 +11,7 @@ PS-WRAP is a free, open-source desktop app for Windows that lets you play your o
 - **The PS-WRAP app does not collect any data about you.** It has no analytics, telemetry, crash reporting or advertising. It does check GitHub for new versions (see below), which you can turn off.
 - Our Discord server has a helpdesk bot, **PS-WRAP-AGENT**. It only handles questions you post to it, and it keeps a log of them for 90 days. See [PS-WRAP-AGENT](#ps-wrap-agent-helpdesk-bot-on-our-discord-server).
 - Everything PS-WRAP stores stays **on your PC**.
+- **PS-WRAP Link** (beta, off until you turn it on) uses our server `link.ps-wrap.com` to connect you with friends. The server keeps connection logs with IP addresses for up to 30 days. See [PS-WRAP Link](#ps-wrap-link-beta).
 - PS-WRAP only connects to the services listed below, and most of them only when you turn the feature on.
 
 ## Data stored on your PC
@@ -37,6 +38,7 @@ Your camera and microphone are processed **only on your PC** (facecam, backgroun
 | **Twitch chat** (`irc.chat.twitch.tv`) | Only if you set up Twitch chat on screen | A read-only, anonymous connection to the channel you entered |
 | **Web addresses you paste** (for example a Giphy link) | Only when you add an image from a link | A normal download request for that file |
 | **The Discord app on your PC** | When *Discord Status* is on (Settings › General) and Discord is running | See below |
+| **PS-WRAP Link server** (`link.ps-wrap.com`, `turn.ps-wrap.com`) | Only while Link is on | Connection setup for each friend, and the stream to friends whose connection can't go direct. See [PS-WRAP Link](#ps-wrap-link-beta) |
 | **GitHub** (`api.github.com`, `github.com`) | 8 seconds after PS-WRAP starts and every 12 hours, if *Check for updates automatically* is on (it is by default); and when you press *Update now* | A request for the list of PS-WRAP releases, and the download of the new version when you choose to update. GitHub sees your IP address, as with any website. Turn it off in the update dialog |
 
 ## Discord Status (Rich Presence)
@@ -48,6 +50,22 @@ When *Discord Status* is on, PS-WRAP talks to the Discord desktop app on your ow
 - whether you are live or recording, and how long you have been playing.
 
 Discord then shows this on your profile according to your Discord privacy settings and [Discord's privacy policy](https://discord.com/privacy). Turn it off any time in *Settings › General › Discord Status*, or hide just the game name with *Show Game On Discord*. The *PS-WRAP* Discord application is used only for this status; it is not a bot and does not read your messages, servers or account data.
+
+## PS-WRAP Link (beta)
+
+PS-WRAP Link lets friends watch your stream in a web browser, chat, and play when you hand them the controller. It is off until you turn it on (stream menu › **Link**, or Ctrl+Shift+J), and it stops when you turn it off or the stream ends.
+
+**Who runs the server.** `link.ps-wrap.com` and the relay `turn.ps-wrap.com` are run by the PS-WRAP team on Amazon Web Services in Bangkok, Thailand. The friend page is served from the same address.
+
+**What friends get.** Anyone with your invite link can join, up to 4 at a time, until you make a new link (**New link**) or turn Link off. Friends see the picture PS-WRAP shows, **including any overlays on screen** (for example live chat, the clock or network stats), and hear the game, plus your microphone if PS-WRAP's mic is on. You can remove a friend at any time.
+
+**What friends send.** A display name and, if they choose one, a profile picture; chat messages; reactions; controller input, used only while you have given them the controller; and their microphone, only after they press **Mic** and allow it in their browser. You can mute any friend's mic. Their chat, picture, reactions and the Link card appear on your screen like other overlays, so they are also in your recordings and live streams.
+
+**How it travels.** The picture, sound, controller input, chat and voice go directly between your PC and each friend's browser, encrypted end to end (WebRTC). When a direct connection isn't possible, they pass through our relay, still encrypted, so the relay can't see or hear them. The Link server only passes the messages that set up each connection: network addresses, the friend's display name and the chosen quality. Nothing is recorded.
+
+**What the server keeps.** System logs of when a room opens and closes and when a friend joins or leaves, with the room code and the IP addresses involved, and the relay's connection logs with IP addresses. They are used to fix problems and stop abuse, and are deleted within 30 days. Names, chat, pictures, voice and video are not logged.
+
+**On your PC and your friend's device.** Your own Link key, if you have one, is kept in Windows Credential Manager; public builds have a beta key built in. The friend page remembers the friend's name, picture, quality, picture size and keyboard layout in that browser's local storage on their own device; it sends nothing anywhere else.
 
 ## PS-WRAP-AGENT (helpdesk bot on our Discord server)
 

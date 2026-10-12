@@ -29,6 +29,8 @@ FocusScope {
     readonly property int replaySeconds: Chiaki.window && Chiaki.window.replaySeconds > 0 ? Chiaki.window.replaySeconds : 60
     readonly property var goLive: Chiaki.goLive !== undefined ? Chiaki.goLive : null
     readonly property bool liveOn: !!goLive && goLive.live
+    readonly property var link: Chiaki.link !== undefined ? Chiaki.link : null   // PS-WRAP Link (null = build ไม่มี)
+    readonly property bool linkOn: !!link && link.active
     readonly property bool connected: !!Chiaki.session && Chiaki.session.connected
     readonly property bool customPreset: Chiaki.window.videoPreset == ChiakiWindow.VideoPreset.Custom
     function liveDotColor(state) {
@@ -36,9 +38,9 @@ FocusScope {
     }
     readonly property string micDevice: Chiaki.session ? Chiaki.session.audioInDevice : Chiaki.settings.audioInDevice
     readonly property string speakerDevice: Chiaki.session ? Chiaki.session.audioOutDevice : Chiaki.settings.audioOutDevice
-    readonly property bool popupOpen: micDevicePopup.visible || sizePopup.visible || movePopup.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้
+    readonly property bool popupOpen: micDevicePopup.visible || sizePopup.visible || movePopup.visible || linkPanel.visible   // StreamMenuWindow ปิด Shortcut Esc ระหว่างนี้
     function micDeviceLabel(name) { return name && name.length ? name : qsTr("Auto (Windows default)"); }
-    onVisibleChanged: if (!visible) { micDevicePopup.close(); sizePopup.close(); movePopup.close(); }
+    onVisibleChanged: if (!visible) { micDevicePopup.close(); sizePopup.close(); movePopup.close(); linkPanel.close(); }
     readonly property bool narrow: width < 760
     // ชื่ออุปกรณ์บนแถวบน: กว้างตามพื้นที่ (จอแคบเหลือแค่ไอคอน + ▾)
     readonly property int deviceTextWidth: width >= 1500 ? 170 : width >= 1180 ? 110 : 0
@@ -704,6 +706,23 @@ FocusScope {
                     enabled: !!content.goLive && (content.liveOn || content.connected)
                     onClicked: content.goLive.toggle()
                 }
+                // Link — ให้เพื่อนดู/เล่นผ่านเบราว์เซอร์ (Ctrl+Shift+J) · ปิดอยู่ = เปิด + การ์ด · เปิดอยู่ = การ์ด (LinkPanel.qml)
+                Tile {
+                    id: linkTile
+                    visible: !!content.link
+                    iconSource: "qrc:/icons/menu/link.svg"
+                    text: content.linkOn && content.link.friendCount > 0 ? qsTr("Link · %1").arg(content.link.friendCount) : qsTr("Link")
+                    on: content.linkOn
+                    statusDot: !content.linkOn ? "transparent"
+                             : content.link.state === "ready" ? Theme.success
+                             : content.link.state === "error" ? Theme.danger : Theme.warning
+                    enabled: !!content.link && content.link.available && (content.linkOn || content.connected)
+                    onClicked: {
+                        if (!content.linkOn)
+                            content.link.start();
+                        linkPanel.open();
+                    }
+                }
                 // preview ภาพแนวตั้ง 9:16 (VerticalPreviewWindow.qml)
                 Tile {
                     iconSource: "qrc:/icons/menu/vertical.svg"
@@ -721,7 +740,7 @@ FocusScope {
             elide: Text.ElideRight
             font.pixelSize: 12
             opacity: 0.7
-            text: qsTr("Ctrl+O menu · F12 screenshot · Ctrl+Shift + R record · B save replay · K marker · S stats · O pad · E move pad · C cam · V move cam · M spectrum · T clock · H chat · L live · Esc = PS")
+            text: qsTr("Ctrl+O menu · F12 screenshot · Ctrl+Shift + R record · B save replay · K marker · S stats · O pad · E move pad · C cam · V move cam · M spectrum · T clock · H chat · L live · J link · Esc = PS")
         }
     }
 
@@ -730,7 +749,16 @@ FocusScope {
         anchors.fill: parent
         z: 1000
         visible: content.popupOpen
-        onPressed: { micDevicePopup.close(); sizePopup.close(); movePopup.close(); }
+        onPressed: { micDevicePopup.close(); sizePopup.close(); movePopup.close(); linkPanel.close(); }
+    }
+
+    // ---------- PS-WRAP Link: ลิงก์เชิญ + เพื่อน (LinkPanel.qml) — ลอยเหนือเมนู ชิดขวา ----------
+    LinkPanel {
+        id: linkPanel
+        parent: content
+        returnFocusTo: linkTile
+        x: Math.max(Theme.space2, content.width - width - Theme.space2)
+        y: Math.min(4, content.height - height - 4)
     }
 
     // ---------- popup เลือก overlay ที่จะย้าย ----------

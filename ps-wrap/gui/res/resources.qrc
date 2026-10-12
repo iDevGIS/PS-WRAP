@@ -82,6 +82,11 @@
     <file>menu/save.svg</file>
     <file>menu/screenshot.svg</file>
     <file>menu/live.svg</file>
+    <file>menu/link.svg</file>
+    <file>react/heart.svg</file>
+    <file>react/flower.svg</file>
+    <file>react/rock.svg</file>
+    <file>react/wai.svg</file>
     <file>overlay/ds-base.svg</file>
     <file>overlay/ds-axis-l.svg</file>
     <file>overlay/ds-axis-r.svg</file>
