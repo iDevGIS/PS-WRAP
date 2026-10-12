@@ -87,7 +87,9 @@ private:
 	void onSignalMessage(const QString &text);
 	void sendSignal(const QJsonObject &msg);
 	void addPeer(const QString &peer, const QString &name, int height, int kbps, double pace);
-	void removePeer(const QString &peer, bool notify_server);
+	// allow_resume: เพื่อนหลุด/รีเฟรช (ไม่ใช่ถูกเตะ) → ถ้าถือจอยอยู่ จองคืนให้คนเดิม 15 วิ
+	void removePeer(const QString &peer, bool notify_server, bool allow_resume = true);
+	void tryReclaim(const QString &peer);   // control channel ของเพื่อนเปิด → คืนจอยถ้าเป็นคนเดิมที่เพิ่งหลุด
 	void setPeerHeight(const QString &peer, int height);   // เพื่อนเลือกคุณภาพใหม่ (1080/720/480)
 	void onPeerMessage(const QString &peer, const QJsonObject &msg);   // GUI thread (จาก data channel)
 	bool ensureVideoTap(int height);

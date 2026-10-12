@@ -4,6 +4,7 @@
 #define CHIAKI_STREAMSESSION_H
 
 #include <chiaki/session.h>
+#include <atomic>
 #include <chiaki/opusdecoder.h>
 #include <chiaki/opusencoder.h>
 #include <chiaki/ffmpegdecoder.h>
@@ -280,6 +281,8 @@ class StreamSession : public QObject
 		bool audio_out_overflow_logged = false;
 		uint32_t pswrap_out_last_queued = 0;      // PS-WRAP: เฝ้าลำโพงค้าง (คิว SDL เต็มและไม่ขยับ)
 		int64_t pswrap_out_stuck_since_ms = 0;
+		std::atomic<bool> pswrap_link_redirect{false};   // PS-WRAP Link: เพื่อนถือจอยอยู่
+		void PsWrapRedirectHaptics(const uint8_t *buf, size_t buf_size);
 		QMutex audio_out_drain_mutex;
 		QMutex audio_out_switch_mutex;   // PS-WRAP: กัน PushAudioFrame (thread เสียงของ lib) ใช้ audio_out ระหว่างสลับลำโพง
 		QWaitCondition audio_out_drain_wait;
@@ -398,6 +401,12 @@ class StreamSession : public QObject
 		using PsWrapAudioMixFn = void (*)(void *ctx, int16_t *pcm, size_t frames, unsigned channels, unsigned rate);
 		static void PsWrapSetAudioMixer(PsWrapAudioMixFn fn, void *ctx);
 		static void PsWrapMixExtraAudio(int16_t *pcm, size_t frames, unsigned channels, unsigned rate);
+		// PS-WRAP Link: เพื่อนถือจอย → การสั่น (rumble + haptics ของ DualSense แปลงเป็นแรงสั่น) ส่งให้เพื่อนแทน
+		// จอยในเครื่องหยุดสั่น/คงสีไฟเดิม · GUI thread · sink เรียกจาก thread ของ lib (left/right 0-255, haptics = มาจาก haptics stream)
+		void PsWrapSetLinkRedirect(bool on);
+		using PsWrapRumbleFn = void (*)(void *ctx, uint8_t left, uint8_t right, bool from_haptics);
+		static void PsWrapSetRumbleSink(PsWrapRumbleFn fn, void *ctx);
+		static void PsWrapEmitRumble(uint8_t left, uint8_t right, bool from_haptics);
 		void HandleTouchEvent(QTouchEvent *event, qreal width, qreal height);
 		void HandleDpadTouchEvent(ChiakiControllerState *state, bool placeholder = false);
 		void HandleMouseReleaseEvent(QMouseEvent *event);

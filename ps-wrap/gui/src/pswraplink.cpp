@@ -69,6 +69,7 @@ constexpr int kPlayoutDelayExtId = 6;
 constexpr int64_t kPadTimeoutUs = 500000;   // ผู้ถือจอยเงียบนานกว่านี้ = ปล่อยทุกปุ่ม
 constexpr float kStickDeadzone = 0.12f;     // OR ของจอยใช้ค่าสัมบูรณ์มากสุด — stick เพื่อนที่ลอยนิดๆ จะแย่ง stick เรา
 constexpr int kMaxFriends = 4;              // เน็ตขาขึ้น: P2P ส่งแยกทุกคน (8 Mbps × คน)
+constexpr qint64 kReclaimMs = 15000;         // คนถือจอยหลุด/รีเฟรช → กลับมาภายในนี้ได้จอยคืนเอง
 constexpr int kAudioKbps = 96;
 constexpr int kVoiceKbps = 32;   // ไมค์เจ้าของเครื่อง (mono) แยก track
 const char *const kHostKeyTarget = "PS-WRAP/link/host-key";
@@ -721,6 +722,7 @@ struct PsWrapLink::Peer
 	std::weak_ptr<LinkVideoTap> tap;             // encoder ของกลุ่มความสูงปัจจุบัน (ใต้ m — PLI อ่านจาก rtc thread)
 	// GUI thread (อ่านใต้ m ด้วยเพราะ friends() อ่าน)
 	QString status = QStringLiteral("connecting");
+	QString resume;   // รหัสต่อแท็บของหน้าเว็บ (sessionStorage) — รีเฟรชแล้วรหัสเดิม = คนเดิม
 	bool wants_controller = false;
 	int latency = -1;
 	QString avatar;                 // PNG 64×64 data URI ที่เรา encode เอง (sanitizeAvatar)
@@ -750,12 +752,20 @@ struct PsWrapLink::Impl
 	QString room, invite, qr;
 	bool announce_invite = true;   // ห้องใหม่/รีเซ็ต → คัดลอก + toast
 	QWebSocket *sig = nullptr;
-	QTimer reconnect_timer, pad_timer, voice_timer;
+	QTimer reconnect_timer, pad_timer, voice_timer, rumble_timer;
+	// การสั่นจาก PS5 ตอนเพื่อนถือจอย (เขียนจาก thread ของ lib · rumble_timer ส่งต่อทุก 50 ms)
+	std::atomic<int> rumble_l{0}, rumble_r{0};
+	std::atomic<bool> rumble_haptics{false};
+	std::atomic<int64_t> rumble_ms{0};
+	bool rumble_sent_nonzero = false;
 	PsWrapLinkVoice voice;   // เสียงไมค์เพื่อน → ลำโพงเรา
 	std::vector<rtc::IceServer> ice;
 	std::map<int, std::shared_ptr<LinkVideoTap>> video_taps;
 	std::shared_ptr<LinkAudioTap> audio_tap;
 	bool pad_held = false;
+	QString reclaim_resume;     // คนที่ถือจอยแล้วหลุด (รีเฟรช/เน็ตตก) — กลับมาภายในเวลา = ได้จอยคืนเอง
+	qint64 reclaim_until = 0;
+	QString reclaim_name;
 
 	// ใช้ข้าม thread (rtc / tap / worker ของ recorder) ใต้ m
 	mutable std::mutex m;
@@ -801,6 +811,27 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 	connect(&d->reconnect_timer, &QTimer::timeout, this, &PsWrapLink::connectSignal);
 	d->pad_timer.setInterval(100);
 	connect(&d->pad_timer, &QTimer::timeout, this, &PsWrapLink::pollPad);
+	// แรงสั่น → เพื่อนที่ถือจอย ทาง "input" (unordered — ข้อความเก่าหายได้ ข้อความใหม่ทับ) · หน้าเว็บสั่นทีละ ~150 ms
+	// rumble จาก event = ค้างจนเกมสั่งใหม่ → ส่งซ้ำทุกรอบ · จาก haptics = ไม่มีเฟรมใหม่ 100 ms ถือว่าหยุด
+	d->rumble_timer.setInterval(50);
+	connect(&d->rumble_timer, &QTimer::timeout, this, [this]() {
+		int l = d->rumble_l, r = d->rumble_r;
+		if (d->rumble_haptics && QDateTime::currentMSecsSinceEpoch() - d->rumble_ms > 100)
+			l = r = 0;
+		const bool nonzero = l || r;
+		if (!nonzero && !d->rumble_sent_nonzero)
+			return;
+		d->rumble_sent_nonzero = nonzero;
+		std::shared_ptr<rtc::DataChannel> in;
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			auto it = d->peers.find(d->controller);
+			if (it != d->peers.end())
+				in = it->second->input;
+		}
+		if (in && in->isOpen())
+			in->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("rumble")}, {QStringLiteral("l"), l}, {QStringLiteral("r"), r}}));
+	});
 	// ไฟ "กำลังพูด" ในการ์ด/แผง — เช็คทุก 200 ms แจ้ง QML เฉพาะตอนเปลี่ยน
 	d->voice_timer.setInterval(200);
 	connect(&d->voice_timer, &QTimer::timeout, this, [this]() {
@@ -928,6 +959,14 @@ void PsWrapLink::start()
 	setState(QStringLiteral("connecting"));
 	d->pad_timer.start();
 	// เสียงเพื่อนผสมเข้าเสียงเกม (ลำโพง/volume/echo cancel ชุดเดียวกัน)
+	StreamSession::PsWrapSetRumbleSink([](void *ctx, uint8_t l, uint8_t r, bool haptics) {
+		auto *dd = static_cast<Impl *>(ctx);
+		dd->rumble_l = l;
+		dd->rumble_r = r;
+		dd->rumble_haptics = haptics;
+		dd->rumble_ms = QDateTime::currentMSecsSinceEpoch();
+	}, d.get());
+	d->rumble_timer.start();
 	StreamSession::PsWrapSetAudioMixer([](void *ctx, int16_t *pcm, size_t frames, unsigned ch, unsigned rate) {
 		static_cast<PsWrapLinkVoice *>(ctx)->mix(pcm, frames, ch, rate);
 	}, &d->voice);
@@ -957,6 +996,8 @@ void PsWrapLink::stop()
 			p->pc->close();
 	dropUnusedTaps();
 	StreamSession::PsWrapSetAudioMixer(nullptr, nullptr);
+	StreamSession::PsWrapSetRumbleSink(nullptr, nullptr);
+	d->rumble_timer.stop();
 	d->voice.stop();
 	if (d->sig)
 		d->sig->close();   // ห้องบนเซิร์ฟเวอร์ปิดตาม → เพื่อนได้ host-left
@@ -1068,6 +1109,14 @@ void PsWrapLink::onSignalMessage(const QString &text)
 		const QString peer = o.value(QStringLiteral("peer")).toString();
 		const QString name = o.value(QStringLiteral("name")).toString().left(32);
 		addPeer(peer, name, o.value(QStringLiteral("h")).toInt(), o.value(QStringLiteral("kbps")).toInt(), o.value(QStringLiteral("pace")).toDouble());
+		{
+			static const QRegularExpression ok(QStringLiteral("^[A-Za-z0-9_-]{8,40}$"));
+			const QString resume = o.value(QStringLiteral("resume")).toString();
+			std::lock_guard<std::mutex> lock(d->m);
+			auto it = d->peers.find(peer);
+			if (it != d->peers.end() && ok.match(resume).hasMatch())
+				it->second->resume = resume;
+		}
 		emit toast(QStringLiteral("info"), tr("%1 joined Link").arg(name.isEmpty() ? tr("A friend") : name), QString());
 	} else if (type == QLatin1String("signal")) {
 		const QJsonObject data = o.value(QStringLiteral("data")).toObject();
@@ -1294,7 +1343,7 @@ void PsWrapLink::addPeer(const QString &peer, const QString &name, int height, i
 				emit l->changed();
 			});
 		} else if (st == rtc::PeerConnection::State::Failed) {
-			onGui([peer](PsWrapLink *l) { l->removePeer(peer, true); });
+			onGui([peer](PsWrapLink *l) { l->removePeer(peer, true, true); });   // เน็ตหลุด = จองจอยคืนให้ได้
 		}
 	});
 	// ไม่ทำ trickle: รอ gather เสร็จแล้วส่ง SDP ก้อนเดียว
@@ -1398,6 +1447,9 @@ void PsWrapLink::addPeer(const QString &peer, const QString &name, int height, i
 	input_init.reliability.maxRetransmits = 0;
 	p->input = p->pc->createDataChannel("input", input_init);
 	p->control = p->pc->createDataChannel("control");
+	p->control->onOpen([onGui, peer]() {
+		onGui([peer](PsWrapLink *l) { l->tryReclaim(peer); });
+	});
 	std::weak_ptr<rtc::DataChannel> winput = p->input;
 	p->input->onMessage([self, dd, gen, winput, peer, onGui](rtc::message_variant msg) {
 		auto str = std::get_if<std::string>(&msg);
@@ -1489,7 +1541,7 @@ void PsWrapLink::setPeerHeight(const QString &peer, int height)
 	emit changed();
 }
 
-void PsWrapLink::removePeer(const QString &peer, bool notify_server)
+void PsWrapLink::removePeer(const QString &peer, bool notify_server, bool allow_resume)
 {
 	std::shared_ptr<Peer> p;
 	bool was_controller = false;
@@ -1503,8 +1555,15 @@ void PsWrapLink::removePeer(const QString &peer, bool notify_server)
 		was_controller = d->controller == peer;
 	}
 	d->voice.removePeer(peer);
-	if (was_controller)
+	if (was_controller) {
 		releaseController(false);
+		if (allow_resume && !p->resume.isEmpty()) {
+			d->reclaim_resume = p->resume;
+			d->reclaim_name = p->name;
+			d->reclaim_until = QDateTime::currentMSecsSinceEpoch() + kReclaimMs;
+			qCInfo(pswrapLink).noquote() << "friend" << peer << "had the controller, holding it" << kReclaimMs / 1000 << "s for a rejoin";
+		}
+	}
 	if (p->pc)
 		p->pc->close();
 	if (notify_server)
@@ -1620,6 +1679,7 @@ void PsWrapLink::giveController(const QString &peer)
 		std::lock_guard<std::mutex> lock(d->m);
 		if (!d->peers.count(peer) || d->controller == peer)
 			return;
+		d->reclaim_resume.clear();   // มีคนถือจอยแล้ว — การจองคืน (ถ้ามี) จบ
 	}
 	releaseController(true);   // คนเดิมคืนก่อน (PS5 รับจอยตัวเดียว)
 	std::shared_ptr<rtc::DataChannel> ctrl;
@@ -1633,6 +1693,9 @@ void PsWrapLink::giveController(const QString &peer)
 		ctrl = it->second->control;
 	}
 	d->last_pad_us = monoUs();
+	d->rumble_l = d->rumble_r = 0;
+	if (d->session)
+		d->session->PsWrapSetLinkRedirect(true);   // การสั่นไปที่จอยเพื่อน · จอยในเครื่องเงียบ/คงสีไฟ
 	if (ctrl && ctrl->isOpen())
 		ctrl->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("role")}, {QStringLiteral("controller"), true}}));
 	qCInfo(pswrapLink).noquote() << "controller to" << peer;   // ASCII ล้วน: ตัวเขียน log ไม่ได้เป็น UTF-8 (→ กลายเป็น ?)
@@ -1641,6 +1704,7 @@ void PsWrapLink::giveController(const QString &peer)
 
 void PsWrapLink::takeController()
 {
+	d->reclaim_resume.clear();   // เจ้าของเครื่องดึงคืนเอง = ไม่ต้องจองให้ใคร
 	releaseController(true);
 }
 
@@ -1662,6 +1726,8 @@ void PsWrapLink::releaseController(bool notify)
 		d->session->PsWrapSetLinkState(idle);
 	}
 	d->pad_held = false;
+	if (d->session)
+		d->session->PsWrapSetLinkRedirect(false);   // จอยในเครื่องกลับมาสั่น + สีไฟล่าสุด
 	if (old.isEmpty())
 		return;
 	if (notify && ctrl && ctrl->isOpen())
@@ -1672,7 +1738,27 @@ void PsWrapLink::releaseController(bool notify)
 
 void PsWrapLink::kick(const QString &peer)
 {
-	removePeer(peer, true);
+	removePeer(peer, true, false);   // ถูกเตะ = ไม่คืนจอยให้
+}
+
+void PsWrapLink::tryReclaim(const QString &peer)
+{
+	QString name;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		auto it = d->peers.find(peer);
+		if (d->reclaim_resume.isEmpty() || it == d->peers.end() || it->second->resume != d->reclaim_resume)
+			return;
+		const bool fresh = QDateTime::currentMSecsSinceEpoch() <= d->reclaim_until;
+		const bool free = d->controller.isEmpty();   // ระหว่างนั้นเจ้าของเครื่องยังไม่ได้ให้คนอื่น
+		d->reclaim_resume.clear();
+		if (!fresh || !free)
+			return;
+		name = it->second->name;
+	}
+	giveController(peer);
+	qCInfo(pswrapLink).noquote() << "friend" << peer << "rejoined, controller returned";
+	emit toast(QStringLiteral("info"), tr("%1 is back with the controller").arg(name.isEmpty() ? tr("A friend") : name), tr("Take it back with Ctrl+Shift+U."));
 }
 
 void PsWrapLink::setMicMuted(const QString &peer, bool muted)

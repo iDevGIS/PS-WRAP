@@ -2213,6 +2213,12 @@ void StreamSession::PushHapticsFrame(uint8_t *buf, size_t buf_size)
 		CHIAKI_LOGE(log.GetChiakiLog(), "Haptics audio has invalid size: %zu", buf_size);
 		return;
 	}
+	// PS-WRAP Link: เพื่อนถือจอย → haptics ไปเป็นแรงสั่นที่จอยเพื่อน แทนจอยในเครื่อง
+	if(pswrap_link_redirect)
+	{
+		PsWrapRedirectHaptics(buf, buf_size);
+		return;
+	}
 
 #if CHIAKI_GUI_ENABLE_STEAMDECK_NATIVE
 	if(sdeck && haptics_handheld > 0 && enable_steamdeck_haptics)
@@ -2415,6 +2421,12 @@ void StreamSession::Event(ChiakiEvent *event)
 			emit NicknameReceived(event->server_nickname);
 			break;
 		case CHIAKI_EVENT_RUMBLE: {
+			// PS-WRAP Link: เพื่อนถือจอย → ส่งแรงสั่นดิบให้เพื่อน (เพื่อนตั้งแรงเองฝั่งเบราว์เซอร์) จอยในเครื่องไม่สั่น
+			if(pswrap_link_redirect)
+			{
+				PsWrapEmitRumble(event->rumble.left, event->rumble.right, false);
+				break;
+			}
 			if(ps5_rumble_intensity < 0)
 				return;
 			// PS-WRAP: Rumble Boost
@@ -2444,8 +2456,9 @@ void StreamSession::Event(ChiakiEvent *event)
 			uint8_t led_state[3];
 			memcpy(led_state, led_color, 3);
 			QMetaObject::invokeMethod(this, [this, led_state]() {
-				for(auto controller : controllers)
-					controller->ChangeLEDColor(led_state);
+				if(!pswrap_link_redirect)   // PS-WRAP Link: เพื่อนถือจอย = คงสีเดิม (คืนสีล่าสุดตอนได้จอยคืน)
+					for(auto controller : controllers)
+						controller->ChangeLEDColor(led_state);
 				// PS-WRAP: halo บนจอ (StreamView.qml) · PSWRAP_TEST_LIGHTBAR ชนะสีจากเครื่อง (ทดสอบ)
 				QColor c(led_state[0], led_state[1], led_state[2]);
 				CHIAKI_LOGI(GetChiakiLog(), "PSWRAP lightbar color %u,%u,%u", led_state[0], led_state[1], led_state[2]);

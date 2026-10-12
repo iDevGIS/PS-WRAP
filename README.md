@@ -71,7 +71,7 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 <img src="screenshots/link-phone.jpg" alt="On-screen controller on a phone" width="260" align="right">
 
 - **The controller**: a friend asks, you press **Give controller** on the Link card (Ctrl+Shift+G) and **Take back** when you want it (Ctrl+Shift+U). Friends play with their own controller, keyboard and mouse (Standard, Ghost of Tsushima PC keys, Shooter and Racing layouts), or the on-screen controller on a phone.
-- **Chat and voice**: messages show in the Live Chat overlay with the friend's picture, ❤️ 🌸 🤘 🙏 reactions float over the game, and friends can talk on their mic. Mute anyone from the Link card. Friends set the game and voice volume separately with the 🔊 button.
+- **Chat and voice**: messages show in the Live Chat overlay with the friend's picture, ❤️ 🌸 🤘 🙏 reactions float over the game, and friends can talk on their mic. Mute anyone from the Link card. Friends set the game and voice volume separately with the 🔊 button. The game's vibration goes to the friend's controller (Chrome and Edge), and a friend who refreshes gets straight back in.
 - **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
 - **Beta limits**: SDR only (turn off HDR on the PS5); friends don't hear each other yet; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
 
