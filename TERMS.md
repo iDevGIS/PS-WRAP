@@ -33,7 +33,7 @@ PS-WRAP-AGENT is a separate bot that answers questions in the `#chatbot-helpdesk
 
 - **Only invite people you trust.** Anyone with your invite link can watch, and you choose who gets the controller. Make a new link if one leaks, and turn Link off when you're done.
 - What you share is your responsibility: the stream shows your screen with its overlays, and hosts and friends must follow the terms of the game and of PlayStation Network. Don't use Link to share content you aren't allowed to share.
-- Don't misuse the Link server or relay: no automated access, no using it for anything other than PS-WRAP Link, and no attempts to get around its limits. The beta has limited capacity (for example, up to 2 rooms per internet connection).
+- Don't misuse the Link server or relay: no automated access, no using it for anything other than PS-WRAP Link, and no attempts to get around its limits. The beta has limited capacity (for example, up to 2 rooms per internet connection). If a room is misused, the PS-WRAP team may close it and block that connection from beta rooms for a while. The team never joins a room unless you allow it.
 - Link is a **beta**. It may be slow, change, be limited or be stopped at any time, for example if the beta key is withdrawn or the server costs become too high.
 
 ## 7. Limitation of liability

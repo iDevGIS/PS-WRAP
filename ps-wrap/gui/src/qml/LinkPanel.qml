@@ -270,6 +270,52 @@ Popup {
             running: visible
         }
 
+        // ทีม PS-WRAP ขอเข้าดู — เจ้าของห้องต้องกดอนุญาตเอง (ไม่ตอบ 60 วิ = ไม่อนุญาต)
+        Rectangle {
+            visible: !!panel.link && panel.link.viewRequest
+            Layout.fillWidth: true
+            implicitHeight: viewReqCol.implicitHeight + 20
+            radius: 12
+            color: Qt.rgba(0.77, 0.71, 0.99, 0.12)
+            border.width: 1
+            border.color: Qt.rgba(0.77, 0.71, 0.99, 0.45)
+            ColumnLayout {
+                id: viewReqCol
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 8
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("PS-WRAP team asks to watch this stream")
+                    font.weight: Font.DemiBold
+                    color: "#c4b5fd"
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("View only: no controller, no mic. You can remove them any time.")
+                    font.pixelSize: Theme.fontCaption
+                    color: Theme.textMuted
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    PanelButton {
+                        Layout.fillWidth: true
+                        text: qsTr("Decline")
+                        onClicked: panel.link.answerViewRequest(false)
+                    }
+                    PanelButton {
+                        Layout.fillWidth: true
+                        primary: true
+                        text: qsTr("Allow")
+                        onClicked: panel.link.answerViewRequest(true)
+                    }
+                }
+            }
+        }
+
         // เพื่อน
         Label {
             visible: panel.ready
@@ -308,11 +354,12 @@ Popup {
                         Label {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
-                            text: modelData.controller ? qsTr("%1 · has the controller").arg(modelData.name)
+                            text: modelData.staff ? qsTr("PS-WRAP team · view only")
+                                : modelData.controller ? qsTr("%1 · has the controller").arg(modelData.name)
                                 : modelData.wantsController ? qsTr("%1 · wants the controller").arg(modelData.name)
                                 : modelData.name
                             font.weight: Font.DemiBold
-                            color: modelData.wantsController ? Theme.warning : Theme.text
+                            color: modelData.staff ? "#c4b5fd" : modelData.wantsController ? Theme.warning : Theme.text
                         }
                         Label {
                             text: panel.friendLine(modelData)
@@ -321,6 +368,7 @@ Popup {
                         }
                     }
                     PanelButton {
+                        visible: !modelData.staff
                         text: modelData.controller ? qsTr("Take back") : qsTr("Give controller")
                         primary: !modelData.controller && modelData.wantsController
                         onClicked: modelData.controller ? panel.link.takeController() : panel.link.giveController(modelData.peer)

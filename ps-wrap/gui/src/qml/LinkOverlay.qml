@@ -42,6 +42,7 @@ Item {
 
     readonly property color ice: "#7fe8ff"
     readonly property color amber: "#ffc857"
+    readonly property color violet: "#c4b5fd"
     readonly property var avatarColors: ["#00a7ff", "#a78bfa", "#34d399", "#f472b6", "#fb923c"]
     function avatarColor(name) {
         let h = 0;
@@ -247,13 +248,14 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: modelData.micMuted ? qsTr("%1 · muted").arg(modelData.name)
+                    text: modelData.staff ? qsTr("PS-WRAP team · watching")
+                        : modelData.micMuted ? qsTr("%1 · muted").arg(modelData.name)
                         : modelData.speaking ? qsTr("%1 · talking").arg(modelData.name)
                         : modelData.name
                     elide: Text.ElideRight
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
-                    color: "white"
+                    color: modelData.staff ? root.violet : "white"
                 }
                 // สถานะ: ถือจอย (เขียว) · ขอจอย (เหลือง) · ดูอยู่ + ping
                 Rectangle {
@@ -332,6 +334,51 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.giveToRequester()
+                    }
+                }
+            }
+        }
+
+        // ทีม PS-WRAP ขอเข้าดู (จากหน้า Monitor) — ต้องกดอนุญาตเอง · ย่ออยู่ก็เห็น · ไม่ตอบ 60 วิ = ไม่อนุญาต
+        Rectangle {
+            visible: !!root.link && root.link.viewRequest
+            Layout.fillWidth: true
+            Layout.preferredHeight: viewCol.implicitHeight + 16
+            radius: 12
+            color: Qt.rgba(0.77, 0.71, 0.99, 0.12)
+            border.width: 1
+            border.color: Qt.rgba(0.77, 0.71, 0.99, 0.45)
+            ColumnLayout {
+                id: viewCol
+                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("PS-WRAP team asks to watch this stream")
+                    font.pixelSize: 13
+                    font.weight: Font.DemiBold
+                    color: root.violet
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("View only: no controller, no mic. You can remove them any time.")
+                    font.pixelSize: 11
+                    color: Qt.rgba(1, 1, 1, 0.6)
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Item { Layout.fillWidth: true }
+                    Pill {
+                        label: qsTr("Decline")
+                        onClicked: root.link.answerViewRequest(false)
+                    }
+                    Pill {
+                        label: qsTr("Allow")
+                        tint: Qt.rgba(0.77, 0.71, 0.99, 0.45)
+                        onClicked: root.link.answerViewRequest(true)
                     }
                 }
             }

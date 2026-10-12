@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.11.9] — 2026-10-13
+Link works with HDR streams, and the PS-WRAP team can only look at a Link room if you allow it.
+### Added
+- **PS-WRAP Link with HDR.** You no longer need to turn off HDR on the PS5 to use Link. Your own picture stays HDR; friends get it converted to normal (SDR) brightness and color, because web browsers can't take an HDR stream. Colors on the friend's side can look a little different from yours.
+- **PS-WRAP Link: the team asks before watching.** To help with a problem or check for misuse, the PS-WRAP team can ask to watch a Link room. A purple bar appears on your Link card (also when it's folded) and in the stream menu › Link: **Allow** or **Decline**. No answer within 60 seconds counts as Decline. If you allow it, they join as **PS-WRAP team**: view only, no controller, no mic, and they don't take one of the 4 friend seats. You can remove them any time.
+### Changed
+- Privacy Policy and Terms: the team can't join a room without your permission, and may close a beta room that is misused and block its internet connection from beta rooms for a while.
+
 ## [0.11.8] — 2026-10-12
 The Link card can be moved and folded so it doesn't cover the game.
 ### Changed

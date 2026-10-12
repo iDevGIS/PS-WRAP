@@ -36,9 +36,11 @@ class PsWrapLink : public QObject
 	Q_PROPERTY(QString room READ room NOTIFY changed)
 	Q_PROPERTY(QString inviteUrl READ inviteUrl NOTIFY changed)     // มีรหัสเชิญ — อย่า log
 	Q_PROPERTY(QString inviteQr READ inviteQr NOTIFY changed)       // data:image/svg+xml;base64,…
-	Q_PROPERTY(QVariantList friends READ friends NOTIFY changed)    // [{peer, name, status, controller, wantsController, quality, latency, avatar, color}]
+	Q_PROPERTY(QVariantList friends READ friends NOTIFY changed)    // [{peer, name, status, controller, wantsController, quality, latency, avatar, color, staff}]
 	Q_PROPERTY(int friendCount READ friendCount NOTIFY changed)
 	Q_PROPERTY(QString controllerPeer READ controllerPeer NOTIFY changed)
+	// ทีม PS-WRAP ขอเข้าดูห้อง (จากหน้า Monitor) — เจ้าของห้องต้องกดอนุญาต · หมดอายุเอง 60 วิ
+	Q_PROPERTY(bool viewRequest READ viewRequest NOTIFY changed)
 
 public:
 	// อายุเท่าหน้าต่างหลัก (ลูกของ QmlMainWindow)
@@ -54,6 +56,7 @@ public:
 	QVariantList friends() const;
 	int friendCount() const;
 	QString controllerPeer() const;
+	bool viewRequest() const;
 
 	Q_INVOKABLE void toggle();
 	Q_INVOKABLE void start();
@@ -63,6 +66,7 @@ public:
 	Q_INVOKABLE void giveController(const QString &peer);
 	Q_INVOKABLE void takeController();
 	Q_INVOKABLE void kick(const QString &peer);
+	Q_INVOKABLE void answerViewRequest(bool allow);
 	// ไมค์ของเพื่อน: ปิด/เปิดเสียงทีละคน (เพื่อนเห็นว่าถูกปิด)
 	Q_INVOKABLE void setMicMuted(const QString &peer, bool muted);
 

@@ -108,6 +108,60 @@ std::string compact(const QJsonObject &o)
 }
 
 // ---------------------------------------------------------------- ภาพ: tap → ย่อ → NVENC low-latency (1 ตัวต่อความสูง)
+// ---------------------------------------------------------------- HDR → SDR (สตรีม HDR10 ส่งให้เพื่อนเป็น SDR)
+// เบราว์เซอร์รับ H.264 SDR เท่านั้น · ทำแบบตารางค่า (เร็ว ~2 ms ต่อเฟรม 1080p บน CPU) แทนแปลงสีเต็มรูปแบบ:
+//   ความสว่าง: PQ → nits → บีบไฮไลต์ (Reinhard ขยาย, ขาวอ้างอิง 203 nits ≈ 85%, ยอด 1000 nits) → gamma SDR 2.4 → Y 8 บิต
+//   สี: ปรับตามสัดส่วนความสว่างที่เปลี่ยน × 1.15 (สีใน BT.2020 จะดูซีดถ้าแสดงเป็น BT.709 ตรงๆ) · ไม่ได้แปลง gamut จริง
+struct HdrToSdrLut
+{
+	uint8_t y[1024];
+	uint16_t chroma_q8[1024];   // ตัวคูณสี × 256 ตามความสว่าง (Y 10 บิต)
+	HdrToSdrLut()
+	{
+		const double m1 = 2610.0 / 16384, m2 = 2523.0 / 4096 * 128, c1 = 3424.0 / 4096, c2 = 2413.0 / 4096 * 32, c3 = 2392.0 / 4096 * 32;
+		const double white = 203.0, wmax = 1000.0 / white;
+		for (int v = 0; v < 1024; v++) {
+			const double e = std::clamp((v - 64) / 876.0, 0.0, 1.0);
+			const double p = std::pow(e, 1.0 / m2);
+			const double nits = 10000.0 * std::pow(std::max(p - c1, 0.0) / (c2 - c3 * p), 1.0 / m1);
+			const double x = nits / white;
+			// × 1.31: ขาวอ้างอิง (UI เกม ~203 nits) ออกมา ~85% แทน 76% (ไม่มืด) · ไฮไลต์ค่อยๆ อิ่มจนเต็มที่ ~500 nits
+			const double out = std::min(1.0, 1.31 * x * (1.0 + x / (wmax * wmax)) / (1.0 + x));
+			const double yp = std::pow(out, 1.0 / 2.4);
+			y[v] = uint8_t(std::lround(16.0 + 219.0 * yp));
+			const double ratio = e > 0.002 ? std::min(2.5, yp / e) : 1.0;
+			chroma_q8[v] = uint16_t(std::lround(ratio * 1.15 * 256.0));
+		}
+	}
+};
+
+// P010 (Y/UV 16 บิต ค่าอยู่ 10 บิตบน, limited range) → NV12 SDR ขนาดเท่ากัน
+void tonemapP010ToNv12(const AVFrame *src, AVFrame *dst, int w, int h)
+{
+	static const HdrToSdrLut lut;
+	for (int yy = 0; yy < h; yy++) {
+		const uint16_t *in = reinterpret_cast<const uint16_t *>(src->data[0] + yy * src->linesize[0]);
+		uint8_t *out = dst->data[0] + yy * dst->linesize[0];
+		for (int x = 0; x < w; x++)
+			out[x] = lut.y[in[x] >> 6];
+	}
+	for (int cy = 0; cy < h / 2; cy++) {
+		const uint16_t *uv = reinterpret_cast<const uint16_t *>(src->data[1] + cy * src->linesize[1]);
+		const uint16_t *y0 = reinterpret_cast<const uint16_t *>(src->data[0] + (2 * cy) * src->linesize[0]);
+		const uint16_t *y1 = reinterpret_cast<const uint16_t *>(src->data[0] + (2 * cy + 1) * src->linesize[0]);
+		uint8_t *out = dst->data[1] + cy * dst->linesize[1];
+		for (int cx = 0; cx < w / 2; cx++) {
+			const int ly = ((y0[2 * cx] >> 6) + (y0[2 * cx + 1] >> 6) + (y1[2 * cx] >> 6) + (y1[2 * cx + 1] >> 6) + 2) >> 2;
+			const int k = lut.chroma_q8[ly];
+			for (int c = 0; c < 2; c++) {
+				const int c10 = (uv[2 * cx + c] >> 6) - 512;
+				const int c8 = 128 + ((c10 * k) >> 10);   // /4 (10→8 บิต) และ /256 (q8)
+				out[2 * cx + c] = uint8_t(std::clamp(c8, 16, 240));
+			}
+		}
+	}
+}
+
 class LinkVideoTap : public PsWrapRawTap
 {
 public:
@@ -122,6 +176,7 @@ public:
 			avcodec_free_context(&enc);
 		if (sws)
 			sws_freeContext(sws);
+		av_frame_free(&hdr_tmp);
 	}
 
 	const int height;
@@ -145,8 +200,8 @@ public:
 	void videoFrame(const AVFrame *frame) override { videoFrameAt(frame, -1); }
 	void videoFrameAt(const AVFrame *frame, int64_t capture_us) override
 	{
-		if (frame->format != AV_PIX_FMT_NV12)
-			return;
+		if (frame->format != AV_PIX_FMT_NV12 && frame->format != AV_PIX_FMT_P010LE)
+			return;   // NV12 = SDR · P010 = HDR10 (tone map เป็น SDR ตอน encode)
 		AVFrame *ref = av_frame_clone(frame);
 		if (!ref)
 			return;
@@ -190,6 +245,9 @@ private:
 	AVPacket *pkt = nullptr;
 	SwsContext *sws = nullptr;   // pipeline อาจเป็น 4K — มือถือ decode 4K60 ไม่ไหว (L02: decode 100–160 ms)
 	int sws_src_w = 0, sws_src_h = 0, sws_dst_w = 0, sws_dst_h = 0;
+	AVPixelFormat sws_fmt = AV_PIX_FMT_NONE;
+	AVFrame *hdr_tmp = nullptr;   // HDR: ภาพ P010 หลังย่อ (ก่อนแปลงเป็น SDR)
+	bool hdr_logged = false;
 	bool enc_failed = false;
 	int64_t stat_start_us = 0;
 	int stat_n = 0;
@@ -249,6 +307,35 @@ private:
 			return true;
 		}
 		return false;
+	}
+
+	// เช็คขนาด/ฟอร์แมตปลายทางด้วย — context เก่าเขียนเกินบัฟเฟอร์ได้ (L04: แอปพังตอน 1080→720)
+	bool ensureSws(int sw, int sh, AVPixelFormat fmt, int dw, int dh)
+	{
+		if (sws && sws_src_w == sw && sws_src_h == sh && sws_fmt == fmt && sws_dst_w == dw && sws_dst_h == dh)
+			return true;
+		if (sws)
+			sws_freeContext(sws);
+		sws = sws_alloc_context();
+		av_opt_set_int(sws, "srcw", sw, 0);
+		av_opt_set_int(sws, "srch", sh, 0);
+		av_opt_set_int(sws, "src_format", fmt, 0);
+		av_opt_set_int(sws, "dstw", dw, 0);
+		av_opt_set_int(sws, "dsth", dh, 0);
+		av_opt_set_int(sws, "dst_format", fmt, 0);   // ย่ออย่างเดียว ไม่แปลงฟอร์แมต (HDR แปลงสีเองหลังย่อ)
+		av_opt_set_int(sws, "sws_flags", SWS_BILINEAR, 0);
+		av_opt_set_int(sws, "threads", 4, 0);
+		if (sws_init_context(sws, nullptr, nullptr) < 0) {
+			sws_freeContext(sws);
+			sws = nullptr;
+			return false;
+		}
+		sws_src_w = sw;
+		sws_src_h = sh;
+		sws_fmt = fmt;
+		sws_dst_w = dw;
+		sws_dst_h = dh;
+		return true;
 	}
 
 	void stamp(AVFrame *f, uint32_t value)
@@ -317,30 +404,35 @@ private:
 		}
 		const int64_t t0 = monoUs();
 		av_frame_make_writable(own);
-		if (scaling) {
-			// เช็คขนาดปลายทางด้วย — context เก่าเขียนเกินบัฟเฟอร์ได้ (L04: แอปพังตอน 1080→720)
-			if (!sws || sws_src_w != src->width || sws_src_h != src->height || sws_dst_w != w || sws_dst_h != h) {
-				if (sws)
-					sws_freeContext(sws);
-				sws = sws_alloc_context();
-				av_opt_set_int(sws, "srcw", src->width, 0);
-				av_opt_set_int(sws, "srch", src->height, 0);
-				av_opt_set_int(sws, "src_format", AV_PIX_FMT_NV12, 0);
-				av_opt_set_int(sws, "dstw", w, 0);
-				av_opt_set_int(sws, "dsth", h, 0);
-				av_opt_set_int(sws, "dst_format", AV_PIX_FMT_NV12, 0);
-				av_opt_set_int(sws, "sws_flags", SWS_BILINEAR, 0);
-				av_opt_set_int(sws, "threads", 4, 0);
-				if (sws_init_context(sws, nullptr, nullptr) < 0) {
-					sws_freeContext(sws);
-					sws = nullptr;
-					return;
-				}
-				sws_src_w = src->width;
-				sws_src_h = src->height;
-				sws_dst_w = w;
-				sws_dst_h = h;
+		const bool hdr = src->format == AV_PIX_FMT_P010LE;
+		if (hdr) {
+			if (!hdr_logged) {
+				hdr_logged = true;
+				qCInfo(pswrapLink).noquote() << "video: HDR stream, tone mapping to SDR for friends";
 			}
+			// ย่อก่อน (P010 → P010) แล้วค่อยแปลงสี — ทำงานบนภาพเล็ก
+			const AVFrame *hsrc = src;
+			if (scaling) {
+				if (!hdr_tmp || hdr_tmp->width != w || hdr_tmp->height != h) {
+					av_frame_free(&hdr_tmp);
+					hdr_tmp = av_frame_alloc();
+					hdr_tmp->format = AV_PIX_FMT_P010LE;
+					hdr_tmp->width = w;
+					hdr_tmp->height = h;
+					if (av_frame_get_buffer(hdr_tmp, 0) < 0) {
+						av_frame_free(&hdr_tmp);
+						return;
+					}
+				}
+				if (!ensureSws(src->width, src->height, AV_PIX_FMT_P010LE, w, h))
+					return;
+				sws_scale(sws, src->data, src->linesize, 0, src->height, hdr_tmp->data, hdr_tmp->linesize);
+				hsrc = hdr_tmp;
+			}
+			tonemapP010ToNv12(hsrc, own, w, h);
+		} else if (scaling) {
+			if (!ensureSws(src->width, src->height, AV_PIX_FMT_NV12, w, h))
+				return;
 			sws_scale(sws, src->data, src->linesize, 0, src->height, own->data, own->linesize);
 		} else {
 			for (int y = 0; y < h; y++)
@@ -722,6 +814,7 @@ struct PsWrapLink::Peer
 	std::weak_ptr<LinkVideoTap> tap;             // encoder ของกลุ่มความสูงปัจจุบัน (ใต้ m — PLI อ่านจาก rtc thread)
 	// GUI thread (อ่านใต้ m ด้วยเพราะ friends() อ่าน)
 	QString status = QStringLiteral("connecting");
+	bool staff = false;   // ทีม PS-WRAP ที่เจ้าของห้องอนุญาตให้ดู — ดูอย่างเดียว ไม่ได้จอย
 	QString resume;   // รหัสต่อแท็บของหน้าเว็บ (sessionStorage) — รีเฟรชแล้วรหัสเดิม = คนเดิม
 	bool wants_controller = false;
 	int latency = -1;
@@ -763,6 +856,8 @@ struct PsWrapLink::Impl
 	std::map<int, std::shared_ptr<LinkVideoTap>> video_taps;
 	std::shared_ptr<LinkAudioTap> audio_tap;
 	bool pad_held = false;
+	QString view_req;            // คำขอเข้าดูจากทีมที่รอเจ้าของห้องตอบ
+	QTimer view_req_timer;
 	QString reclaim_resume;     // คนที่ถือจอยแล้วหลุด (รีเฟรช/เน็ตตก) — กลับมาภายในเวลา = ได้จอยคืนเอง
 	qint64 reclaim_until = 0;
 	QString reclaim_name;
@@ -813,6 +908,11 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 	connect(&d->pad_timer, &QTimer::timeout, this, &PsWrapLink::pollPad);
 	// แรงสั่น → เพื่อนที่ถือจอย ทาง "input" (unordered — ข้อความเก่าหายได้ ข้อความใหม่ทับ) · หน้าเว็บสั่นทีละ ~150 ms
 	// rumble จาก event = ค้างจนเกมสั่งใหม่ → ส่งซ้ำทุกรอบ · จาก haptics = ไม่มีเฟรมใหม่ 100 ms ถือว่าหยุด
+	d->view_req_timer.setSingleShot(true);
+	connect(&d->view_req_timer, &QTimer::timeout, this, [this]() {   // ไม่ตอบ = หมดอายุ (เซิร์ฟเวอร์ถือว่าไม่อนุญาต)
+		d->view_req.clear();
+		emit changed();
+	});
 	d->rumble_timer.setInterval(50);
 	connect(&d->rumble_timer, &QTimer::timeout, this, [this]() {
 		int l = d->rumble_l, r = d->rumble_r;
@@ -874,7 +974,8 @@ QString PsWrapLink::controllerPeer() const
 int PsWrapLink::friendCount() const
 {
 	std::lock_guard<std::mutex> lock(d->m);
-	return int(d->peers.size());
+	// ทีม PS-WRAP (ดูอย่างเดียว) ไม่นับเป็นที่นั่งเพื่อน (เซิร์ฟเวอร์ก็ไม่นับ)
+	return int(std::count_if(d->peers.begin(), d->peers.end(), [](const auto &kv) { return !kv.second->staff; }));
 }
 QVariantList PsWrapLink::friends() const
 {
@@ -892,6 +993,7 @@ QVariantList PsWrapLink::friends() const
 		f[QStringLiteral("avatar")] = p->avatar;
 		f[QStringLiteral("color")] = p->color;
 		f[QStringLiteral("mic")] = p->mic_on;
+		f[QStringLiteral("staff")] = p->staff;
 		f[QStringLiteral("micMuted")] = p->mic_muted;
 		f[QStringLiteral("speaking")] = p->speaking;
 		out << f;
@@ -948,11 +1050,7 @@ void PsWrapLink::start()
 		emit toast(QStringLiteral("error"), tr("Couldn't start Link"), err.isEmpty() ? tr("Start a stream first.") : err);
 		return;
 	}
-	if (cfg.hdr) {
-		emit toast(QStringLiteral("error"), tr("Couldn't start Link"),
-		           tr("Link needs an SDR stream for now, and this stream is HDR. Turn off HDR on the PS5 (Settings › Screen and Video › Video Output › HDR) and try again."));
-		return;
-	}
+	// HDR: LinkVideoTap แปลงเป็น SDR ให้เพื่อนเอง (tonemapP010ToNv12)
 	d->active = true;
 	d->gen++;
 	d->announce_invite = true;
@@ -985,6 +1083,8 @@ void PsWrapLink::stop()
 	d->reconnect_timer.stop();
 	d->pad_timer.stop();
 	d->voice_timer.stop();
+	d->view_req_timer.stop();
+	d->view_req.clear();
 	releaseController(false);
 	std::map<QString, std::shared_ptr<Peer>> peers;
 	{
@@ -1116,8 +1216,16 @@ void PsWrapLink::onSignalMessage(const QString &text)
 			auto it = d->peers.find(peer);
 			if (it != d->peers.end() && ok.match(resume).hasMatch())
 				it->second->resume = resume;
+			if (it != d->peers.end())
+				it->second->staff = o.value(QStringLiteral("staff")).toBool();
 		}
 		emit toast(QStringLiteral("info"), tr("%1 joined Link").arg(name.isEmpty() ? tr("A friend") : name), QString());
+	} else if (type == QLatin1String("view-request")) {
+		d->view_req = o.value(QStringLiteral("req")).toString().left(32);
+		d->view_req_timer.start(std::clamp(o.value(QStringLiteral("ttl")).toInt(60), 5, 120) * 1000);
+		qCInfo(pswrapLink) << "PS-WRAP team asks to view this room";
+		emit toast(QStringLiteral("info"), tr("PS-WRAP team asks to view your stream"), tr("Allow or decline on the Link card."));
+		emit changed();
 	} else if (type == QLatin1String("signal")) {
 		const QJsonObject data = o.value(QStringLiteral("data")).toObject();
 		std::shared_ptr<rtc::PeerConnection> pc;
@@ -1586,7 +1694,7 @@ void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 		Peer &p = *it->second;
 		name = p.name.isEmpty() ? tr("A friend") : p.name;
 		if (type == QLatin1String("want-controller")) {
-			const bool want = msg.value(QStringLiteral("on")).toBool() && d->controller != peer;
+			const bool want = msg.value(QStringLiteral("on")).toBool() && d->controller != peer && !p.staff;
 			if (p.wants_controller == want)
 				return;
 			p.wants_controller = want;
@@ -1677,7 +1785,8 @@ void PsWrapLink::giveController(const QString &peer)
 {
 	{
 		std::lock_guard<std::mutex> lock(d->m);
-		if (!d->peers.count(peer) || d->controller == peer)
+		auto pit = d->peers.find(peer);
+		if (pit == d->peers.end() || d->controller == peer || pit->second->staff)   // ทีมดูอย่างเดียว
 			return;
 		d->reclaim_resume.clear();   // มีคนถือจอยแล้ว — การจองคืน (ถ้ามี) จบ
 	}
@@ -1739,6 +1848,19 @@ void PsWrapLink::releaseController(bool notify)
 void PsWrapLink::kick(const QString &peer)
 {
 	removePeer(peer, true, false);   // ถูกเตะ = ไม่คืนจอยให้
+}
+
+bool PsWrapLink::viewRequest() const { return !d->view_req.isEmpty(); }
+
+void PsWrapLink::answerViewRequest(bool allow)
+{
+	if (d->view_req.isEmpty())
+		return;
+	sendSignal(QJsonObject{{QStringLiteral("type"), QStringLiteral("view-answer")}, {QStringLiteral("req"), d->view_req}, {QStringLiteral("allow"), allow}});
+	qCInfo(pswrapLink) << "view request" << (allow ? "allowed" : "declined");
+	d->view_req.clear();
+	d->view_req_timer.stop();
+	emit changed();
 }
 
 void PsWrapLink::tryReclaim(const QString &peer)

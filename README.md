@@ -74,7 +74,9 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 - **Chat and voice**: messages show in the Live Chat overlay with the friend's picture, ❤️ 🌸 🤘 🙏 reactions float over the game, and friends can talk on their mic. Mute anyone from the Link card. Friends set the game and voice volume separately with the 🔊 button. The game's vibration goes to the friend's controller (Chrome, Edge, Safari on Mac; not iPhone), and a friend who refreshes gets straight back in.
 - **Link card**: drag it by its top row anywhere on the picture, or fold it with **–** so it doesn't cover the game.
 - **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
-- **Beta limits**: SDR only (turn off HDR on the PS5); friends don't hear each other yet; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
+- **HDR**: works; friends get an SDR version of the picture (browsers can't show HDR streams).
+- **Team access**: the PS-WRAP team can only watch a room if you press Allow on the request (view only).
+- **Beta limits**: friends don't hear each other yet; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
 
 <br clear="right">
 
