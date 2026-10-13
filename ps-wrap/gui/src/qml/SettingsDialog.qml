@@ -1260,7 +1260,7 @@ DialogView {
                     C.Slider {
                         Layout.preferredWidth: Math.round(dialog.ctlW * 0.625)
                         from: 0
-                        to: 128
+                        to: 256   // ถึง 200% (เกิน 100% = ขยายเสียง)
                         stepSize: 1
                         value: Chiaki.settings.audioVolume
                         onMoved: Chiaki.settings.audioVolume = value

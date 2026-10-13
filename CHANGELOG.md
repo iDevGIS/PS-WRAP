@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-10-13
+Fixes the PS-WRAP team's view getting stuck in a full room, lets the speaker go up to 200%, and shows friends' pictures to the team while they watch.
+### Added
+- **Speaker volume up to 200%.** The volume sliders (home screen speaker chip, status bar, stream menu, Settings) now go past 100% for quiet games. Above 100% PS-WRAP boosts the sound itself, and a limiter rounds off the loudest peaks instead of clipping them, so it doesn't crackle; the percentage turns orange. Friends' Link voices get louder too. Recordings and the sound sent to Link friends stay at the normal level.
+- **PS-WRAP Link: friends' pictures for the team.** While the PS-WRAP team watches a room you allowed, PS-WRAP sends your friends' profile pictures straight to the team's view over its encrypted connection, so the team's room list can show them. They don't pass through the server, aren't saved, and disappear when the team leaves.
+### Fixed
+- **PS-WRAP Link: the team's view stayed on "Waiting for the host's picture…"** when 4 friends were already connected directly (for example after giving the controller to a Stage viewer). The team doesn't take a seat, but PS-WRAP counted it and silently dropped the connection. Now the team always gets in, and a friend who really can't get a seat gets a message instead of waiting forever.
+### Changed
+- Privacy Policy: friends' profile pictures go to the team's view while the team watches a room you allowed.
+
 ## [0.12.0] — 2026-10-13
 Link rooms for a bigger audience: **Stage Broadcast** sends your game once through the PS-WRAP server to many viewers, and **Both** mixes it with the 4 direct seats. Plus a sharper **1080p High** quality.
 ### Added

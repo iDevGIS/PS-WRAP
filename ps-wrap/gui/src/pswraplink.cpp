@@ -1311,7 +1311,7 @@ void PsWrapLink::onSignalMessage(const QString &text)
 		const QString peer = o.value(QStringLiteral("peer")).toString();
 		const QString name = o.value(QStringLiteral("name")).toString().left(32);
 		addPeer(peer, name, normalizeTier(o.value(QStringLiteral("h")).toInt(), o.value(QStringLiteral("hi")).toBool()), o.value(QStringLiteral("kbps")).toInt(),
-		        o.value(QStringLiteral("pace")).toDouble(), o.value(QStringLiteral("stage")).toBool());
+		        o.value(QStringLiteral("pace")).toDouble(), o.value(QStringLiteral("stage")).toBool(), o.value(QStringLiteral("staff")).toBool());
 		{
 			static const QRegularExpression ok(QStringLiteral("^[A-Za-z0-9_-]{8,40}$"));
 			const QString resume = o.value(QStringLiteral("resume")).toString();
@@ -1520,16 +1520,23 @@ void PsWrapLink::dropUnusedTaps()
 	}
 }
 
-void PsWrapLink::addPeer(const QString &peer, const QString &name, int height, int kbps, double pace, bool stage)
+void PsWrapLink::addPeer(const QString &peer, const QString &name, int height, int kbps, double pace, bool stage, bool staff)
 {
 	Q_UNUSED(kbps)   // ตอนนี้ bitrate ตามกลุ่มความสูง (encoder ใช้ร่วมกัน)
 	if (height != kTierHigh)
 		height = normalizeHeight(height);
 	{
 		std::lock_guard<std::mutex> lock(d->m);
-		const int direct = int(std::count_if(d->peers.begin(), d->peers.end(), [](const auto &kv) { return !kv.second->stage; }));
-		if ((!stage && direct >= kMaxFriends) || d->peers.count(peer))
-			return;   // คนดู Stage: เซิร์ฟเวอร์จำกัดจำนวนเอง
+		if (d->peers.count(peer))
+			return;
+		// ที่นั่งต่อตรงนับเหมือนเซิร์ฟเวอร์: ไม่นับคนดู Stage และทีม PS-WRAP (ทีมไม่กินที่นั่ง)
+		// คนดู Stage ที่ได้จอยย้ายมาต่อตรงได้เกิน 4 ชั่วคราว → ห้ามเงียบทิ้งคนใหม่ ต้องเตะให้หน้าเว็บรู้
+		const int direct = int(std::count_if(d->peers.begin(), d->peers.end(), [](const auto &kv) { return !kv.second->stage && !kv.second->staff; }));
+		if (!stage && !staff && direct >= kMaxFriends) {
+			qCWarning(pswrapLink).noquote() << "friend" << peer << "refused: direct seats full";
+			sendSignal(QJsonObject{{QStringLiteral("type"), QStringLiteral("kick")}, {QStringLiteral("peer"), peer}});
+			return;
+		}
 	}
 	if (stage) {
 		// คนดู Stage: ภาพ/เสียงมาจากเซิร์ฟเวอร์ — ที่นี่แค่รายชื่อ + ข้อความควบคุม (relay)
@@ -1558,6 +1565,7 @@ void PsWrapLink::addPeer(const QString &peer, const QString &name, int height, i
 	p->id = peer;
 	p->name = name;
 	p->color = nameColor(name.isEmpty() ? peer : name);
+	p->staff = staff;
 	p->height = height;
 	p->tap = d->video_taps[height];
 	{
@@ -1714,7 +1722,7 @@ void PsWrapLink::setupPeerConnection(const std::shared_ptr<Peer> &p, double pace
 	p->control->onOpen([onGui, peer, wcontrol]() {
 		if (auto c = wcontrol.lock())   // บอกหน้าเว็บว่า host นี้ทำอะไรได้ (หน้าเว็บโชว์ 1080p High เฉพาะเมื่อมี hi)
 			c->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("caps")}, {QStringLiteral("hi"), true}}));
-		onGui([peer](PsWrapLink *l) { l->tryReclaim(peer); });
+		onGui([peer](PsWrapLink *l) { l->tryReclaim(peer); l->shareAvatars(peer); });
 	});
 	std::weak_ptr<rtc::DataChannel> winput = p->input;
 	p->input->onMessage([self, dd, gen, winput, peer, onGui](rtc::message_variant msg) {
@@ -1966,6 +1974,7 @@ void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 		return;
 	}
 	if (type == QLatin1String("profile")) {
+		shareAvatars(peer);
 		emit changed();
 		return;
 	}
@@ -2065,6 +2074,34 @@ void PsWrapLink::answerViewRequest(bool allow)
 	d->view_req.clear();
 	d->view_req_timer.stop();
 	emit changed();
+}
+
+void PsWrapLink::shareAvatars(const QString &peer)
+{
+	// มีทีมในห้องเฉพาะเมื่อเจ้าของกดอนุญาต · ทีมเปิด control = ส่งรูปทุกคน · เพื่อนเปลี่ยนรูป = ส่งรูปคนนั้น
+	// ส่งทาง data channel ของทีม (เข้ารหัสต้นทางถึงปลายทาง) — หน้าแอดมินรับต่อจากแท็บดูของทีมในเบราว์เซอร์เดียวกัน
+	std::shared_ptr<Peer> staff;
+	std::vector<std::pair<QString, QString>> out;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		auto it = d->peers.find(peer);
+		if (it == d->peers.end())
+			return;
+		for (const auto &[id, o] : d->peers)
+			if (o->staff)
+				staff = o;
+		if (!staff)
+			return;
+		if (it->second->staff) {
+			for (const auto &[id, o] : d->peers)
+				if (!o->staff && !o->avatar.isEmpty())
+					out.emplace_back(id, o->avatar);
+		} else {
+			out.emplace_back(peer, it->second->avatar);   // ว่าง = เอารูปออก
+		}
+	}
+	for (const auto &[id, avatar] : out)
+		sendControl(staff, QJsonObject{{QStringLiteral("type"), QStringLiteral("avatar")}, {QStringLiteral("peer"), id}, {QStringLiteral("avatar"), avatar}});
 }
 
 void PsWrapLink::tryReclaim(const QString &peer)

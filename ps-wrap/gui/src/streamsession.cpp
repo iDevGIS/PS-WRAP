@@ -21,6 +21,7 @@
 #include <chrono>
 
 #include <algorithm>
+#include <cmath>
 
 #include <cstring>
 
@@ -1948,6 +1949,25 @@ void StreamSession::StopSdeckHaptics()
 }
 #endif
 
+// PS-WRAP: เสียงเกิน 100% (สไลเดอร์ลำโพงถึง 200% = 256) · ขยายแล้วกันแตก: ต่ำกว่า 75% ของเต็มสเกลผ่านตรง
+// เกินนั้นโค้งเข้าหาเต็มสเกลแบบนุ่ม (ไม่ตัดยอดคลื่นเป็นเหลี่ยม = ไม่มีเสียงแตกแกรก)
+static void PsWrapBoostAudio(int16_t *s, size_t n, int volume)
+{
+	const float gain = (float)volume / (float)SDL_MIX_MAXVOLUME;
+	const float knee = 0.75f, room = 1.0f - knee;
+	for(size_t i = 0; i < n; i++)
+	{
+		float x = (float)s[i] / 32768.0f * gain;
+		const float a = std::fabs(x);
+		if(a > knee)
+		{
+			const float over = (a - knee) / room;
+			x = std::copysign(knee + room * (over / (1.0f + over)), x);
+		}
+		s[i] = (int16_t)std::lrintf(x * 32767.0f);
+	}
+}
+
 void StreamSession::PushAudioFrame(int16_t *og_buf, size_t samples_count)
 {
 	// PS-WRAP: เสียงเกมก่อนปรับ volume/ก่อนเช็คว่ามีลำโพง → อัดวิดีโอ (ปิดเสียงในเครื่องไฟล์ก็ยังมีเสียง)
@@ -1998,7 +2018,11 @@ void StreamSession::PushAudioFrame(int16_t *og_buf, size_t samples_count)
 	if(audio_volume < SDL_MIX_MAXVOLUME)
 		SDL_MixAudioFormat((uint8_t *)buf.data(), (uint8_t *)og_buf, AUDIO_S16SYS, buf.size(), audio_volume);
 	else
+	{
 		memcpy(buf.data(), og_buf, (size_t)buf.size());
+		if(audio_volume > SDL_MIX_MAXVOLUME)
+			PsWrapBoostAudio((int16_t *)buf.data(), (size_t)buf.size() / sizeof(int16_t), audio_volume);
+	}
 	QueueAudioOutData(buf);
 }
 

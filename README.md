@@ -78,7 +78,7 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 - **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
 - **Quality**: friends pick Auto, 1080p High (sharper, about 15 Mbps), 1080p, 720p or 480p. Stage viewers get 1080p.
 - **HDR**: works; friends get an SDR version of the picture (browsers can't show HDR streams).
-- **Team access**: the PS-WRAP team can only watch a room if you press Allow on the request (view only).
+- **Team access**: the PS-WRAP team can only watch a room if you press Allow on the request (view only). While they watch, your friends' profile pictures go to their view directly, not through the server.
 - **Beta limits**: friends don't hear each other yet; Stage viewers can't use their mic until they get the controller; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
 
 <br clear="right">
@@ -212,7 +212,7 @@ The report never contains your PSN sign-in, stream keys, console registration or
 - **Easy PSN sign-in**: Sony's sign-in page opens inside PS-WRAP and the setup finishes by itself (Microsoft Edge WebView2, part of Windows 10/11).
 - **Status bar while playing**: move the mouse to the bottom of the window for the mic, speaker, facecam, record, screenshot, Go Live and network chips; pin it to keep it on screen. On a PS4 played on your home network it also shows the name of the running game (also under the clock overlay); a PS5 doesn't report it.
 - **New stream menu**: compact cards (Picture, Quality, Overlay, Capture) that wrap instead of overflowing, a ✕ close button, and controller navigation that follows the layout.
-- **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
+- **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. The volume goes up to **200%** for quiet games (above 100% PS-WRAP boosts the sound itself, with a limiter so it doesn't crackle; recordings and Link keep the normal level). (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
 - **Controller vibration and light**: **Rumble Boost** makes the controller vibrate harder, up to 300%, including games that send plain rumble (Settings › Controllers › Vibration, or the controller panel). The controller panel tests vibration (△, L1 / R1 to adjust) and the light bar in six colors (□); closing it stops the vibration and restores the light.
 - **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).

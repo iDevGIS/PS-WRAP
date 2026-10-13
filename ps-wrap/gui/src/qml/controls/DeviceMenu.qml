@@ -15,7 +15,7 @@ Popup {
     property string toggleText: ""
     property bool toggleChecked: false
     property int highlighted: -1    // -2 = แถบเสียง (ถ้ามี) · -1 = สวิตช์ (ถ้ามี) · 0.. = รายการ
-    // แถบปรับระดับเสียง (เมนูลำโพง) — 0..128 แบบเดียวกับ Chiaki.settings.audioVolume · ←→ ปรับเมื่อเลือกแถวนี้
+    // แถบปรับระดับเสียง (เมนูลำโพง) — 0..256 (100% = 128, เกินนั้น = ขยายเสียง) แบบเดียวกับ Chiaki.settings.audioVolume · ←→ ปรับเมื่อเลือกแถวนี้
     property bool showVolume: false
     property int volume: 128
     signal volumeMoved(int value)
@@ -108,7 +108,7 @@ Popup {
         Keys.onUpPressed: menu.step(-1)
         Keys.onDownPressed: menu.step(1)
         Keys.onLeftPressed: if (menu.highlighted === -2) menu.volumeMoved(Math.max(0, menu.volume - 8))
-        Keys.onRightPressed: if (menu.highlighted === -2) menu.volumeMoved(Math.min(128, menu.volume + 8))
+        Keys.onRightPressed: if (menu.highlighted === -2) menu.volumeMoved(Math.min(256, menu.volume + 8))
         Keys.onReturnPressed: activate()
         Keys.onEnterPressed: activate()
         Keys.onSpacePressed: activate()
@@ -157,7 +157,7 @@ Popup {
             Slider {
                 id: volSlider
                 anchors { left: volIcon.right; leftMargin: Theme.space2; right: volPct.left; rightMargin: Theme.space2; verticalCenter: parent.verticalCenter }
-                from: 0; to: 128; stepSize: 1
+                from: 0; to: 256; stepSize: 1
                 value: menu.volume
                 focusPolicy: Qt.NoFocus
                 onMoved: menu.volumeMoved(Math.round(value))
@@ -170,7 +170,7 @@ Popup {
                 text: Math.round(menu.volume / 128 * 100) + "%"
                 font.pixelSize: Theme.fontLabel
                 font.features: { "tnum": 1 }
-                color: Theme.text
+                color: menu.volume > 128 ? Theme.warning : Theme.text
             }
         }
         Rectangle {

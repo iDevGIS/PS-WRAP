@@ -2,6 +2,7 @@
 
 #include <settings.h>
 #include <SDL.h>
+#include <algorithm>
 #include <QFile>
 #include <QFileInfo>
 #include <QUrl>
@@ -835,7 +836,7 @@ int Settings::GetAudioVolume() const
 
 void Settings::SetAudioVolume(int volume)
 {
-	settings.setValue("settings/audio_volume", volume);
+	settings.setValue("settings/audio_volume", std::clamp(volume, 0, 2 * SDL_MIX_MAXVOLUME));   // PS-WRAP: ถึง 200%
 }
 
 unsigned int Settings::GetAudioBufferSize() const

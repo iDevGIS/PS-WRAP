@@ -103,7 +103,7 @@ private:
 	void connectSignal();
 	void onSignalMessage(const QString &text);
 	void sendSignal(const QJsonObject &msg);
-	void addPeer(const QString &peer, const QString &name, int height, int kbps, double pace, bool stage = false);
+	void addPeer(const QString &peer, const QString &name, int height, int kbps, double pace, bool stage = false, bool staff = false);
 	void setupPeerConnection(const std::shared_ptr<Peer> &p, double pace);   // offer ไปหาเพื่อน (ส่งตรง)
 	void sendControl(const std::shared_ptr<Peer> &p, const QJsonObject &msg);  // data channel หรือ relay (คนดู Stage)
 	void upgradeStagePeer(const QString &peer);   // คนดู Stage ได้จอย → ย้ายมาส่งตรง
@@ -115,6 +115,7 @@ private:
 	// allow_resume: เพื่อนหลุด/รีเฟรช (ไม่ใช่ถูกเตะ) → ถ้าถือจอยอยู่ จองคืนให้คนเดิม 15 วิ
 	void removePeer(const QString &peer, bool notify_server, bool allow_resume = true);
 	void tryReclaim(const QString &peer);   // control channel ของเพื่อนเปิด → คืนจอยถ้าเป็นคนเดิมที่เพิ่งหลุด
+	void shareAvatars(const QString &peer);   // รูปโปรไฟล์ → ทีมที่เจ้าของห้องอนุญาตให้ดู (ส่งตรง ไม่ผ่านเซิร์ฟเวอร์)
 	void setPeerHeight(const QString &peer, int height);   // เพื่อนเลือกคุณภาพใหม่ (1080/720/480)
 	void onPeerMessage(const QString &peer, const QJsonObject &msg);   // GUI thread (จาก data channel)
 	bool ensureVideoTap(int height);

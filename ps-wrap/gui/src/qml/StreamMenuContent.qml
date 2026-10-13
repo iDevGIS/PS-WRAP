@@ -418,7 +418,7 @@ FocusScope {
                 property bool navigable: true
                 Layout.preferredWidth: content.width >= 1180 ? 140 : 96
                 from: 0
-                to: 128
+                to: 256   // ถึง 200% (เกิน 100% = ขยายเสียงในเครื่อง)
                 stepSize: 1
                 value: Chiaki.settings.audioVolume
                 onMoved: Chiaki.settings.audioVolume = value
@@ -430,7 +430,7 @@ FocusScope {
                 text: Math.round((volumeSlider.value / 128.0) * 100) + "%"
                 font.pixelSize: Theme.fontCaption
                 font.features: { "tnum": 1 }
-                color: Theme.textMuted
+                color: volumeSlider.value > 128 ? Theme.warning : Theme.textMuted
             }
 
             Item { Layout.fillWidth: true }
