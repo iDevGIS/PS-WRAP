@@ -6,6 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-10-13
+Link rooms for a bigger audience: **Stage Broadcast** sends your game once through the PS-WRAP server to many viewers, and **Both** mixes it with the 4 direct seats. Plus a sharper **1080p High** quality.
+### Added
+- **PS-WRAP Link: room type.** A new **ROOM TYPE** row in the Link panel (stream menu › Link) has three choices, and PS-WRAP remembers the last one:
+  - **Direct P2P**: the room as before. Up to 4 friends, each connected straight to your PC, with the lowest delay.
+  - **Stage Broadcast**: your PC sends the game once to the PS-WRAP server, which passes it on to the viewers (up to 15 per room in the beta). Viewers watch at 1080p with the game sound and your mic, and can chat, send reactions and ask for the controller. Your upload stays the same however many people watch. The delay is a little higher than Direct, and viewers can't use their mic.
+  - **Both**: the first 4 friends connect directly, and everyone after them joins the Stage. Same invite link for everyone.
+- **Give the controller to a Stage viewer.** Press **Give controller** as usual: the viewer moves to a direct connection first (a few seconds), then gets the controller and their mic.
+- You can change the room type while the room is open; the room and the invite link stay the same. Going back to **Direct P2P** removes the Stage viewers (they see "The host turned off Stage Broadcast"); direct friends stay.
+- The Link card shows how many friends are direct and on Stage ("2/4 DIRECT · 5 ON STAGE"), and "Watching on Stage" next to Stage viewers.
+- **1080p High** in the friend page's Quality menu: 1080p at a higher bitrate for a sharper picture in fast scenes, for every friend. Pick it only when both internet connections have room for it (about 15 Mbps per friend).
+### Fixed
+- **Friend page: mic and speaker buttons showed no on/off state.** The line across the mic and the cross on the speaker never appeared, so "off" looked the same as "on". The buttons now say **Mic off / Mic on / Muted by host** and **Sound off / Sound on**, turn red when the sound is off or the host muted you, and blue when your mic is on.
+### Changed
+- Privacy Policy: how Stage Broadcast works (the PS-WRAP server passes the picture and sound on to Stage viewers without recording them) and what the team's live room list shows (room type, who watches on Stage, who has the controller).
+
 ## [0.11.9] — 2026-10-13
 Link works with HDR streams, and the PS-WRAP team can only look at a Link room if you allow it.
 ### Added

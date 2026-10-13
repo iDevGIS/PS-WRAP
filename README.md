@@ -68,15 +68,18 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 
 **PS-WRAP Link** lets friends watch your game in a web browser, chat, send reactions, talk, and play when you hand them the controller. Turn it on with **Link** in the stream menu (CAPTURE) or **Ctrl+Shift+J**; the invite link is copied for you. Up to 4 friends open it in Chrome, Edge or Safari, with nothing to install (about 20 ms of delay on a home network in our tests).
 
+**Room type** (Link panel › ROOM TYPE): **Direct P2P** is up to 4 friends connected straight to your PC, with the lowest delay. **Stage Broadcast** sends the game once through the PS-WRAP server to a bigger audience (up to 15 in the beta): they watch at 1080p, chat, react and can ask for the controller, and your upload stays the same however many watch. **Both** gives the first 4 a direct seat and puts everyone after them on the Stage, with the same invite link.
+
 <img src="screenshots/link-phone.jpg" alt="On-screen controller on a phone" width="260" align="right">
 
 - **The controller**: a friend asks, you press **Give controller** on the Link card (Ctrl+Shift+G) and **Take back** when you want it (Ctrl+Shift+U). Friends play with their own controller, keyboard and mouse (Standard, Ghost of Tsushima PC keys, Shooter and Racing layouts), or the on-screen controller on a phone.
 - **Chat and voice**: messages show in the Live Chat overlay with the friend's picture, ❤️ 🌸 🤘 🙏 reactions float over the game, and friends can talk on their mic. Mute anyone from the Link card. Friends set the game and voice volume separately with the 🔊 button. The game's vibration goes to the friend's controller (Chrome, Edge, Safari on Mac; not iPhone), and a friend who refreshes gets straight back in.
 - **Link card**: drag it by its top row anywhere on the picture, or fold it with **–** so it doesn't cover the game.
 - **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
+- **Quality**: friends pick Auto, 1080p High (sharper, about 15 Mbps), 1080p, 720p or 480p. Stage viewers get 1080p.
 - **HDR**: works; friends get an SDR version of the picture (browsers can't show HDR streams).
 - **Team access**: the PS-WRAP team can only watch a room if you press Allow on the request (view only).
-- **Beta limits**: friends don't hear each other yet; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
+- **Beta limits**: friends don't hear each other yet; Stage viewers can't use their mic until they get the controller; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
 
 <br clear="right">
 

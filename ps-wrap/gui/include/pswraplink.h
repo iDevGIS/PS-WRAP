@@ -10,6 +10,8 @@
 // เสียง: "Game + Mic" ของ recorder → Opus 10 ms → ทุกคน (คนละ stream กับภาพ — เบราว์เซอร์ไม่หน่วงภาพรอ sync เสียง)
 // signaling: QWebSocket (ตรวจใบรับรอง TLS) — rtc::WebSocket บน Windows ไม่ตรวจ
 // host key: Windows Credential Manager "PS-WRAP/link/host-key" (env PSWRAP_LINK_HOST_KEY ครั้งแรก = นำเข้าให้)
+// แบบห้อง (เจ้าของเลือก · จำไว้): direct = Direct P2P (ส่งตรงหาเพื่อน ≤ 4) · stage = Stage Broadcast (ส่งครั้งเดียวผ่านเซิร์ฟเวอร์
+//   ด้วย WHIP → คนดูหลายคนดึง WHEP) · both = 4 คนแรกส่งตรง ที่เหลือดูผ่าน Stage · ให้จอยคนดู Stage = ย้ายเขามาส่งตรงเอง
 // ทดลอง/วัด: env PSWRAP_LINK_DEV=1 แปะบาร์โค้ดเวลาไว้แถบบนของภาพ + log ผลวัดจากหน้าเว็บ (PS-WRAP-LINK/ผลการทดลอง.md)
 #ifndef PSWRAP_LINK_H
 #define PSWRAP_LINK_H
@@ -41,6 +43,11 @@ class PsWrapLink : public QObject
 	Q_PROPERTY(QString controllerPeer READ controllerPeer NOTIFY changed)
 	// ทีม PS-WRAP ขอเข้าดูห้อง (จากหน้า Monitor) — เจ้าของห้องต้องกดอนุญาต · หมดอายุเอง 60 วิ
 	Q_PROPERTY(bool viewRequest READ viewRequest NOTIFY changed)
+	// แบบห้อง: "direct" | "stage" | "both" — เปลี่ยนได้ระหว่างเปิด (ห้อง/ลิงก์เดิม)
+	Q_PROPERTY(QString mode READ mode WRITE setMode NOTIFY changed)
+	Q_PROPERTY(QString stageState READ stageState NOTIFY changed)   // off · connecting · live · error
+	Q_PROPERTY(int stageViewers READ stageViewers NOTIFY changed)
+	Q_PROPERTY(int stageMax READ stageMax NOTIFY changed)
 
 public:
 	// อายุเท่าหน้าต่างหลัก (ลูกของ QmlMainWindow)
@@ -57,6 +64,11 @@ public:
 	int friendCount() const;
 	QString controllerPeer() const;
 	bool viewRequest() const;
+	QString mode() const;
+	void setMode(const QString &mode);
+	QString stageState() const;
+	int stageViewers() const;
+	int stageMax() const;
 
 	Q_INVOKABLE void toggle();
 	Q_INVOKABLE void start();
@@ -85,12 +97,21 @@ signals:
 private:
 	struct Impl;
 	struct Peer;
+	struct StageLeg;
 	std::unique_ptr<Impl> d;
 
 	void connectSignal();
 	void onSignalMessage(const QString &text);
 	void sendSignal(const QJsonObject &msg);
-	void addPeer(const QString &peer, const QString &name, int height, int kbps, double pace);
+	void addPeer(const QString &peer, const QString &name, int height, int kbps, double pace, bool stage = false);
+	void setupPeerConnection(const std::shared_ptr<Peer> &p, double pace);   // offer ไปหาเพื่อน (ส่งตรง)
+	void sendControl(const std::shared_ptr<Peer> &p, const QJsonObject &msg);  // data channel หรือ relay (คนดู Stage)
+	void upgradeStagePeer(const QString &peer);   // คนดู Stage ได้จอย → ย้ายมาส่งตรง
+	void startStage();
+	void stopStage();
+	std::shared_ptr<StageLeg> makeStageLeg(bool main);
+	void postWhip(const std::shared_ptr<StageLeg> &leg);
+	void scheduleStageRetry();
 	// allow_resume: เพื่อนหลุด/รีเฟรช (ไม่ใช่ถูกเตะ) → ถ้าถือจอยอยู่ จองคืนให้คนเดิม 15 วิ
 	void removePeer(const QString &peer, bool notify_server, bool allow_resume = true);
 	void tryReclaim(const QString &peer);   // control channel ของเพื่อนเปิด → คืนจอยถ้าเป็นคนเดิมที่เพิ่งหลุด

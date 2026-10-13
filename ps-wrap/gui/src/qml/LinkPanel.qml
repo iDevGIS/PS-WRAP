@@ -31,6 +31,23 @@ Popup {
             return qsTr("Error");
         return l.friendCount > 0 ? qsTr("%n friend(s) connected", "", l.friendCount) : qsTr("Waiting for friends");
     }
+    function stageText() {
+        const l = panel.link;
+        if (!l || l.stageState === "off")
+            return "";
+        if (l.stageState === "live")
+            return qsTr("Stage Broadcast is live · %1 of %2 viewers").arg(l.stageViewers).arg(l.stageMax);
+        if (l.stageState === "error")
+            return qsTr("Stage Broadcast couldn't connect — retrying…");
+        return qsTr("Starting Stage Broadcast…");
+    }
+    function modeHint(m) {
+        if (m === "stage")
+            return qsTr("Sent once through the PS-WRAP server, so many friends can watch, chat and react. A friend you hand the controller to is moved to a direct connection.");
+        if (m === "both")
+            return qsTr("The first 4 friends connect directly; everyone after them watches through Stage Broadcast.");
+        return qsTr("Up to 4 friends, each sent straight from this PC: the lowest delay, everyone can talk and play.");
+    }
     function stateColor() {
         const l = panel.link;
         if (!l || !l.active) return Theme.textMuted;
@@ -38,8 +55,9 @@ Popup {
     }
     function friendLine(f) {
         let parts = [];
-        parts.push(f.status === "watching" ? qsTr("Watching") : qsTr("Connecting…"));
-        parts.push(f.quality);
+        parts.push(f.stage ? qsTr("Watching on Stage") : f.status === "watching" ? qsTr("Watching") : qsTr("Connecting…"));
+        if (!f.stage)
+            parts.push(f.quality);
         if (f.latency >= 0)
             parts.push(qsTr("ping %1 ms").arg(f.latency));
         if (f.micMuted)
@@ -186,6 +204,52 @@ Popup {
             text: qsTr("Friends open the invite link in a web browser to watch and hear the game. One friend at a time can hold the controller.")
         }
 
+        // แบบห้อง: Direct P2P / Stage Broadcast / ทั้งคู่ — เปลี่ยนได้ระหว่างเปิด (ห้องและลิงก์เดิม)
+        Label {
+            text: qsTr("ROOM TYPE")
+            font.pixelSize: 11
+            font.letterSpacing: 1.6
+            font.weight: Font.DemiBold
+            color: Theme.textMuted
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            Repeater {
+                model: [
+                    { key: "direct", label: qsTr("Direct P2P") },
+                    { key: "stage", label: qsTr("Stage Broadcast") },
+                    { key: "both", label: qsTr("Both") }
+                ]
+                delegate: PanelButton {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    text: modelData.label
+                    primary: !!panel.link && panel.link.mode === modelData.key
+                    enabled: !!panel.link && (!panel.link.active || panel.ready)
+                    onClicked: if (panel.link) panel.link.mode = modelData.key
+                    Accessible.name: modelData.label
+                }
+            }
+        }
+        Label {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            font.pixelSize: Theme.fontCaption
+            color: Theme.textMuted
+            text: panel.link ? panel.modeHint(panel.link.mode) : ""
+        }
+        Label {
+            Layout.fillWidth: true
+            visible: text !== ""
+            wrapMode: Text.WordWrap
+            font.pixelSize: Theme.fontCaption
+            font.weight: Font.DemiBold
+            color: panel.link && panel.link.stageState === "live" ? Theme.success
+                 : panel.link && panel.link.stageState === "error" ? Theme.danger : Theme.warning
+            text: panel.stageText()
+        }
+
         // ลิงก์เชิญ: QR + ปุ่ม
         RowLayout {
             Layout.fillWidth: true
@@ -319,7 +383,9 @@ Popup {
         // เพื่อน
         Label {
             visible: panel.ready
-            text: qsTr("FRIENDS · %1/4").arg(panel.link ? panel.link.friendCount : 0)
+            text: !panel.link ? "" : panel.link.stageViewers > 0
+                  ? qsTr("FRIENDS · %1/4 DIRECT · %2 ON STAGE").arg(panel.link.friendCount - panel.link.stageViewers).arg(panel.link.stageViewers)
+                  : qsTr("FRIENDS · %1/4").arg(panel.link.friendCount)
             font.pixelSize: 11
             font.letterSpacing: 1.6
             font.weight: Font.DemiBold
