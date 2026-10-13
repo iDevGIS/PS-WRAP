@@ -43,6 +43,8 @@ class PsWrapLink : public QObject
 	Q_PROPERTY(QString controllerPeer READ controllerPeer NOTIFY changed)
 	// ทีม PS-WRAP ขอเข้าดูห้อง (จากหน้า Monitor) — เจ้าของห้องต้องกดอนุญาต · หมดอายุเอง 60 วิ
 	Q_PROPERTY(bool viewRequest READ viewRequest NOTIFY changed)
+	// ความดังเสียงเพื่อนแต่ละคน {peer: 0..1} ~15 ครั้ง/วิ (แยก signal — ไม่ทำให้รายชื่อสร้างใหม่) → คลื่นเสียงในการ์ด
+	Q_PROPERTY(QVariantMap levels READ levels NOTIFY levelsChanged)
 	// แบบห้อง: "direct" | "stage" | "both" — เปลี่ยนได้ระหว่างเปิด (ห้อง/ลิงก์เดิม)
 	Q_PROPERTY(QString mode READ mode WRITE setMode NOTIFY changed)
 	Q_PROPERTY(QString stageState READ stageState NOTIFY changed)   // off · connecting · live · error
@@ -61,6 +63,7 @@ public:
 	QString inviteUrl() const;
 	QString inviteQr() const;
 	QVariantList friends() const;
+	QVariantMap levels() const;
 	int friendCount() const;
 	QString controllerPeer() const;
 	bool viewRequest() const;
@@ -87,6 +90,7 @@ public slots:
 
 signals:
 	void changed();
+	void levelsChanged();
 	void toast(const QString &kind, const QString &title, const QString &detail);
 	// แชทจากเพื่อน (ตัด/จำกัดความถี่แล้ว) → QmlMainWindow ส่งเข้า Live Chat overlay · avatar = PNG data URI ที่ encode เอง หรือว่าง
 	void chatMessage(const QString &author, const QString &color, const QString &text, const QString &avatar);

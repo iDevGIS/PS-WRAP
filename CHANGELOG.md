@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.12.2] — 2026-10-14
+Link: friends' voices are smooth and their mics work again, friends can give the controller back and check their devices, and the Link card shows who's talking and who's playing.
+### Changed
+- **Link card: who's talking, who's playing and who's reacting stand out.** A friend who is talking gets blue ripples and a glow around their picture, a live sound wave next to their name (drawn from their real voice level) and a blue name. The friend holding the controller gets a glowing green row with a light sweep, a controller badge on their picture and a solid green **Playing** chip. When a friend sends a reaction, the emoji pops out of their picture.
+- **PS-WRAP Link: friends can give the controller back.** On the friend page, tapping the **Playing** button hands the controller back. You get a notice and your controller works again.
+- **About: website link.** The About window now starts with a link to <https://www.ps-wrap.com> (the section is renamed *PS-WRAP online*).
+- **PS-WRAP Link: friends can choose their microphone.** The small ▾ on the friend page's mic button lists the microphones on their device. The choice is remembered and switching while talking doesn't reconnect.
+- **PS-WRAP Link: Check devices.** The friend page has a **Check devices** button under Join, and a **Devices** button in the room (the game gets no input while it is open). Controller: a live diagram, which buttons have been tested, trigger pressure, stick scopes with a **drift test** and an **edge test**, and a vibration test. Mic: pick it, watch the level, record 4 seconds and hear yourself. Speakers: pick the output (used in the room too) and play left/right test sounds. Keyboard: the diagram lights up as you press the keys of the chosen layout. Camera: a preview, ready for facecam sharing later. Nothing leaves the friend's device.
+
+### Fixed
+- **PS-WRAP Link: friends' voices no longer cut in and out.** A friend's voice used to stop for a moment whenever their connection hiccuped. PS-WRAP now keeps a buffer that grows on a shaky connection and shrinks again when it's steady, recovers lost voice packets, and fades softly instead of clicking. In a test with an uneven connection, the cuts went from about 50 in 10 seconds to none. Over a long session, a friend's voice no longer drifts later and later (PS-WRAP catches up by playing it 0.5% faster for a moment, which you can't hear).
+- **PS-WRAP Link: friends' microphones were silent** since 0.11.6 (the friend page sent the voice on the wrong audio channel). The fix is on the friend page, so it already works with every PS-WRAP version from 0.11.6 once friends reload the page.
+
 ## [0.12.1] — 2026-10-13
 Fixes the PS-WRAP team's view getting stuck in a full room, lets the speaker go up to 200%, and shows friends' pictures to the team while they watch.
 ### Added

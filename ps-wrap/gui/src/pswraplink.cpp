@@ -891,6 +891,8 @@ struct PsWrapLink::Impl
 	std::map<int, std::shared_ptr<LinkVideoTap>> video_taps;
 	std::shared_ptr<LinkAudioTap> audio_tap;
 	bool pad_held = false;
+	QVariantMap levels;          // คลื่นเสียง: peer → 0..1 (GUI thread)
+	QTimer level_timer;
 	QString view_req;            // คำขอเข้าดูจากทีมที่รอเจ้าของห้องตอบ
 	QTimer view_req_timer;
 	QString reclaim_resume;     // คนที่ถือจอยแล้วหลุด (รีเฟรช/เน็ตตก) — กลับมาภายในเวลา = ได้จอยคืนเอง
@@ -990,6 +992,29 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 		}
 		if (in && in->isOpen())
 			in->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("rumble")}, {QStringLiteral("l"), l}, {QStringLiteral("r"), r}}));
+	});
+	// คลื่นเสียง: อ่าน peak ของแต่ละคนทุก 66 ms (เฉพาะคนที่มีไมค์ · เงียบหมด = ไม่ส่ง)
+	d->level_timer.setInterval(66);
+	connect(&d->level_timer, &QTimer::timeout, this, [this]() {
+		QStringList ids;
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			for (auto &[id, p] : d->peers)
+				if (p->mic_on)
+					ids << id;
+		}
+		QVariantMap m;
+		bool any = false;
+		for (const QString &id : ids) {
+			// sqrt = ให้เสียงพูดปกติ (peak ~0.05–0.4) ขยับเห็นชัด
+			const float v = std::min(1.0f, std::sqrt(d->voice.takeLevel(id)) * 1.4f);
+			m.insert(id, v);
+			any = any || v > 0.02f;
+		}
+		if (!any && d->levels.isEmpty())
+			return;
+		d->levels = any ? m : QVariantMap();
+		emit levelsChanged();
 	});
 	// ไฟ "กำลังพูด" ในการ์ด/แผง — เช็คทุก 200 ms แจ้ง QML เฉพาะตอนเปลี่ยน
 	d->voice_timer.setInterval(200);
@@ -1150,6 +1175,7 @@ void PsWrapLink::start()
 		static_cast<PsWrapLinkVoice *>(ctx)->mix(pcm, frames, ch, rate);
 	}, &d->voice);
 	d->voice_timer.start();
+	d->level_timer.start();
 	connectSignal();
 	qCInfo(pswrapLink) << "Link on";
 	emit changed();
@@ -1164,6 +1190,8 @@ void PsWrapLink::stop()
 	d->reconnect_timer.stop();
 	d->pad_timer.stop();
 	d->voice_timer.stop();
+	d->level_timer.stop();
+	d->levels.clear();
 	d->view_req_timer.stop();
 	d->view_req.clear();
 	releaseController(false);
@@ -1887,6 +1915,27 @@ void PsWrapLink::removePeer(const QString &peer, bool notify_server, bool allow_
 void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 {
 	const QString type = msg.value(QStringLiteral("type")).toString();
+	// เวอร์ชันหน้าเว็บของเพื่อน (log เท่านั้น — ไล่ปัญหาเพื่อนที่เปิดหน้าเก่าค้าง)
+	if (type == QLatin1String("page")) {
+		qCInfo(pswrapLink).noquote() << "friend" << peer << "page" << msg.value(QStringLiteral("v")).toString().left(16);
+		return;
+	}
+	// เพื่อนกด "คืนจอย" เองจากหน้าเว็บ (แตะปุ่ม Playing)
+	if (type == QLatin1String("give-back")) {
+		QString name;
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			auto it = d->peers.find(peer);
+			if (it == d->peers.end() || d->controller != peer)
+				return;
+			name = it->second->name.isEmpty() ? tr("A friend") : it->second->name;
+			d->reclaim_resume.clear();
+		}
+		qCInfo(pswrapLink).noquote() << "friend" << peer << "gave the controller back";
+		releaseController(true);
+		emit toast(QStringLiteral("info"), tr("%1 gave the controller back").arg(name), tr("Your controller works again."));
+		return;
+	}
 	QString name;
 	{
 		std::lock_guard<std::mutex> lock(d->m);
@@ -1914,6 +1963,7 @@ void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 			if (p.mic_on == on)
 				return;
 			p.mic_on = on;
+			qCInfo(pswrapLink).noquote() << "friend" << peer << "mic" << (on ? "on" : "off");
 		} else if (type == QLatin1String("react")) {
 			// หน้าเว็บรวมยอดส่งทุก ~250 ms · กดรัวแค่ไหนจอเราก็ลอยไม่เกิน 8 ดวง/วิ/คน (ทุกชนิดรวมกัน)
 			static const QStringList kinds = {QStringLiteral("heart"), QStringLiteral("flower"), QStringLiteral("rock"), QStringLiteral("wai")};
@@ -2064,6 +2114,7 @@ void PsWrapLink::kick(const QString &peer)
 }
 
 bool PsWrapLink::viewRequest() const { return !d->view_req.isEmpty(); }
+QVariantMap PsWrapLink::levels() const { return d->levels; }
 
 void PsWrapLink::answerViewRequest(bool allow)
 {

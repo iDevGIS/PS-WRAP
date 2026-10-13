@@ -85,10 +85,13 @@ Dialog {
                 width: flick.width - Theme.space4
                 spacing: Theme.space4
 
-                // PS-WRAP: ของเราก่อน — repo / ดาวน์โหลด / แจ้งปัญหา / Discord
+                // PS-WRAP: ของเราก่อน — เว็บ / repo / ดาวน์โหลด / แจ้งปัญหา / Discord
                 Section {
-                    title: qsTr("PS-WRAP on GitHub")
-                    text: qsTr("Source code, downloads and release notes: %1")
+                    title: qsTr("PS-WRAP online")
+                    text: qsTr("Website: %1")
+                          .arg(about.link("https://www.ps-wrap.com", "www.ps-wrap.com"))
+                          + "<br>"
+                          + qsTr("Source code, downloads and release notes: %1")
                           .arg(about.link("https://github.com/iDevGIS/PS-WRAP", "github.com/iDevGIS/PS-WRAP"))
                           + "<br>"
                           + qsTr("Found a bug or have an idea? %1 · What's new: %2")

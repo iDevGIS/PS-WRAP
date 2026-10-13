@@ -43,6 +43,7 @@ Item {
     readonly property color ice: "#7fe8ff"
     readonly property color amber: "#ffc857"
     readonly property color violet: "#c4b5fd"
+    readonly property color speakColor: "#5cc8ff"
     readonly property var avatarColors: ["#00a7ff", "#a78bfa", "#34d399", "#f472b6", "#fb923c"]
     function avatarColor(name) {
         let h = 0;
@@ -216,34 +217,217 @@ Item {
         // เพื่อนแต่ละคน
         Repeater {
             model: root.mini ? [] : root.friends
-            delegate: RowLayout {
+            delegate: Item {
+                id: fRow
                 required property var modelData
+                readonly property bool playing: modelData.controller
+                // คลื่นเสียง: ความดัง 18 ช่วงล่าสุด (~1.2 วิ) จาก Chiaki.link.levels · ใหม่สุดอยู่ขวา
+                property var wave: []
+                readonly property bool waveOn: modelData.speaking || wave.some(v => v > 0.06)
+                Connections {
+                    target: root.link
+                    ignoreUnknownSignals: true
+                    function onLevelsChanged() {
+                        const lv = root.link.levels[fRow.modelData.peer] || 0;
+                        let w = fRow.wave.slice(-17);
+                        w.push(lv);
+                        while (w.length < 18)
+                            w.unshift(0);
+                        fRow.wave = w;
+                    }
+                    // รีแอคชันของคนนี้ → อีโมจิเด้งออกจากรูป + รูปเด้ง
+                    function onReaction(name, color, kind, count) {
+                        if (name !== fRow.modelData.name)
+                            return;
+                        avatarBounce.restart();
+                        for (let i = 0; i < Math.min(count, 3); ++i)
+                            popEmoji.createObject(avatarBox, { kind: kind, delay: i * 140, drift: 10 + Math.random() * 26 });
+                    }
+                }
+                Component {
+                    id: popEmoji
+                    Image {
+                        id: pe
+                        property string kind
+                        property int delay: 0
+                        property real drift: 0
+                        z: 10
+                        width: 16
+                        height: 16
+                        x: (parent.width - width) / 2
+                        y: (parent.height - height) / 2
+                        sourceSize: Qt.size(40, 40)
+                        source: "qrc:/icons/react/" + kind + ".svg"
+                        scale: 0.2
+                        opacity: 0
+                        SequentialAnimation {
+                            running: true
+                            PauseAnimation { duration: pe.delay }
+                            ParallelAnimation {
+                                NumberAnimation { target: pe; property: "opacity"; from: 1; to: 1; duration: 1 }
+                                NumberAnimation { target: pe; property: "scale"; from: 0.2; to: 1.15; duration: 260; easing.type: Easing.OutBack }
+                                NumberAnimation { target: pe; property: "y"; to: -18; duration: 1000; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: pe; property: "x"; to: pe.x + pe.drift; duration: 1000; easing.type: Easing.OutSine }
+                                SequentialAnimation {
+                                    PauseAnimation { duration: 550 }
+                                    NumberAnimation { target: pe; property: "opacity"; to: 0; duration: 450 }
+                                }
+                            }
+                            ScriptAction { script: pe.destroy() }
+                        }
+                    }
+                }
                 Layout.fillWidth: true
-                spacing: 8
-                // รูปโปรไฟล์ (PNG ที่ pswraplink encode เอง) · ไม่มีรูป = ตัวอักษรแรกบนสีประจำชื่อ
+                // คนถือจอย: แถวเป็นแถบเขียวเรืองแสง + แสงวิ่งผ่าน + ป้ายจอยบนรูป
+                implicitHeight: fRowLayout.implicitHeight + (playing ? 12 : 0)
                 Rectangle {
+                    anchors.fill: parent
+                    anchors.leftMargin: -6
+                    anchors.rightMargin: -6
+                    visible: fRow.playing
+                    radius: 12
+                    clip: true
+                    border.width: 1
+                    border.color: Qt.rgba(0.25, 0.73, 0.31, 0.75)
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: Qt.rgba(0.25, 0.73, 0.31, 0.38) }
+                        GradientStop { position: 1.0; color: Qt.rgba(0.25, 0.73, 0.31, 0.10) }
+                    }
+                    // แสงวิ่งจากซ้ายไปขวาทุก ~3 วิ
+                    Rectangle {
+                        id: sheen
+                        width: 60
+                        height: parent.height
+                        x: -width
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: "transparent" }
+                            GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.16) }
+                            GradientStop { position: 1.0; color: "transparent" }
+                        }
+                        SequentialAnimation on x {
+                            running: fRow.playing && root.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { from: -sheen.width; to: sheen.parent.width; duration: 1400; easing.type: Easing.InOutQuad }
+                            PauseAnimation { duration: 1800 }
+                        }
+                    }
+                }
+            RowLayout {
+                id: fRowLayout
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                // กำลังพูด: วงคลื่นฟ้าแผ่ออกจากรูป 2 ชั้น (สลับจังหวะ) + คลื่นเสียงจริงข้างชื่อ
+                Item {
+                    id: avatarBox
                     Layout.preferredWidth: 26
                     Layout.preferredHeight: 26
-                    radius: 8
-                    color: modelData.color || root.avatarColor(modelData.name)
-                    // ขอบเขียว = ถือจอย · ขอบฟ้าเต้น = กำลังพูด
-                    border.width: modelData.speaking || modelData.controller ? 2 : 0
-                    border.color: modelData.speaking ? "#00a7ff" : "#3fb950"
-                    Text {
-                        anchors.centerIn: parent
-                        visible: !modelData.avatar
-                        text: modelData.name.length ? modelData.name.charAt(0).toUpperCase() : "?"
-                        font.pixelSize: 13
-                        font.weight: Font.Bold
-                        color: "white"
+                    SequentialAnimation {
+                        id: avatarBounce
+                        NumberAnimation { target: avatarBox; property: "scale"; to: 1.3; duration: 120; easing.type: Easing.OutQuad }
+                        NumberAnimation { target: avatarBox; property: "scale"; to: 1.0; duration: 380; easing.type: Easing.OutElastic }
                     }
-                    Image {
+                    Repeater {
+                        model: modelData.speaking ? 2 : 0
+                        delegate: Rectangle {
+                            id: ripple
+                            required property int index
+                            anchors.fill: parent
+                            radius: 9
+                            color: "transparent"
+                            border.width: 2
+                            border.color: root.speakColor
+                            opacity: 0
+                            SequentialAnimation {
+                                running: true
+                                loops: Animation.Infinite
+                                PauseAnimation { duration: ripple.index * 450 }
+                                ParallelAnimation {
+                                    NumberAnimation { target: ripple; property: "scale"; from: 1.0; to: 1.6; duration: 900; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: ripple; property: "opacity"; from: 0.9; to: 0; duration: 900; easing.type: Easing.OutQuad }
+                                }
+                                PauseAnimation { duration: (1 - ripple.index) * 450 }
+                            }
+                        }
+                    }
+                    // แสงฟุ้งรอบรูปตอนพูด
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width + 6
+                        height: parent.height + 6
+                        radius: 11
+                        color: root.speakColor
+                        opacity: modelData.speaking ? 0.28 : 0
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                    }
+                    // รูปโปรไฟล์ (PNG ที่ pswraplink encode เอง) · ไม่มีรูป = ตัวอักษรแรกบนสีประจำชื่อ
+                    Rectangle {
                         anchors.fill: parent
-                        anchors.margins: modelData.speaking || modelData.controller ? 2 : 0
-                        visible: !!modelData.avatar
-                        source: modelData.avatar || ""
-                        fillMode: Image.PreserveAspectCrop
-                        sourceSize: Qt.size(52, 52)
+                        radius: 8
+                        color: modelData.color || root.avatarColor(modelData.name)
+                        // ขอบเขียว = ถือจอย · ขอบฟ้าเต้น = กำลังพูด
+                        border.width: modelData.speaking || modelData.controller ? 2 : 0
+                        border.color: modelData.speaking ? "#00a7ff" : "#3fb950"
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !modelData.avatar
+                            text: modelData.name.length ? modelData.name.charAt(0).toUpperCase() : "?"
+                            font.pixelSize: 13
+                            font.weight: Font.Bold
+                            color: "white"
+                        }
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: modelData.speaking || modelData.controller ? 2 : 0
+                            visible: !!modelData.avatar
+                            source: modelData.avatar || ""
+                            fillMode: Image.PreserveAspectCrop
+                            sourceSize: Qt.size(52, 52)
+                        }
+                    }
+                    // ป้ายจอยมุมขวาล่างของรูป
+                    Rectangle {
+                        visible: fRow.playing
+                        width: 14
+                        height: 14
+                        radius: 7
+                        x: parent.width - 9
+                        y: parent.height - 9
+                        color: "#3fb950"
+                        border.width: 1.5
+                        border.color: "#0d1117"
+                        Image {
+                            anchors.centerIn: parent
+                            width: 10
+                            height: 10
+                            sourceSize: Qt.size(20, 20)
+                            source: "qrc:/icons/menu/gamepad.svg"
+                        }
+                    }
+                }
+                // คลื่นเสียงจริง: แท่งสะท้อนบน-ล่างเลื่อนจากขวาไปซ้าย · เก่าจางลง · โผล่เมื่อมีเสียง
+                Item {
+                    visible: fRow.waveOn
+                    Layout.preferredWidth: 18 * 3
+                    Layout.preferredHeight: 22
+                    Layout.alignment: Qt.AlignVCenter
+                    Repeater {
+                        model: 18
+                        delegate: Rectangle {
+                            required property int index
+                            readonly property real v: fRow.wave.length > index ? fRow.wave[index] : 0
+                            x: index * 3
+                            width: 2
+                            height: 2 + v * 20
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: 1
+                            color: Qt.rgba(0.36 + 0.4 * v, 0.78 + 0.2 * v, 1, 1)
+                            opacity: 0.25 + 0.75 * (index / 17)
+                            Behavior on height { NumberAnimation { duration: 60 } }
+                        }
                     }
                 }
                 Text {
@@ -254,28 +438,38 @@ Item {
                         : modelData.name
                     elide: Text.ElideRight
                     font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    color: modelData.staff ? root.violet : "white"
+                    font.weight: fRow.playing ? Font.Bold : Font.DemiBold
+                    color: modelData.staff ? root.violet : modelData.speaking ? root.speakColor : fRow.playing ? "#aff5b4" : "white"
                 }
                 // สถานะ: ถือจอย (เขียว) · ขอจอย (เหลือง) · ดูอยู่ + ping
                 Rectangle {
                     Layout.preferredHeight: 20
-                    Layout.preferredWidth: chip.implicitWidth + 14
+                    Layout.preferredWidth: chip.implicitWidth + 14 + (fRow.playing ? 14 : 0)
                     radius: 10
-                    color: modelData.controller ? Qt.rgba(0.25, 0.73, 0.31, 0.25)
+                    color: modelData.controller ? "#3fb950"
                          : modelData.wantsController ? Qt.rgba(1, 0.78, 0.34, 0.22)
                          : Qt.rgba(1, 1, 1, 0.07)
+                    Image {
+                        visible: fRow.playing
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: 6
+                        width: 13
+                        height: 13
+                        sourceSize: Qt.size(26, 26)
+                        source: "qrc:/icons/menu/gamepad.svg"
+                    }
                     Text {
                         id: chip
                         anchors.centerIn: parent
-                        text: modelData.controller ? qsTr("Controller")
+                        anchors.horizontalCenterOffset: fRow.playing ? 7 : 0
+                        text: modelData.controller ? qsTr("Playing")
                             : modelData.wantsController ? qsTr("Wants to play")
                             : modelData.status !== "watching" ? qsTr("Joining…")
                             : modelData.latency >= 0 ? qsTr("%1 ms").arg(modelData.latency) : qsTr("Watching")
                         font.pixelSize: 11
-                        font.weight: Font.DemiBold
+                        font.weight: fRow.playing ? Font.Black : Font.DemiBold
                         font.features: { "tnum": 1 }
-                        color: modelData.controller ? "#7ee787" : modelData.wantsController ? root.amber : Qt.rgba(1, 1, 1, 0.7)
+                        color: modelData.controller ? "#062312" : modelData.wantsController ? root.amber : Qt.rgba(1, 1, 1, 0.7)
                     }
                 }
                 // ปิด/เปิดเสียงไมค์คนนี้ (โผล่เมื่อเพื่อนเปิดไมค์)
@@ -292,6 +486,7 @@ Item {
                     tint: Qt.rgba(0.25, 0.73, 0.31, 0.35)
                     onClicked: root.takeBack()
                 }
+            }
             }
         }
 
