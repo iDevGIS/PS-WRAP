@@ -13,7 +13,17 @@ Item {
     readonly property real aspect: 1138 / 765
     readonly property real unit: width / 1138          // 1 หน่วย viewBox = กี่ px
     readonly property real maxOffset: 15                // จาก JS ของ tracker (หน่วย viewBox)
-    readonly property int buttons: controller ? controller.buttons : 0   // QML ไม่มี type uint; mask สูงสุด 1<<17 พอใน int
+    // PS-WRAP Link: ปุ่มของเพื่อนที่ถือจอยรวมเข้าด้วย (แบบเดียวกับที่ส่งเข้า PS5: ปุ่ม OR, สติ๊ก/ไกเอาค่าที่มากกว่า)
+    readonly property var linkPad: Chiaki.link !== undefined && Chiaki.link && Chiaki.link.pad ? Chiaki.link.pad : null
+    readonly property bool linkActive: !!linkPad && !!linkPad.active
+    function pick(a, b) { return Math.abs(b) > Math.abs(a) ? b : a }
+    readonly property real lx: pick(controller ? controller.leftX : 0, linkActive ? linkPad.lx : 0)
+    readonly property real ly: pick(controller ? controller.leftY : 0, linkActive ? linkPad.ly : 0)
+    readonly property real rx: pick(controller ? controller.rightX : 0, linkActive ? linkPad.rx : 0)
+    readonly property real ry: pick(controller ? controller.rightY : 0, linkActive ? linkPad.ry : 0)
+    readonly property real l2v: Math.max(controller ? controller.l2 : 0, linkActive ? linkPad.l2 : 0)
+    readonly property real r2v: Math.max(controller ? controller.r2 : 0, linkActive ? linkPad.r2 : 0)
+    readonly property int buttons: (controller ? controller.buttons : 0) | (linkActive ? linkPad.buttons : 0)   // QML ไม่มี type uint; mask สูงสุด 1<<17 พอใน int
     // PS-WRAP: สีไฟจอยที่เครื่องสั่ง (เกมเปลี่ยนสีได้ เช่น เลือด/ตำรวจ) · ยังไม่มีสี/ไม่ได้สตรีม = ซ่อน
     // previewColor: หน้า Controllers ทดสอบสีไฟ (ชนะสีจากเครื่อง)
     property color previewColor: "transparent"
@@ -23,7 +33,7 @@ Item {
     implicitWidth: 320
     implicitHeight: implicitWidth / aspect
     height: width / aspect
-    visible: controller !== null
+    visible: controller !== null || linkActive
     opacity: overlayOpacity
 
     // Gamepad API index (ไฟล์ ds-B<n>.svg) → bitmask ของ chiaki (lib/include/chiaki/controller.h)
@@ -119,7 +129,7 @@ Item {
         source: "qrc:/icons/overlay/ds-B6.svg"
         sourceSize: Qt.size(width, height)
         fillMode: Image.PreserveAspectFit
-        opacity: overlay.controller ? overlay.controller.l2 : 0
+        opacity: overlay.l2v
         visible: opacity > 0.02
         smooth: true
     }
@@ -128,7 +138,7 @@ Item {
         source: "qrc:/icons/overlay/ds-B7.svg"
         sourceSize: Qt.size(width, height)
         fillMode: Image.PreserveAspectFit
-        opacity: overlay.controller ? overlay.controller.r2 : 0
+        opacity: overlay.r2v
         visible: opacity > 0.02
         smooth: true
     }
@@ -141,8 +151,8 @@ Item {
         fillMode: Image.PreserveAspectFit
         smooth: true
         transform: Translate {
-            x: overlay.controller ? overlay.controller.leftX * overlay.maxOffset * overlay.unit : 0
-            y: overlay.controller ? overlay.controller.leftY * overlay.maxOffset * overlay.unit : 0
+            x: overlay.lx * overlay.maxOffset * overlay.unit
+            y: overlay.ly * overlay.maxOffset * overlay.unit
         }
     }
     Image {
@@ -152,8 +162,8 @@ Item {
         fillMode: Image.PreserveAspectFit
         smooth: true
         transform: Translate {
-            x: overlay.controller ? overlay.controller.rightX * overlay.maxOffset * overlay.unit : 0
-            y: overlay.controller ? overlay.controller.rightY * overlay.maxOffset * overlay.unit : 0
+            x: overlay.rx * overlay.maxOffset * overlay.unit
+            y: overlay.ry * overlay.maxOffset * overlay.unit
         }
     }
 }

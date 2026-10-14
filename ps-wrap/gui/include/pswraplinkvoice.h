@@ -10,6 +10,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
+#include <vector>
 
 class PsWrapLinkVoice
 {
@@ -28,6 +30,9 @@ public:
 	// ความดังสูงสุด (0..1) ตั้งแต่ถามครั้งก่อน แล้วรีเซ็ต — คลื่นเสียงในการ์ด Link
 	float takeLevel(const QString &peer);
 	bool anyVoice() const;
+	// เพื่อนได้ยินกันเอง: thread ตัวอัด (นาฬิกาเดียวกับไมค์เจ้าของเครื่อง) ดึงเสียงเพื่อนแต่ละคน n ตัวอย่าง (โมโน 48 kHz)
+	// มีบัฟเฟอร์กันกระตุกของตัวเอง (แยกจากที่เล่นออกลำโพง) · คืนเฉพาะคนที่กำลังมีเสียง
+	void takeForward(size_t n, std::vector<std::pair<QString, std::vector<float>>> &out);
 	// ทิ้งทุกคน (Link ปิด)
 	void stop();
 

@@ -26,6 +26,10 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSettings>
+#include <QUdpSocket>
+#include <QHostAddress>
+#include <set>
+#include <QCryptographicHash>
 #include <QLoggingCategory>
 #include <QPointer>
 #include <QRandomGenerator>
@@ -34,6 +38,9 @@
 #include <QUrl>
 #include <QVariantMap>
 #include <QWebSocket>
+#include <QPainter>
+#include <QPainterPath>
+#include <QQuickImageProvider>
 
 #include <algorithm>
 #include <atomic>
@@ -508,6 +515,191 @@ private:
 	}
 };
 
+// ---------------------------------------------------------------- facecam ของเพื่อน
+// เพื่อนส่ง JPEG สี่เหลี่ยมจัตุรัส ~12 fps ทาง "input" (binary, unordered — เฟรมหายได้ เฟรมใหม่ทับ) · ตรง P2P ไม่ผ่านเซิร์ฟเวอร์
+// ถอดใน rtc thread → ภาพกลม 176 px (ขอบโปร่ง) → เก็บไว้ให้ QML ดึงผ่าน image provider
+// ถอด JPEG ด้วย FFmpeg (mjpeg) ไม่ใช่ QImage/libjpeg: libjpeg หนีข้อผิดพลาดด้วย longjmp ซึ่งบน MinGW ทำ unwind พัง
+// ใน thread ของ libdatachannel → แอปปิดทันที (0xc00000ff, 2026-10-14 เพื่อนเปิดกล้องแล้ว PS-WRAP หลุด) · FFmpeg แค่คืน error
+// candidate host ในข้อเสนอ: เหลือแค่ IP ของการ์ดเน็ตหลัก (route ออกเน็ต) + srflx/relay ทั้งหมด
+// เครื่องที่มี Tailscale / Hyper-V / WSL / VPN / 169.254 มี candidate host เพียบ → ICE ลองคู่ที่ไม่มีทางติดก่อน
+// (2026-10-14: เพื่อนต่อไม่ติดหรือรอ ~40 วิ ทั้งที่เช้าวันเดียวกันติดใน 0.5 วิ)
+QString filterHostCandidates(const QString &sdp, const QString &lan_ip)
+{
+	const QStringList lines = sdp.split(QStringLiteral("\r\n"));
+	QStringList out;
+	int dropped = 0;
+	for (const QString &l : lines) {
+		if (l.startsWith(QLatin1String("a=candidate:")) && l.contains(QLatin1String(" typ host"))) {
+			const QStringList f = l.split(QLatin1Char(' '));
+			const QString ip = f.size() > 4 ? f.at(4) : QString();
+			const bool junk = ip.startsWith(QLatin1String("169.254.")) || ip.startsWith(QLatin1String("fe80"))
+			                  || QHostAddress(ip).isInSubnet(QHostAddress(QStringLiteral("100.64.0.0")), 10);   // APIPA / link-local / CGNAT (Tailscale)
+			if (junk || (!lan_ip.isEmpty() && ip.contains(QLatin1Char('.')) && ip != lan_ip)) {
+				dropped++;
+				continue;
+			}
+		}
+		out << l;
+	}
+	if (dropped)
+		qCInfo(pswrapLink) << "offer: dropped" << dropped << "host candidates (kept" << (lan_ip.isEmpty() ? QStringLiteral("all real") : lan_ip) << ")";
+	return out.join(QStringLiteral("\r\n"));
+}
+
+// IP ของการ์ดเน็ตที่ใช้ออกเน็ต (UDP connect ไม่ส่งแพ็กเก็ตจริง)
+QString defaultRouteIp()
+{
+	QUdpSocket s;
+	s.connectToHost(QHostAddress(QStringLiteral("1.1.1.1")), 53);
+	if (!s.waitForConnected(300))
+		return QString();
+	const QHostAddress a = s.localAddress();
+	return a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLoopback() ? a.toString() : QString();
+}
+
+// รูปจากเพื่อน (กล้อง/รูปโปรไฟล์) ถอดด้วย FFmpeg เสมอ — ห้ามใช้ QImage::loadFromData กับไบต์จากเพื่อน (เหตุผลข้างบน)
+// out_w/out_h = 0 → ขนาดเดิม · คืน ARGB32 (ไม่โปร่ง) · ผิดพลาด/ใหญ่เกิน 2048 = ภาพว่าง
+QImage ffDecodeImage(AVCodecID id, const char *data, size_t size, int out_w = 0, int out_h = 0)
+{
+	const AVCodec *codec = avcodec_find_decoder(id);
+	if (!codec || size == 0 || size > 1024 * 1024)
+		return QImage();
+	AVCodecContext *dec = avcodec_alloc_context3(codec);
+	AVPacket *pkt = av_packet_alloc();
+	AVFrame *frame = av_frame_alloc();
+	QImage out;
+	if (dec && pkt && frame) {
+		dec->thread_count = 1;
+		QByteArray buf(int(size) + AV_INPUT_BUFFER_PADDING_SIZE, '\0');   // FFmpeg อ่านเกินท้ายได้
+		memcpy(buf.data(), data, size);
+		pkt->data = reinterpret_cast<uint8_t *>(buf.data());
+		pkt->size = int(size);
+		if (avcodec_open2(dec, codec, nullptr) >= 0 && avcodec_send_packet(dec, pkt) >= 0 && avcodec_receive_frame(dec, frame) >= 0
+		    && frame->width > 0 && frame->height > 0 && frame->width <= 2048 && frame->height <= 2048) {
+			const int w = out_w > 0 ? out_w : frame->width, h = out_h > 0 ? out_h : frame->height;
+			SwsContext *sws = sws_getContext(frame->width, frame->height, AVPixelFormat(frame->format), w, h, AV_PIX_FMT_BGRA,
+			                                 SWS_BILINEAR, nullptr, nullptr, nullptr);
+			if (sws) {
+				out = QImage(w, h, QImage::Format_ARGB32);
+				uint8_t *dst[4] = {out.bits(), nullptr, nullptr, nullptr};
+				int dst_ls[4] = {int(out.bytesPerLine()), 0, 0, 0};
+				if (sws_scale(sws, frame->data, frame->linesize, 0, frame->height, dst, dst_ls) <= 0)
+					out = QImage();
+				sws_freeContext(sws);
+			}
+		}
+		pkt->data = nullptr;
+		pkt->size = 0;
+	}
+	av_frame_free(&frame);
+	av_packet_free(&pkt);
+	avcodec_free_context(&dec);
+	return out;
+}
+
+constexpr int kCamSize = 176;
+constexpr size_t kCamMaxBytes = 48 * 1024;
+constexpr qint64 kCamMinGapMs = 45;     // ไม่เกิน ~20 fps ต่อคน
+constexpr qint64 kCamStaleMs = 3000;    // ไม่มีเฟรมนานเท่านี้ = กล้องปิด
+
+struct LinkCamStore
+{
+	std::mutex m;
+	struct Cam { QImage img; int n = 0; qint64 at = 0; };
+	std::map<QString, Cam> cams;
+	std::atomic<bool> dirty{false};
+	// rtc thread
+	bool put(const QString &peer, const char *data, size_t size)
+	{
+		// JPEG ครบชิ้น: ขึ้นต้น FFD8 ลงท้าย FFD9 (ขาด = ทิ้ง ไม่ส่งเข้าตัวถอด)
+		if (size < 4 || size > kCamMaxBytes || uint8_t(data[0]) != 0xFF || uint8_t(data[1]) != 0xD8
+		    || uint8_t(data[size - 2]) != 0xFF || uint8_t(data[size - 1]) != 0xD9)
+			return false;
+		const qint64 now = QDateTime::currentMSecsSinceEpoch();
+		{
+			std::lock_guard<std::mutex> lock(m);
+			auto it = cams.find(peer);
+			if (it != cams.end() && now - it->second.at < kCamMinGapMs)
+				return false;
+		}
+		const QImage src = ffDecodeImage(AV_CODEC_ID_MJPEG, data, size, kCamSize, kCamSize);   // หน้าเว็บส่งจัตุรัส
+		if (src.isNull())
+			return false;
+		QImage round(kCamSize, kCamSize, QImage::Format_ARGB32_Premultiplied);
+		round.fill(Qt::transparent);
+		{
+			QPainter p(&round);
+			p.setRenderHint(QPainter::Antialiasing);
+			QPainterPath path;
+			path.addEllipse(QRectF(0, 0, kCamSize, kCamSize));
+			p.setClipPath(path);
+			p.drawImage(0, 0, src);
+		}
+		std::lock_guard<std::mutex> lock(m);
+		Cam &c = cams[peer];
+		c.img = std::move(round);
+		c.n++;
+		c.at = now;
+		dirty = true;
+		return true;
+	}
+	void remove(const QString &peer)
+	{
+		std::lock_guard<std::mutex> lock(m);
+		if (cams.erase(peer))
+			dirty = true;
+	}
+	void clear()
+	{
+		std::lock_guard<std::mutex> lock(m);
+		cams.clear();
+		dirty = true;
+	}
+	// GUI thread: ทิ้งกล้องที่เงียบไป + สรุป {peer: n}
+	QVariantMap snapshot()
+	{
+		const qint64 now = QDateTime::currentMSecsSinceEpoch();
+		std::lock_guard<std::mutex> lock(m);
+		QVariantMap out;
+		for (auto it = cams.begin(); it != cams.end();) {
+			if (now - it->second.at > kCamStaleMs) {
+				it = cams.erase(it);
+				continue;
+			}
+			out.insert(it->first, it->second.n);
+			++it;
+		}
+		return out;
+	}
+	QImage image(const QString &peer)
+	{
+		std::lock_guard<std::mutex> lock(m);
+		auto it = cams.find(peer);
+		return it == cams.end() ? QImage() : it->second.img;
+	}
+};
+
+class LinkCamProvider : public QQuickImageProvider
+{
+public:
+	explicit LinkCamProvider(std::shared_ptr<LinkCamStore> s) : QQuickImageProvider(QQuickImageProvider::Image), store(std::move(s)) {}
+	// id = "<peer>?<เลขเฟรม>" (เลขไว้กันแคช)
+	QImage requestImage(const QString &id, QSize *size, const QSize &) override
+	{
+		QImage img = store->image(id.section(QLatin1Char('?'), 0, 0));
+		if (img.isNull()) {
+			img = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
+			img.fill(Qt::transparent);
+		}
+		if (size)
+			*size = img.size();
+		return img;
+	}
+
+private:
+	std::shared_ptr<LinkCamStore> store;
+};
+
 // ---------------------------------------------------------------- เสียง: Opus 10 ms (1 ชุด ส่งทุกคน)
 // เกม (stereo) กับไมค์ของเจ้าของเครื่อง (mono) แยกกันคนละ track — หน้าเว็บเพื่อนปรับความดังแยกได้
 class LinkOpusOut
@@ -601,8 +793,10 @@ class LinkAudioTap : public PsWrapRawTap
 {
 public:
 	LinkOpusOut game;    // track "audio" (เพื่อนส่งไมค์กลับมาทาง track นี้ด้วย — sendrecv)
-	LinkOpusOut voice;   // track "voice": ไมค์ของเจ้าของเครื่อง
+	LinkOpusOut voice;   // track "voice" ของ Stage: ไมค์เจ้าของเครื่อง + เพื่อนทุกคน
 	std::function<void()> on_detached;   // GUI thread
+	// เพื่อนได้ยินกันเอง: ไมค์เจ้าของเครื่องทุกก้อน → ผสมแยกต่อคน (ไม่มีเสียงตัวเอง) → encoder ของคนนั้น (worker ของ recorder)
+	std::function<void(const float *micL, const float *micR, int64_t n)> crowd;
 
 	bool open(QString *error)
 	{
@@ -621,7 +815,10 @@ public:
 		}
 		expected = pos + n;
 		game.push(gameL, gameR, n);
-		voice.push(micL, micR, n);
+		if (crowd)
+			crowd(micL, micR, n);
+		else
+			voice.push(micL, micR, n);
 	}
 	void detached() override
 	{
@@ -771,8 +968,10 @@ QString sanitizeAvatar(const QString &uri)
 	const QByteArray raw = QByteArray::fromBase64(m.captured(2).toLatin1());
 	if (raw.isEmpty() || raw.size() > 64 * 1024)
 		return QString();
-	QImage img;
-	if (!img.loadFromData(raw) || img.width() < 8 || img.height() < 8 || img.width() > 2048 || img.height() > 2048)
+	const QString kind = m.captured(1);
+	QImage img = ffDecodeImage(kind == QLatin1String("png") ? AV_CODEC_ID_PNG : kind == QLatin1String("gif") ? AV_CODEC_ID_GIF : AV_CODEC_ID_MJPEG,
+	                           raw.constData(), size_t(raw.size()));   // ไม่ใช้ QImage::loadFromData (libjpeg/libpng longjmp พังบน MinGW)
+	if (img.isNull() || img.width() < 8 || img.height() < 8)
 		return QString();
 	const int side = std::min(img.width(), img.height());
 	img = img.copy((img.width() - side) / 2, (img.height() - side) / 2, side, side)
@@ -838,6 +1037,8 @@ struct PsWrapLink::Peer
 	// GUI thread (อ่านใต้ m ด้วยเพราะ friends() อ่าน)
 	QString status = QStringLiteral("connecting");
 	bool staff = false;   // ทีม PS-WRAP ที่เจ้าของห้องอนุญาตให้ดู — ดูอย่างเดียว ไม่ได้จอย
+	QString ident;        // hash ของรหัสสุ่มจากหน้าเว็บเพื่อน (localStorage) — จำเพื่อนคนเดิมข้ามการเข้าออก
+	bool starred = false; // เจ้าของห้องติดดาว
 	bool stage = false;   // ดูผ่าน Stage (WHEP จากเซิร์ฟเวอร์) — ไม่มี pc · ข้อความควบคุมผ่าน relay
 	QString resume;   // รหัสต่อแท็บของหน้าเว็บ (sessionStorage) — รีเฟรชแล้วรหัสเดิม = คนเดิม
 	bool wants_controller = false;
@@ -847,6 +1048,7 @@ struct PsWrapLink::Peer
 	std::deque<qint64> chat_times;  // จำกัด: 5 ข้อความ / 10 วิ
 	bool mic_on = false;            // เพื่อนเปิดไมค์ (หน้าเว็บบอก)
 	bool mic_muted = false;         // เจ้าของเครื่องปิดเสียงคนนี้
+	std::atomic<bool> cam_blocked{false};   // เจ้าของเครื่องปิดกล้องคนนี้ (rtc thread อ่านตอนเฟรมเข้า)
 	bool speaking = false;          // GUI thread อัปเดตจาก voice ทุก 200 ms
 	double heart_tokens = 20;       // หัวใจ: token bucket 8 ดวง/วิ สะสมได้ 20
 	qint64 heart_ms = 0;
@@ -886,12 +1088,17 @@ struct PsWrapLink::Impl
 	std::atomic<bool> rumble_haptics{false};
 	std::atomic<int64_t> rumble_ms{0};
 	bool rumble_sent_nonzero = false;
+	bool rumble_logged = false;   // log การสั่นครั้งแรกหลังส่งจอย (ไล่ว่าเกมส่งสั่นมาจริงไหม)
 	PsWrapLinkVoice voice;   // เสียงไมค์เพื่อน → ลำโพงเรา
 	std::vector<rtc::IceServer> ice;
 	std::map<int, std::shared_ptr<LinkVideoTap>> video_taps;
 	std::shared_ptr<LinkAudioTap> audio_tap;
 	bool pad_held = false;
 	QVariantMap levels;          // คลื่นเสียง: peer → 0..1 (GUI thread)
+	QString lan_ip;              // IP ของการ์ดเน็ตที่ออกเน็ตจริง (route หลัก) — candidate host อื่นทิ้ง
+	QVariantMap starred;         // ดาว: hash → ชื่อล่าสุด (QSettings pswrap/link_starred, GUI thread)
+	std::shared_ptr<LinkCamStore> cam_store = std::make_shared<LinkCamStore>();
+	QVariantMap cams;            // facecam: peer → เลขเฟรม (GUI thread)
 	QTimer level_timer;
 	QString view_req;            // คำขอเข้าดูจากทีมที่รอเจ้าของห้องตอบ
 	QTimer view_req_timer;
@@ -908,11 +1115,16 @@ struct PsWrapLink::Impl
 	QNetworkAccessManager *nam = nullptr;
 	QTimer stage_retry;
 	QString pending_upgrade;   // คนดู Stage ที่กำลังย้ายมาส่งตรงเพื่อรับจอย
+	bool pending_upgrade_co = false;   // ย้ายมาเพื่อถือร่วม (ดาว) ไม่ใช่รับจอยแทนคนเดิม
 
 	// ใช้ข้าม thread (rtc / tap / worker ของ recorder) ใต้ m
 	mutable std::mutex m;
 	std::map<QString, std::shared_ptr<Peer>> peers;
 	QString controller;
+	std::set<QString> co;   // ถือร่วม (เพื่อนติดดาว) — ใต้ m · ปุ่มของทุกคนรวมกันก่อนส่ง PS5
+	std::map<QString, ChiakiControllerState> pad_states;   // GUI thread: สถานะล่าสุดของแต่ละคนที่ถือ
+	std::map<QString, int64_t> pad_at;                     // GUI thread: เวลาที่ได้ล่าสุด (us)
+	QVariantMap pad_view;                                  // GUI thread: ปุ่มเพื่อนรวมแล้ว ให้ overlay จอย
 	std::atomic<uint64_t> gen{0};          // เปลี่ยนทุกครั้งที่ปิด/ต่อใหม่ — callback รุ่นเก่าทิ้งตัวเอง
 	std::atomic<int64_t> last_pad_us{0};
 };
@@ -948,6 +1160,7 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 	}
 #endif
 
+	d->starred = QSettings().value(QStringLiteral("pswrap/link_starred")).toMap();
 	{
 		const QString m = QSettings().value(QStringLiteral("pswrap/link_mode")).toString();
 		if (m == QLatin1String("stage") || m == QLatin1String("both"))
@@ -983,15 +1196,22 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 		if (!nonzero && !d->rumble_sent_nonzero)
 			return;
 		d->rumble_sent_nonzero = nonzero;
-		std::shared_ptr<rtc::DataChannel> in;
+		std::vector<std::shared_ptr<rtc::DataChannel>> ins;   // ทุกคนที่ถือจอย (รวมคนถือร่วม)
 		{
 			std::lock_guard<std::mutex> lock(d->m);
-			auto it = d->peers.find(d->controller);
-			if (it != d->peers.end())
-				in = it->second->input;
+			auto add = [&](const QString &id) { auto it = d->peers.find(id); if (it != d->peers.end() && it->second->input) ins.push_back(it->second->input); };
+			add(d->controller);
+			for (const QString &id : d->co)
+				add(id);
 		}
-		if (in && in->isOpen())
-			in->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("rumble")}, {QStringLiteral("l"), l}, {QStringLiteral("r"), r}}));
+		const std::string msg = compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("rumble")}, {QStringLiteral("l"), l}, {QStringLiteral("r"), r}});
+		if (nonzero && !d->rumble_logged) {
+			d->rumble_logged = true;
+			qCInfo(pswrapLink).noquote() << "rumble to" << ins.size() << "friend(s): l" << l << "r" << r << (d->rumble_haptics ? "(from haptics)" : "");
+		}
+		for (auto &in : ins)
+			if (in->isOpen())
+				in->send(msg);
 	});
 	// คลื่นเสียง: อ่าน peak ของแต่ละคนทุก 66 ms (เฉพาะคนที่มีไมค์ · เงียบหมด = ไม่ส่ง)
 	d->level_timer.setInterval(66);
@@ -1010,6 +1230,13 @@ PsWrapLink::PsWrapLink(QObject *parent, PsWrapRecorder *recorder, std::function<
 			const float v = std::min(1.0f, std::sqrt(d->voice.takeLevel(id)) * 1.4f);
 			m.insert(id, v);
 			any = any || v > 0.02f;
+		}
+		if (d->cam_store->dirty.exchange(false) || !d->cams.isEmpty()) {
+			const QVariantMap c = d->cam_store->snapshot();
+			if (c != d->cams) {
+				d->cams = c;
+				emit camsChanged();
+			}
 		}
 		if (!any && d->levels.isEmpty())
 			return;
@@ -1091,7 +1318,7 @@ QVariantList PsWrapLink::friends() const
 		f[QStringLiteral("peer")] = id;
 		f[QStringLiteral("name")] = p->name.isEmpty() ? tr("Friend") : p->name;
 		f[QStringLiteral("status")] = p->status;
-		f[QStringLiteral("controller")] = id == d->controller;
+		f[QStringLiteral("controller")] = id == d->controller || d->co.count(id) > 0;
 		f[QStringLiteral("wantsController")] = p->wants_controller;
 		f[QStringLiteral("quality")] = p->stage ? QStringLiteral("Stage") : p->height == kTierHigh ? QStringLiteral("1080p High") : QStringLiteral("%1p").arg(p->height);
 		f[QStringLiteral("stage")] = p->stage;
@@ -1100,6 +1327,9 @@ QVariantList PsWrapLink::friends() const
 		f[QStringLiteral("color")] = p->color;
 		f[QStringLiteral("mic")] = p->mic_on;
 		f[QStringLiteral("staff")] = p->staff;
+		f[QStringLiteral("starred")] = p->starred;
+		f[QStringLiteral("camBlocked")] = p->cam_blocked.load();
+		f[QStringLiteral("canStar")] = !p->ident.isEmpty() && !p->staff;   // หน้าเว็บเก่าไม่ส่งรหัส = ติดดาวไม่ได้
 		f[QStringLiteral("micMuted")] = p->mic_muted;
 		f[QStringLiteral("speaking")] = p->speaking;
 		out << f;
@@ -1177,7 +1407,8 @@ void PsWrapLink::start()
 	d->voice_timer.start();
 	d->level_timer.start();
 	connectSignal();
-	qCInfo(pswrapLink) << "Link on";
+	d->lan_ip = defaultRouteIp();   // candidate host ที่เก็บไว้ (การ์ดอื่น — Tailscale/Hyper-V/VPN — ทิ้ง)
+	qCInfo(pswrapLink) << "Link on" << (d->lan_ip.isEmpty() ? QStringLiteral("(LAN ip unknown)") : QStringLiteral("LAN ") + d->lan_ip);
 	emit changed();
 }
 
@@ -1192,6 +1423,9 @@ void PsWrapLink::stop()
 	d->voice_timer.stop();
 	d->level_timer.stop();
 	d->levels.clear();
+	d->cam_store->clear();
+	d->cams.clear();
+	emit camsChanged();
 	d->view_req_timer.stop();
 	d->view_req.clear();
 	releaseController(false);
@@ -1480,8 +1714,8 @@ void PsWrapLink::ensureAudioTap()
 			{
 				std::lock_guard<std::mutex> lock(dd->m);
 				for (const auto &[id, p] : dd->peers)
-					if (!p->stage && (voice ? p->voice_open.load() : p->audio_open.load()))
-						tracks.push_back(voice ? p->voice : p->audio);
+					if (!voice && !p->stage && p->audio_open.load())   // voice ของเพื่อนแต่ละคนส่งจาก crowd (ผสมแยกต่อคน)
+						tracks.push_back(p->audio);
 				const auto &leg = voice ? dd->stage_voice : dd->stage_main;
 				if (leg && leg->audio_open)
 					tracks.push_back(leg->audio);
@@ -1498,6 +1732,72 @@ void PsWrapLink::ensureAudioTap()
 	};
 	tap->game.send = sender(false);
 	tap->voice.send = sender(true);
+	// ---- เพื่อนได้ยินกันเอง (mix-minus): คนละ encoder ต่อเพื่อน = ไมค์เจ้าของเครื่อง + เพื่อนคนอื่น (ไม่ใส่เสียงตัวเอง กันได้ยินเสียงสะท้อน)
+	// Stage ได้ไมค์เจ้าของเครื่อง + เพื่อนทุกคน (คนดู Stage ไม่ได้พูด) · ทั้งหมดอยู่บน worker ของ recorder (ไม่แตะ GUI)
+	struct Crowd
+	{
+		std::map<QString, std::unique_ptr<LinkOpusOut>> enc;
+		std::vector<std::pair<QString, std::vector<float>>> fr;
+		std::vector<float> all, mine;
+	};
+	auto crowd = std::make_shared<Crowd>();
+	LinkAudioTap *traw = tap.get();
+	tap->crowd = [dd, crowd, traw](const float *micL, const float *micR, int64_t n) {
+		const size_t N = size_t(n);
+		std::vector<std::pair<QString, std::shared_ptr<rtc::Track>>> targets;
+		{
+			std::lock_guard<std::mutex> lock(dd->m);
+			for (const auto &[id, p] : dd->peers)
+				if (!p->stage && p->voice_open.load() && p->voice)
+					targets.emplace_back(id, p->voice);
+		}
+		dd->voice.takeForward(N, crowd->fr);
+		crowd->all.assign(N, 0.0f);
+		for (size_t i = 0; i < N; i++)
+			crowd->all[i] = 0.5f * (micL[i] + micR[i]);
+		for (const auto &[id, s] : crowd->fr)
+			for (size_t i = 0; i < N; i++)
+				crowd->all[i] += s[i];
+		auto clip = [](float x) { return x > 1.0f ? 1.0f : x < -1.0f ? -1.0f : x; };
+		// Stage: ทุกเสียง
+		crowd->mine.resize(N);
+		for (size_t i = 0; i < N; i++)
+			crowd->mine[i] = clip(crowd->all[i]);
+		traw->voice.push(crowd->mine.data(), crowd->mine.data(), n);
+		// เพื่อนที่ออกไปแล้ว = ทิ้ง encoder
+		for (auto it = crowd->enc.begin(); it != crowd->enc.end();)
+			it = std::any_of(targets.begin(), targets.end(), [&](const auto &t) { return t.first == it->first; }) ? std::next(it) : crowd->enc.erase(it);
+		for (const auto &[id, track] : targets) {
+			auto &e = crowd->enc[id];
+			if (!e) {
+				e = std::make_unique<LinkOpusOut>();
+				QString err;
+				if (!e->open(1, kVoiceKbps, &err)) {
+					qCWarning(pswrapLink) << "voice encoder for" << id << "failed:" << err;
+					crowd->enc.erase(id);
+					continue;
+				}
+				std::weak_ptr<rtc::Track> wt = track;
+				e->send = [wt](const uint8_t *data, size_t size, int64_t pos) {
+					auto t = wt.lock();
+					if (!t || !t->isOpen())
+						return;
+					try {
+						t->sendFrame(reinterpret_cast<const std::byte *>(data), size, rtc::FrameInfo(std::chrono::duration<double>(double(pos) / 48000.0)));
+					} catch (const std::exception &ex) {
+						qCWarning(pswrapLink) << "send voice:" << ex.what();
+					}
+				};
+			}
+			const std::vector<float> *self_voice = nullptr;
+			for (const auto &[fid, s] : crowd->fr)
+				if (fid == id)
+					self_voice = &s;
+			for (size_t i = 0; i < N; i++)
+				crowd->mine[i] = clip(crowd->all[i] - (self_voice ? (*self_voice)[i] : 0.0f));
+			e->push(crowd->mine.data(), crowd->mine.data(), n);
+		}
+	};
 	QPointer<PsWrapLink> self(this);
 	LinkAudioTap *raw = tap.get();
 	tap->on_detached = [self, raw]() {
@@ -1653,7 +1953,7 @@ void PsWrapLink::setupPeerConnection(const std::shared_ptr<Peer> &p, double pace
 		auto desc = pc->localDescription();
 		self->sendSignal(QJsonObject{{QStringLiteral("type"), QStringLiteral("signal")}, {QStringLiteral("peer"), peer},
 		                             {QStringLiteral("data"), QJsonObject{{QStringLiteral("type"), QString::fromStdString(desc->typeString())},
-		                                                                  {QStringLiteral("sdp"), QString::fromStdString(std::string(*desc))}}}});
+		                                                                  {QStringLiteral("sdp"), filterHostCandidates(QString::fromStdString(std::string(*desc)), dd->lan_ip)}}}});
 	});
 
 	// ---- ภาพ (คนละ stream กับเสียง — เบราว์เซอร์ไม่หน่วงภาพรอ sync)
@@ -1749,11 +2049,23 @@ void PsWrapLink::setupPeerConnection(const std::shared_ptr<Peer> &p, double pace
 	std::weak_ptr<rtc::DataChannel> wcontrol = p->control;
 	p->control->onOpen([onGui, peer, wcontrol]() {
 		if (auto c = wcontrol.lock())   // บอกหน้าเว็บว่า host นี้ทำอะไรได้ (หน้าเว็บโชว์ 1080p High เฉพาะเมื่อมี hi)
-			c->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("caps")}, {QStringLiteral("hi"), true}}));
+			c->send(compact(QJsonObject{{QStringLiteral("type"), QStringLiteral("caps")}, {QStringLiteral("hi"), true}, {QStringLiteral("cam"), true}}));   // cam = รับ facecam ได้
 		onGui([peer](PsWrapLink *l) { l->tryReclaim(peer); l->shareAvatars(peer); });
 	});
 	std::weak_ptr<rtc::DataChannel> winput = p->input;
 	p->input->onMessage([self, dd, gen, winput, peer, onGui](rtc::message_variant msg) {
+		if (auto bin = std::get_if<rtc::binary>(&msg)) {   // facecam (JPEG)
+			if (dd->gen != gen || bin->empty())
+				return;
+			{
+				std::lock_guard<std::mutex> lock(dd->m);
+				auto it = dd->peers.find(peer);
+				if (it == dd->peers.end() || it->second->cam_blocked)
+					return;   // เจ้าของเครื่องปิดกล้องคนนี้ไว้
+			}
+			dd->cam_store->put(peer, reinterpret_cast<const char *>(bin->data()), bin->size());
+			return;
+		}
 		auto str = std::get_if<std::string>(&msg);
 		auto dc = winput.lock();
 		if (!str || !dc || dd->gen != gen)
@@ -1768,7 +2080,7 @@ void PsWrapLink::setupPeerConnection(const std::shared_ptr<Peer> &p, double pace
 			bool holder;
 			{
 				std::lock_guard<std::mutex> lock(dd->m);
-				holder = dd->controller == peer;
+				holder = dd->controller == peer || dd->co.count(peer) > 0;
 			}
 			if (!holder || !o.contains(QStringLiteral("b")))
 				return;   // ไม่ได้ถือจอย = ดูอย่างเดียว
@@ -1777,13 +2089,12 @@ void PsWrapLink::setupPeerConnection(const std::shared_ptr<Peer> &p, double pace
 			onGui([peer, st](PsWrapLink *l) {
 				{
 					std::lock_guard<std::mutex> lock(l->d->m);
-					if (l->d->controller != peer)
+					if (l->d->controller != peer && !l->d->co.count(peer))
 						return;   // ถูกดึงคืนระหว่างทาง
 				}
-				if (l->d->session) {
-					l->d->session->PsWrapSetLinkState(st);
-					l->d->pad_held = true;
-				}
+				l->d->pad_states[peer] = st;
+				l->d->pad_at[peer] = monoUs();
+				l->pushMergedPad();
 			});
 		} else if (type == QLatin1String("report") && self && self->d->dev) {
 			QString line = QStringLiteral("[browser %1] latency ").arg(peer) + o.value(QStringLiteral("now")).toString();
@@ -1889,8 +2200,18 @@ void PsWrapLink::removePeer(const QString &peer, bool notify_server, bool allow_
 		p = it->second;
 		d->peers.erase(it);
 		was_controller = d->controller == peer;
+		if (d->co.erase(peer) || (was_controller && !d->co.empty())) {
+			// คนถือร่วมออก / คนถือหลักออกแต่ยังมีคนถือร่วม → คนที่เหลือเล่นต่อ (ไม่จองคืน)
+			if (was_controller) {
+				d->controller = *d->co.begin();
+				d->co.erase(d->co.begin());
+			}
+			was_controller = false;
+			QMetaObject::invokeMethod(this, [this, peer]() { d->pad_states.erase(peer); d->pad_at.erase(peer); pushMergedPad(); emit changed(); }, Qt::QueuedConnection);
+		}
 	}
 	d->voice.removePeer(peer);
+	d->cam_store->remove(peer);
 	if (d->pending_upgrade == peer)
 		d->pending_upgrade.clear();
 	if (was_controller) {
@@ -1915,6 +2236,40 @@ void PsWrapLink::removePeer(const QString &peer, bool notify_server, bool allow_
 void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 {
 	const QString type = msg.value(QStringLiteral("type")).toString();
+	// รหัสประจำเครื่องของเพื่อน (สุ่มในเบราว์เซอร์เขา) → เก็บแค่ hash · ตรงกับดาวที่เคยติด = ติดดาวให้เลย
+	if (type == QLatin1String("ident")) {
+		static const QRegularExpression ok(QStringLiteral("^[A-Za-z0-9_-]{16,64}$"));
+		const QString id = msg.value(QStringLiteral("id")).toString();
+		if (!ok.match(id).hasMatch())
+			return;
+		const QString hash = QString::fromLatin1(QCryptographicHash::hash(id.toLatin1(), QCryptographicHash::Sha256).toHex().left(32));
+		std::shared_ptr<Peer> p;
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			auto it = d->peers.find(peer);
+			if (it == d->peers.end() || it->second->staff)
+				return;
+			p = it->second;
+			p->ident = hash;
+			p->starred = d->starred.contains(hash);
+		}
+		if (p->starred) {
+			qCInfo(pswrapLink).noquote() << "friend" << peer << "is starred";
+			sendControl(p, QJsonObject{{QStringLiteral("type"), QStringLiteral("star")}, {QStringLiteral("on"), true}});
+			d->starred.insert(hash, p->name);   // ชื่อล่าสุด
+			QSettings().setValue(QStringLiteral("pswrap/link_starred"), d->starred);
+		}
+		emit changed();
+		return;
+	}
+	// เพื่อนเปิด/ปิดกล้อง (เฟรมมาทาง input) — ปิด = เอาออกทันที ไม่ต้องรอ 3 วิ
+	if (type == QLatin1String("cam")) {
+		const bool on = msg.value(QStringLiteral("on")).toBool();
+		qCInfo(pswrapLink).noquote() << "friend" << peer << "camera" << (on ? "on" : "off");
+		if (!on)
+			d->cam_store->remove(peer);
+		return;
+	}
 	// เวอร์ชันหน้าเว็บของเพื่อน (log เท่านั้น — ไล่ปัญหาเพื่อนที่เปิดหน้าเก่าค้าง)
 	if (type == QLatin1String("page")) {
 		qCInfo(pswrapLink).noquote() << "friend" << peer << "page" << msg.value(QStringLiteral("v")).toString().left(16);
@@ -1926,13 +2281,13 @@ void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 		{
 			std::lock_guard<std::mutex> lock(d->m);
 			auto it = d->peers.find(peer);
-			if (it == d->peers.end() || d->controller != peer)
+			if (it == d->peers.end() || (d->controller != peer && !d->co.count(peer)))
 				return;
 			name = it->second->name.isEmpty() ? tr("A friend") : it->second->name;
 			d->reclaim_resume.clear();
 		}
 		qCInfo(pswrapLink).noquote() << "friend" << peer << "gave the controller back";
-		releaseController(true);
+		takeControllerFrom(peer);
 		emit toast(QStringLiteral("info"), tr("%1 gave the controller back").arg(name), tr("Your controller works again."));
 		return;
 	}
@@ -2028,8 +2383,70 @@ void PsWrapLink::onPeerMessage(const QString &peer, const QJsonObject &msg)
 		emit changed();
 		return;
 	}
-	if (type == QLatin1String("want-controller") && msg.value(QStringLiteral("on")).toBool())
+	if (type == QLatin1String("want-controller") && msg.value(QStringLiteral("on")).toBool()) {
+		// ⭐ ขอแล้วได้เลย: ไม่มีใครถือ = ได้จอย · มีคนถืออยู่ = ถือร่วม (ปุ่มรวมกัน ไม่แย่งจากคนที่เล่นอยู่)
+		bool auto_give = false, co_join = false;
+		{
+			std::lock_guard<std::mutex> lock(d->m);
+			auto it = d->peers.find(peer);
+			auto_give = it != d->peers.end() && it->second->starred && !it->second->staff && d->controller.isEmpty();
+			co_join = it != d->peers.end() && it->second->starred && !it->second->staff && !d->controller.isEmpty()
+			          && d->controller != peer && !d->co.count(peer);
+		}
+		if (co_join) {
+			qCInfo(pswrapLink).noquote() << "friend" << peer << "is starred, joins the controller";
+			addCoHolder(peer);
+			emit changed();
+			return;
+		}
+		if (auto_give) {
+			qCInfo(pswrapLink).noquote() << "friend" << peer << "is starred, controller handed over without asking";
+			giveController(peer);
+			emit toast(QStringLiteral("info"), tr("⭐ %1 has the controller").arg(name), tr("Starred friends get it right away. Take back: Ctrl+Shift+U."));
+			emit changed();
+			return;
+		}
 		emit toast(QStringLiteral("info"), tr("%1 wants the controller").arg(name), tr("Open the stream menu › Link to hand it over."));
+	}
+	emit changed();
+}
+
+void PsWrapLink::setStarred(const QString &peer, bool on)
+{
+	std::shared_ptr<Peer> p;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		auto it = d->peers.find(peer);
+		if (it == d->peers.end() || it->second->staff)
+			return;
+		p = it->second;
+	}
+	if (p->ident.isEmpty()) {
+		emit toast(QStringLiteral("info"), tr("Can't star %1 yet").arg(p->name.isEmpty() ? tr("this friend") : p->name), tr("Their Link page is out of date. Ask them to reload it."));
+		return;
+	}
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		p->starred = on;
+	}
+	if (on)
+		d->starred.insert(p->ident, p->name);
+	else
+		d->starred.remove(p->ident);
+	QSettings().setValue(QStringLiteral("pswrap/link_starred"), d->starred);
+	sendControl(p, QJsonObject{{QStringLiteral("type"), QStringLiteral("star")}, {QStringLiteral("on"), on}});
+	qCInfo(pswrapLink).noquote() << "friend" << peer << (on ? "starred" : "unstarred");
+	// ดาวใหม่ที่รอจอยอยู่: ไม่มีใครถือ → ได้เลย · มีคนถือ → ถือร่วม
+	bool give = false, co_give = false;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		give = on && p->wants_controller && d->controller.isEmpty();
+		co_give = on && p->wants_controller && !d->controller.isEmpty() && d->controller != peer;
+	}
+	if (give)
+		giveController(peer);
+	else if (co_give)
+		addCoHolder(peer);
 	emit changed();
 }
 
@@ -2065,6 +2482,7 @@ void PsWrapLink::giveController(const QString &peer)
 	}
 	d->last_pad_us = monoUs();
 	d->rumble_l = d->rumble_r = 0;
+	d->rumble_logged = false;
 	if (d->session)
 		d->session->PsWrapSetLinkRedirect(true);   // การสั่นไปที่จอยเพื่อน · จอยในเครื่องเงียบ/คงสีไฟ
 	sendControl(target, QJsonObject{{QStringLiteral("type"), QStringLiteral("role")}, {QStringLiteral("controller"), true}});
@@ -2079,10 +2497,107 @@ void PsWrapLink::takeController()
 	releaseController(true);
 }
 
+void PsWrapLink::takeControllerFrom(const QString &peer)
+{
+	std::shared_ptr<Peer> p;
+	bool primary = false, promote = false;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		auto it = d->peers.find(peer);
+		if (d->co.erase(peer)) {
+			if (it != d->peers.end())
+				p = it->second;
+		} else if (d->controller == peer) {
+			primary = true;
+			promote = !d->co.empty();
+			if (promote) {   // คนถือหลักคืน แต่ยังมีคนถือร่วม → คนถัดไปเป็นคนถือหลัก
+				d->controller = *d->co.begin();
+				d->co.erase(d->co.begin());
+				if (it != d->peers.end())
+					p = it->second;
+			}
+		} else
+			return;
+	}
+	if (primary && !promote) {
+		releaseController(true);
+		return;
+	}
+	d->pad_states.erase(peer);
+	d->pad_at.erase(peer);
+	pushMergedPad();
+	sendControl(p, QJsonObject{{QStringLiteral("type"), QStringLiteral("role")}, {QStringLiteral("controller"), false}});
+	qCInfo(pswrapLink).noquote() << "controller back from" << peer << "(others keep playing)";
+	emit changed();
+}
+
+void PsWrapLink::addCoHolder(const QString &peer)
+{
+	bool on_stage = false;
+	std::shared_ptr<Peer> target;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		auto it = d->peers.find(peer);
+		if (it == d->peers.end() || it->second->staff || d->controller == peer || d->co.count(peer))
+			return;
+		if (d->controller.isEmpty()) {
+			on_stage = false;   // ไม่มีใครถือแล้ว → ให้ตามปกติ (นอก lock)
+		} else if (it->second->stage) {
+			on_stage = true;
+		} else {
+			d->co.insert(peer);
+			it->second->wants_controller = false;
+			target = it->second;
+		}
+	}
+	if (!target && !on_stage) {
+		giveController(peer);
+		return;
+	}
+	if (on_stage) {   // คนดู Stage: ย้ายมาต่อตรงก่อน แล้วค่อยถือร่วม
+		d->pending_upgrade_co = true;
+		upgradeStagePeer(peer);
+		return;
+	}
+	d->rumble_logged = false;
+	sendControl(target, QJsonObject{{QStringLiteral("type"), QStringLiteral("role")}, {QStringLiteral("controller"), true}});
+	qCInfo(pswrapLink).noquote() << "controller shared with" << peer;
+	emit toast(QStringLiteral("info"), tr("⭐ %1 joins the controller").arg(target->name.isEmpty() ? tr("A friend") : target->name),
+	           tr("Starred friends play together. Everyone's buttons count."));
+	emit changed();
+}
+
+void PsWrapLink::pushMergedPad()
+{
+	// GUI thread: รวมปุ่มทุกคนที่ถือ (OR ปุ่ม · สติ๊ก/ไกเอาค่าที่มากกว่า — ตัวเดียวกับที่รวมจอยในเครื่อง)
+	if (!d->session)
+		return;
+	ChiakiControllerState merged;
+	chiaki_controller_state_set_idle(&merged);
+	for (auto &[id, st] : d->pad_states)
+		chiaki_controller_state_or(&merged, &merged, &st);
+	d->session->PsWrapSetLinkState(merged);
+	d->pad_held = !d->pad_states.empty();
+	QVariantMap v;
+	v.insert(QStringLiteral("active"), d->pad_held);
+	v.insert(QStringLiteral("buttons"), uint(merged.buttons));
+	v.insert(QStringLiteral("lx"), merged.left_x / 32767.0);
+	v.insert(QStringLiteral("ly"), merged.left_y / 32767.0);
+	v.insert(QStringLiteral("rx"), merged.right_x / 32767.0);
+	v.insert(QStringLiteral("ry"), merged.right_y / 32767.0);
+	v.insert(QStringLiteral("l2"), merged.l2_state / 255.0);
+	v.insert(QStringLiteral("r2"), merged.r2_state / 255.0);
+	if (v != d->pad_view) {
+		d->pad_view = v;
+		emit padChanged();
+	}
+}
+
 void PsWrapLink::releaseController(bool notify)
 {
 	std::shared_ptr<Peer> prev;
 	QString old;
+	std::vector<std::shared_ptr<Peer>> co_prev;
 	{
 		std::lock_guard<std::mutex> lock(d->m);
 		old = d->controller;
@@ -2090,7 +2605,22 @@ void PsWrapLink::releaseController(bool notify)
 		auto it = d->peers.find(old);
 		if (it != d->peers.end())
 			prev = it->second;
+		for (const QString &id : d->co) {
+			auto c = d->peers.find(id);
+			if (c != d->peers.end())
+				co_prev.push_back(c->second);
+		}
+		d->co.clear();
 	}
+	d->pad_states.clear();
+	d->pad_at.clear();
+	if (!d->pad_view.isEmpty()) {
+		d->pad_view.clear();
+		emit padChanged();
+	}
+	for (auto &c : co_prev)
+		if (notify)
+			sendControl(c, QJsonObject{{QStringLiteral("type"), QStringLiteral("role")}, {QStringLiteral("controller"), false}});
 	if (d->pad_held && d->session) {
 		ChiakiControllerState idle;
 		chiaki_controller_state_set_idle(&idle);
@@ -2115,6 +2645,9 @@ void PsWrapLink::kick(const QString &peer)
 
 bool PsWrapLink::viewRequest() const { return !d->view_req.isEmpty(); }
 QVariantMap PsWrapLink::levels() const { return d->levels; }
+QVariantMap PsWrapLink::cams() const { return d->cams; }
+QVariantMap PsWrapLink::pad() const { return d->pad_view; }
+QQuickImageProvider *PsWrapLink::createCamProvider() { return new LinkCamProvider(d->cam_store); }
 
 void PsWrapLink::answerViewRequest(bool allow)
 {
@@ -2159,7 +2692,11 @@ void PsWrapLink::tryReclaim(const QString &peer)
 {
 	if (!d->pending_upgrade.isEmpty() && d->pending_upgrade == peer) {
 		d->pending_upgrade.clear();
-		giveController(peer);   // control เปิดแล้ว = ส่งตรงพร้อม → จอยไปได้
+		if (d->pending_upgrade_co) {
+			d->pending_upgrade_co = false;
+			addCoHolder(peer);
+		} else
+			giveController(peer);   // control เปิดแล้ว = ส่งตรงพร้อม → จอยไปได้
 		return;
 	}
 	QString name;
@@ -2195,6 +2732,24 @@ void PsWrapLink::setMicMuted(const QString &peer, bool muted)
 	d->voice.setMuted(peer, muted);
 	sendControl(target, QJsonObject{{QStringLiteral("type"), QStringLiteral("mic-muted")}, {QStringLiteral("on"), muted}});
 	qCInfo(pswrapLink).noquote() << "friend" << peer << (muted ? "mic muted" : "mic unmuted");
+	emit changed();
+}
+
+void PsWrapLink::setCamBlocked(const QString &peer, bool blocked)
+{
+	std::shared_ptr<Peer> target;
+	{
+		std::lock_guard<std::mutex> lock(d->m);
+		auto it = d->peers.find(peer);
+		if (it == d->peers.end() || it->second->cam_blocked == blocked)
+			return;
+		it->second->cam_blocked = blocked;
+		target = it->second;
+	}
+	if (blocked)
+		d->cam_store->remove(peer);
+	sendControl(target, QJsonObject{{QStringLiteral("type"), QStringLiteral("cam-blocked")}, {QStringLiteral("on"), blocked}});
+	qCInfo(pswrapLink).noquote() << "friend" << peer << (blocked ? "camera turned off by host" : "camera allowed again");
 	emit changed();
 }
 
@@ -2409,8 +2964,22 @@ void PsWrapLink::scheduleStageRetry()
 
 void PsWrapLink::pollPad()
 {
-	// GUI thread: ผู้ถือจอยเงียบเกิน 500 ms (เน็ตหลุด/ปิดหน้า) → ปล่อยทุกปุ่ม กันปุ่มค้างใน PS5
-	if (!d->pad_held || monoUs() - d->last_pad_us.load() <= kPadTimeoutUs)
+	// GUI thread: คนที่ถือจอยเงียบเกิน 500 ms (เน็ตหลุด/ปิดหน้า) → ปล่อยปุ่มของคนนั้น กันปุ่มค้างใน PS5
+	const int64_t now = monoUs();
+	bool dropped = false;
+	for (auto it = d->pad_at.begin(); it != d->pad_at.end();) {
+		if (now - it->second > kPadTimeoutUs) {
+			d->pad_states.erase(it->first);
+			it = d->pad_at.erase(it);
+			dropped = true;
+		} else
+			++it;
+	}
+	if (dropped && !d->pad_states.empty()) {
+		pushMergedPad();
+		return;
+	}
+	if (!d->pad_held || now - d->last_pad_us.load() <= kPadTimeoutUs)
 		return;
 	if (d->session) {
 		ChiakiControllerState idle;
@@ -2418,4 +2987,10 @@ void PsWrapLink::pollPad()
 		d->session->PsWrapSetLinkState(idle);
 	}
 	d->pad_held = false;
+	d->pad_states.clear();
+	d->pad_at.clear();
+	if (!d->pad_view.isEmpty()) {
+		d->pad_view.clear();
+		emit padChanged();
+	}
 }

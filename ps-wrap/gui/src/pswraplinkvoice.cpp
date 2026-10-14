@@ -43,6 +43,9 @@ constexpr qint64 kStatsMs = 10000;
 constexpr size_t kCatchUpOn = 30 * kMs;                      // เกินเป้าเท่านี้ = เริ่มเร่ง
 constexpr size_t kCatchUpOff = 5 * kMs;                      // เหลือเกินเป้าแค่นี้ = เลิกเร่ง
 constexpr double kCatchUpRate = 1.005;
+constexpr size_t kFwdStart = kRate * 60 / 1000;             // ส่งต่อ: เริ่มเมื่อมี 60 ms (โมโน)
+constexpr size_t kFwdMax = kRate * 250 / 1000;              // ค้างเกิน 250 ms → ตัดเหลือ 80 ms
+constexpr size_t kFwdTrimTo = kRate * 80 / 1000;
 
 struct Voice
 {
@@ -54,6 +57,9 @@ struct Voice
 	bool playing = false;
 	int fade_in = 0;           // ตัวอย่าง (ต่อช่อง) ที่ยังต้องค่อยๆ ดังขึ้น
 	bool catch_up = false;     // กำลังเล่นเร็วขึ้นเล็กน้อยเพื่อลดบัฟเฟอร์
+	std::vector<float> fwd;    // โมโน · ส่งต่อให้เพื่อนคนอื่น (อ่านจากนาฬิกาตัวอัด)
+	size_t fwd_read = 0;
+	bool fwd_play = false;
 	double frac = 0.0;         // ตำแหน่งอ่านเศษส่วน (ตอนเร่ง)
 	bool muted = false;
 	bool has_ts = false;
@@ -91,6 +97,9 @@ struct Voice
 		fade_in = 0;
 		catch_up = false;
 		frac = 0.0;
+		fwd.clear();
+		fwd_read = 0;
+		fwd_play = false;
 	}
 	// ถอด 1 ก้อน (data = nullptr → PLC · fec = กู้ก้อนก่อนหน้าจาก FEC ในแพ็กเก็ตนี้) ต่อท้าย fifo · คืน peak
 	float decode(const uint8_t *data, size_t size, int frame, bool fec)
@@ -102,6 +111,8 @@ struct Voice
 		for (int i = 0; i < n * kCh; i++)
 			peak = std::max(peak, std::fabs(scratch[size_t(i)]));
 		fifo.insert(fifo.end(), scratch.begin(), scratch.begin() + n * kCh);
+		for (int i = 0; i < n; i++)
+			fwd.push_back(0.5f * (scratch[size_t(i) * kCh] + scratch[size_t(i) * kCh + 1]));
 		if (!fec && data)
 			last_frame = n;
 		return peak;
@@ -263,6 +274,13 @@ void PsWrapLinkVoice::push(const QString &peer, const uint8_t *data, size_t size
 		v.compact();
 		v.st_trim++;
 	}
+	if (v.fwd.size() - v.fwd_read > kFwdMax) {
+		v.fwd_read = v.fwd.size() - kFwdTrimTo;
+	}
+	if (v.fwd_read > 0 && v.fwd_read * 2 > v.fwd.size()) {
+		v.fwd.erase(v.fwd.begin(), v.fwd.begin() + std::ptrdiff_t(v.fwd_read));
+		v.fwd_read = 0;
+	}
 	if (peak > kSpeakLevel)
 		v.loud_ms = now;
 	v.level = std::max(v.level, peak);
@@ -330,6 +348,34 @@ float PsWrapLinkVoice::takeLevel(const QString &peer)
 	const float l = it->second->level;
 	it->second->level = 0.0f;
 	return l;
+}
+
+void PsWrapLinkVoice::takeForward(size_t n, std::vector<std::pair<QString, std::vector<float>>> &out)
+{
+	out.clear();
+	std::lock_guard<std::mutex> lock(d->m);
+	for (auto &[id, vp] : d->voices) {
+		Voice &v = *vp;
+		if (v.muted)
+			continue;
+		const size_t avail = v.fwd.size() - v.fwd_read;
+		if (!v.fwd_play) {
+			if (avail < kFwdStart)
+				continue;
+			v.fwd_play = true;
+		}
+		std::vector<float> s(n, 0.0f);
+		const size_t k = std::min(n, avail);
+		std::copy(v.fwd.begin() + std::ptrdiff_t(v.fwd_read), v.fwd.begin() + std::ptrdiff_t(v.fwd_read + k), s.begin());
+		v.fwd_read += k;
+		if (k < n)
+			v.fwd_play = false;   // หมด → รอสะสมใหม่ (ช่วงที่ขาดเป็นเงียบ — ไมค์เจ้าของเครื่องยังต่อเนื่อง)
+		if (v.fwd_read > 0 && v.fwd_read * 2 > v.fwd.size()) {
+			v.fwd.erase(v.fwd.begin(), v.fwd.begin() + std::ptrdiff_t(v.fwd_read));
+			v.fwd_read = 0;
+		}
+		out.emplace_back(id, std::move(s));
+	}
 }
 
 bool PsWrapLinkVoice::anyVoice() const

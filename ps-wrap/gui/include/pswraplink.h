@@ -17,6 +17,8 @@
 #define PSWRAP_LINK_H
 
 #include <QObject>
+
+class QQuickImageProvider;
 #include <QString>
 #include <QVariantList>
 
@@ -45,6 +47,11 @@ class PsWrapLink : public QObject
 	Q_PROPERTY(bool viewRequest READ viewRequest NOTIFY changed)
 	// ความดังเสียงเพื่อนแต่ละคน {peer: 0..1} ~15 ครั้ง/วิ (แยก signal — ไม่ทำให้รายชื่อสร้างใหม่) → คลื่นเสียงในการ์ด
 	Q_PROPERTY(QVariantMap levels READ levels NOTIFY levelsChanged)
+	// facecam ของเพื่อน {peer: เลขเฟรม} — QML แสดงผ่าน image://linkcam/<peer>?<เลข> (ภาพกลมแล้ว)
+	Q_PROPERTY(QVariantMap cams READ cams NOTIFY camsChanged)
+	// ปุ่มที่เพื่อน (ทุกคนที่ถือจอย) กดอยู่ รวมกันแล้ว — overlay จอยของเจ้าของเครื่องแสดงด้วย
+	// {active, buttons (bitmask chiaki), lx, ly, rx, ry (-1..1), l2, r2 (0..1)}
+	Q_PROPERTY(QVariantMap pad READ pad NOTIFY padChanged)
 	// แบบห้อง: "direct" | "stage" | "both" — เปลี่ยนได้ระหว่างเปิด (ห้อง/ลิงก์เดิม)
 	Q_PROPERTY(QString mode READ mode WRITE setMode NOTIFY changed)
 	Q_PROPERTY(QString stageState READ stageState NOTIFY changed)   // off · connecting · live · error
@@ -64,6 +71,10 @@ public:
 	QString inviteQr() const;
 	QVariantList friends() const;
 	QVariantMap levels() const;
+	QVariantMap cams() const;
+	QVariantMap pad() const;
+	// image provider ของ facecam (QML engine เป็นเจ้าของ) — QmlMainWindow ลงทะเบียนชื่อ "linkcam"
+	QQuickImageProvider *createCamProvider();
 	int friendCount() const;
 	QString controllerPeer() const;
 	bool viewRequest() const;
@@ -80,10 +91,16 @@ public:
 	Q_INVOKABLE void resetInvite();
 	Q_INVOKABLE void giveController(const QString &peer);
 	Q_INVOKABLE void takeController();
+	// ดึงจอยคืนจากคนเดียว (กลุ่มดาวถือร่วมกันได้) — คนอื่นที่ถืออยู่ยังเล่นต่อ
+	Q_INVOKABLE void takeControllerFrom(const QString &peer);
 	Q_INVOKABLE void kick(const QString &peer);
 	Q_INVOKABLE void answerViewRequest(bool allow);
+	// ติดดาวเพื่อน (จำไว้ในเครื่อง ด้วย hash ของรหัสสุ่มที่หน้าเว็บเพื่อนสร้าง) · ดาว = ขอจอยแล้วได้เลยถ้าไม่มีใครถืออยู่
+	Q_INVOKABLE void setStarred(const QString &peer, bool on);
 	// ไมค์ของเพื่อน: ปิด/เปิดเสียงทีละคน (เพื่อนเห็นว่าถูกปิด)
 	Q_INVOKABLE void setMicMuted(const QString &peer, bool muted);
+	// ปิดกล้องเพื่อน (เหมือนปิดไมค์): หน้าเว็บเขาปิดกล้อง + เราไม่รับภาพ จนกว่าจะอนุญาตใหม่
+	Q_INVOKABLE void setCamBlocked(const QString &peer, bool blocked);
 
 public slots:
 	void setSession(StreamSession *session);   // GUI thread · nullptr = สตรีมจบ → ปิด Link
@@ -91,6 +108,8 @@ public slots:
 signals:
 	void changed();
 	void levelsChanged();
+	void camsChanged();
+	void padChanged();
 	void toast(const QString &kind, const QString &title, const QString &detail);
 	// แชทจากเพื่อน (ตัด/จำกัดความถี่แล้ว) → QmlMainWindow ส่งเข้า Live Chat overlay · avatar = PNG data URI ที่ encode เอง หรือว่าง
 	void chatMessage(const QString &author, const QString &color, const QString &text, const QString &avatar);
@@ -126,6 +145,8 @@ private:
 	void ensureAudioTap();
 	void dropUnusedTaps();
 	void releaseController(bool notify);
+	void addCoHolder(const QString &peer);      // เพื่อนติดดาวขอจอยตอนมีคนถืออยู่ = ถือร่วม (ปุ่มรวมกัน)
+	void pushMergedPad();                       // รวมปุ่มของทุกคนที่ถือ → StreamSession
 	void pollPad();
 	void setState(const QString &state);
 	void setInvite(const QString &room, const QString &url);

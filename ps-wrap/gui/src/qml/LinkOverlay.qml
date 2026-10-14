@@ -52,9 +52,26 @@ Item {
         return avatarColors[h % avatarColors.length];
     }
 
-    implicitWidth: 340
+    implicitWidth: 400   // กว้างคงที่ (สถานะเปลี่ยน การ์ดไม่ยืดหด — ชื่อย่อด้วย … แทน)
 
     // ปุ่มเล็กในแถวเพื่อน (คลิกได้ — การ์ดอยู่ใน overlay hit rects ของ StreamView)
+    // ป้ายเล็กหลังชื่อ: วิธีต่อของเพื่อน
+    component ConnBadge: Rectangle {
+        property bool stage: false
+        Layout.preferredHeight: 18
+        Layout.preferredWidth: 22
+        radius: 5
+        color: stage ? Qt.rgba(0.49, 0.36, 1, 0.3) : Qt.rgba(0, 0.65, 1, 0.24)
+        border.width: 1
+        border.color: stage ? Qt.rgba(0.77, 0.71, 0.99, 0.6) : Qt.rgba(0.36, 0.78, 1, 0.55)
+        Image {
+            anchors.centerIn: parent
+            width: 12
+            height: 12
+            sourceSize: Qt.size(24, 24)
+            source: parent.stage ? "qrc:/icons/menu/stage.svg" : "qrc:/icons/menu/p2p.svg"
+        }
+    }
     component Pill: Rectangle {
         id: pill
         property string label
@@ -221,6 +238,7 @@ Item {
                 id: fRow
                 required property var modelData
                 readonly property bool playing: modelData.controller
+                HoverHandler { id: rowHover }
                 // คลื่นเสียง: ความดัง 18 ช่วงล่าสุด (~1.2 วิ) จาก Chiaki.link.levels · ใหม่สุดอยู่ขวา
                 property var wave: []
                 readonly property bool waveOn: modelData.speaking || wave.some(v => v > 0.06)
@@ -280,6 +298,7 @@ Item {
                 Layout.fillWidth: true
                 // คนถือจอย: แถวเป็นแถบเขียวเรืองแสง + แสงวิ่งผ่าน + ป้ายจอยบนรูป
                 implicitHeight: fRowLayout.implicitHeight + (playing ? 12 : 0)
+                implicitWidth: fRowLayout.implicitWidth
                 Rectangle {
                     anchors.fill: parent
                     anchors.leftMargin: -6
@@ -319,7 +338,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 8
+                spacing: 6
                 // กำลังพูด: วงคลื่นฟ้าแผ่ออกจากรูป 2 ชั้น (สลับจังหวะ) + คลื่นเสียงจริงข้างชื่อ
                 Item {
                     id: avatarBox
@@ -408,83 +427,185 @@ Item {
                         }
                     }
                 }
-                // คลื่นเสียงจริง: แท่งสะท้อนบน-ล่างเลื่อนจากขวาไปซ้าย · เก่าจางลง · โผล่เมื่อมีเสียง
-                Item {
-                    visible: fRow.waveOn
-                    Layout.preferredWidth: 18 * 3
-                    Layout.preferredHeight: 22
-                    Layout.alignment: Qt.AlignVCenter
-                    Repeater {
-                        model: 18
-                        delegate: Rectangle {
-                            required property int index
-                            readonly property real v: fRow.wave.length > index ? fRow.wave[index] : 0
-                            x: index * 3
-                            width: 2
-                            height: 2 + v * 20
-                            anchors.verticalCenter: parent.verticalCenter
-                            radius: 1
-                            color: Qt.rgba(0.36 + 0.4 * v, 0.78 + 0.2 * v, 1, 1)
-                            opacity: 0.25 + 0.75 * (index / 17)
-                            Behavior on height { NumberAnimation { duration: 60 } }
-                        }
-                    }
-                }
+                // ชื่อ: กินที่ที่เหลือ (ยาวไป = …) · ช่องอื่นกว้างคงที่ การ์ดไม่ยืดหดตามสถานะ (เดิมคลื่นเสียง/"· talking" ดันทั้งแถว)
                 Text {
                     Layout.fillWidth: true
-                    text: modelData.staff ? qsTr("PS-WRAP team · watching")
-                        : modelData.micMuted ? qsTr("%1 · muted").arg(modelData.name)
-                        : modelData.speaking ? qsTr("%1 · talking").arg(modelData.name)
-                        : modelData.name
+                    Layout.minimumWidth: 40
+                    text: modelData.staff ? qsTr("PS-WRAP team") : modelData.name
                     elide: Text.ElideRight
                     font.pixelSize: 13
                     font.weight: fRow.playing ? Font.Bold : Font.DemiBold
                     color: modelData.staff ? root.violet : modelData.speaking ? root.speakColor : fRow.playing ? "#aff5b4" : "white"
                 }
-                // สถานะ: ถือจอย (เขียว) · ขอจอย (เหลือง) · ดูอยู่ + ping
-                Rectangle {
-                    Layout.preferredHeight: 20
-                    Layout.preferredWidth: chip.implicitWidth + 14 + (fRow.playing ? 14 : 0)
-                    radius: 10
-                    color: modelData.controller ? "#3fb950"
-                         : modelData.wantsController ? Qt.rgba(1, 0.78, 0.34, 0.22)
-                         : Qt.rgba(1, 1, 1, 0.07)
-                    Image {
-                        visible: fRow.playing
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: 6
-                        width: 13
-                        height: 13
-                        sourceSize: Qt.size(26, 26)
-                        source: "qrc:/icons/menu/gamepad.svg"
-                    }
+                // ดาว (ช่องคงที่): ★ ทองเมื่อติดแล้ว · ☆ โผล่ตอนชี้แถว (กดสลับ) · จำไว้ข้ามการเข้าออก
+                Item {
+                    Layout.preferredWidth: 16
+                    Layout.preferredHeight: 18
                     Text {
-                        id: chip
                         anchors.centerIn: parent
-                        anchors.horizontalCenterOffset: fRow.playing ? 7 : 0
-                        text: modelData.controller ? qsTr("Playing")
-                            : modelData.wantsController ? qsTr("Wants to play")
-                            : modelData.status !== "watching" ? qsTr("Joining…")
-                            : modelData.latency >= 0 ? qsTr("%1 ms").arg(modelData.latency) : qsTr("Watching")
-                        font.pixelSize: 11
-                        font.weight: fRow.playing ? Font.Black : Font.DemiBold
-                        font.features: { "tnum": 1 }
-                        color: modelData.controller ? "#062312" : modelData.wantsController ? root.amber : Qt.rgba(1, 1, 1, 0.7)
+                        visible: !!modelData.starred || (!!modelData.canStar && (rowHover.hovered || starArea.containsMouse))
+                        text: modelData.starred ? "★" : "☆"
+                        font.pixelSize: 15
+                        color: modelData.starred ? "#ffc857" : Qt.rgba(1, 1, 1, starArea.containsMouse ? 0.9 : 0.5)
+                        style: modelData.starred ? Text.Raised : Text.Normal
+                        styleColor: "#7a5200"
+                    }
+                    MouseArea {
+                        id: starArea
+                        anchors.fill: parent
+                        anchors.margins: -3
+                        enabled: !!modelData.canStar
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.link.setStarred(modelData.peer, !modelData.starred)
                     }
                 }
-                // ปิด/เปิดเสียงไมค์คนนี้ (โผล่เมื่อเพื่อนเปิดไมค์)
-                Pill {
-                    visible: modelData.mic || modelData.micMuted
-                    label: modelData.micMuted ? qsTr("Unmute") : qsTr("Mute")
-                    tint: modelData.micMuted ? Qt.rgba(0.95, 0.35, 0.4, 0.45) : Qt.rgba(1, 1, 1, 0.12)
-                    onClicked: root.link.setMicMuted(modelData.peer, !modelData.micMuted)
+                // ต่อแบบไหน (ไอคอน): P2P ฟ้า · STAGE ม่วง
+                ConnBadge { stage: !!modelData.stage }
+                // ช่องสถานะ (กว้างคงที่ ชิดขวา): คลื่นเสียงตอนพูด · ไม่งั้นป้าย Playing / Wants to play / Joining / ping
+                Item {
+                    id: statusSlot
+                    Layout.preferredWidth: 92
+                    Layout.preferredHeight: 22
+                    readonly property bool showWave: fRow.waveOn && !fRow.playing && !modelData.wantsController
+                    // คลื่นเสียงจริง: แท่งสะท้อนบน-ล่างเลื่อนจากขวาไปซ้าย · เก่าจางลง
+                    Item {
+                        visible: statusSlot.showWave
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18 * 3
+                        height: 22
+                        Repeater {
+                            model: 18
+                            delegate: Rectangle {
+                                required property int index
+                                readonly property real v: fRow.wave.length > index ? fRow.wave[index] : 0
+                                x: index * 3
+                                width: 2
+                                height: 2 + v * 20
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 1
+                                color: Qt.rgba(0.36 + 0.4 * v, 0.78 + 0.2 * v, 1, 1)
+                                opacity: 0.25 + 0.75 * (index / 17)
+                                Behavior on height { NumberAnimation { duration: 60 } }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        visible: !statusSlot.showWave
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 20
+                        width: Math.min(statusSlot.width, chip.implicitWidth + 14 + (fRow.playing ? 14 : 0))
+                        radius: 10
+                        color: modelData.controller ? "#3fb950"
+                             : modelData.wantsController ? Qt.rgba(1, 0.78, 0.34, 0.22)
+                             : Qt.rgba(1, 1, 1, 0.07)
+                        Image {
+                            visible: fRow.playing
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: 6
+                            width: 13
+                            height: 13
+                            sourceSize: Qt.size(26, 26)
+                            source: "qrc:/icons/menu/gamepad.svg"
+                        }
+                        Text {
+                            id: chip
+                            anchors.centerIn: parent
+                            anchors.horizontalCenterOffset: fRow.playing ? 7 : 0
+                            text: modelData.controller ? qsTr("Playing")
+                                : modelData.wantsController ? qsTr("Wants to play")
+                                : modelData.status !== "watching" ? qsTr("Joining…")
+                                : modelData.latency >= 0 ? qsTr("%1 ms").arg(modelData.latency) : qsTr("Watching")
+                            font.pixelSize: 11
+                            font.weight: fRow.playing ? Font.Black : Font.DemiBold
+                            font.features: { "tnum": 1 }
+                            color: modelData.controller ? "#062312" : modelData.wantsController ? root.amber : Qt.rgba(1, 1, 1, 0.7)
+                        }
+                    }
+                }
+                // กล้อง (ช่องคงที่ 22): โผล่เมื่อเพื่อนเปิดกล้องหรือถูกปิดไว้ · กด = ปิด/อนุญาตกล้องเพื่อน (เหมือนปิดไมค์)
+                Item {
+                    Layout.preferredWidth: 22
+                    Layout.preferredHeight: 20
+                    readonly property bool camOn: !!root.link && !!root.link.cams && root.link.cams[modelData.peer] !== undefined
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: parent.camOn || !!modelData.camBlocked
+                        radius: 6
+                        color: modelData.camBlocked ? Qt.rgba(0.95, 0.35, 0.4, camArea.containsMouse ? 0.7 : 0.5)
+                             : Qt.rgba(1, 1, 1, camArea.containsMouse ? 0.22 : 0.1)
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.14)
+                        Image {
+                            anchors.centerIn: parent
+                            width: 13
+                            height: 13
+                            sourceSize: Qt.size(26, 26)
+                            source: "qrc:/icons/menu/cam.svg"
+                        }
+                        Rectangle {   // ขีดฆ่าเมื่อปิดกล้อง
+                            visible: !!modelData.camBlocked
+                            anchors.centerIn: parent
+                            width: 16
+                            height: 2
+                            radius: 1
+                            rotation: -45
+                            color: "white"
+                        }
+                        MouseArea {
+                            id: camArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.link.setCamBlocked(modelData.peer, !modelData.camBlocked)
+                        }
+                    }
+                }
+                // ไมค์ (ช่องคงที่ 22): ปุ่มไอคอน ปิด/เปิดเสียงเพื่อนคนนี้ · แดง + ขีดฆ่า = ปิดอยู่
+                Item {
+                    Layout.preferredWidth: 22
+                    Layout.preferredHeight: 20
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: !!modelData.mic || !!modelData.micMuted
+                        radius: 6
+                        color: modelData.micMuted ? Qt.rgba(0.95, 0.35, 0.4, micArea.containsMouse ? 0.7 : 0.5)
+                             : Qt.rgba(1, 1, 1, micArea.containsMouse ? 0.22 : 0.1)
+                        border.width: 1
+                        border.color: Qt.rgba(1, 1, 1, 0.14)
+                        Image {
+                            anchors.centerIn: parent
+                            width: 13
+                            height: 13
+                            sourceSize: Qt.size(26, 26)
+                            source: "qrc:/icons/menu/mic.svg"
+                        }
+                        Rectangle {   // ขีดฆ่าเมื่อปิดเสียง
+                            visible: !!modelData.micMuted
+                            anchors.centerIn: parent
+                            width: 16
+                            height: 2
+                            radius: 1
+                            rotation: -45
+                            color: "white"
+                        }
+                        MouseArea {
+                            id: micArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.link.setMicMuted(modelData.peer, !modelData.micMuted)
+                        }
+                    }
                 }
                 // ดึงจอยคืนจากคนที่ถืออยู่
                 Pill {
                     visible: modelData.controller
                     label: qsTr("Take back")
                     tint: Qt.rgba(0.25, 0.73, 0.31, 0.35)
-                    onClicked: root.takeBack()
+                    onClicked: root.link.takeControllerFrom(modelData.peer)   // เฉพาะคนนี้ (คนถือร่วมคนอื่นเล่นต่อ) · Ctrl+Shift+U = คืนทุกคน
                 }
             }
             }

@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-10-14
+Link gets social: friends hear each other, share their camera (or a GIF), starred friends play together, and friends' controllers vibrate in more setups.
+
+### Added
+- **PS-WRAP Link: friends hear each other.** Each friend now hears your mic and every other friend (never their own voice back). Stage viewers hear everyone. Each friend gets their own small voice mix from your PC.
+- **PS-WRAP Link: facecam.** Friends can turn on their camera with **Cam** on the friend page (after a note that explains who will see it). Their faces show as circles at the bottom left of the picture, with a blue ring while they talk; point at one and press ✕ to turn that friend's camera off (like muting a mic: their page stops the camera until you allow it again with the camera button on their Link card row, or **Allow camera** in the Link panel). The pictures go straight from the friend to your PC, not through our server. Friends can pick which camera to use, or a picture or GIF to show instead (▾ on the Cam button). Needs this version of PS-WRAP; with older ones the Cam button doesn't appear.
+- **PS-WRAP Link: stars for friends.** Point at a friend on the Link card and press ☆ (or **☆ Star** in the Link panel). PS-WRAP remembers starred friends when they leave and come back. Perks: a starred friend who asks for the controller gets it right away, without you pressing anything; if someone already has it, the starred friend joins in and they play together (everyone's buttons count, the game's vibration goes to all of them). **Take back** on a friend's row takes it from that friend only; Ctrl+Shift+U takes it back from everyone. You can still play along on your own controller. Stars are kept on your PC; the friend page only shares a random ID with you so you can be recognised.
+
+### Changed
+- **PS-WRAP Link: DualSense vibration on more friends' setups.** When the browser doesn't offer vibration for the friend's DualSense (common on Bluetooth), **Check devices** shows **Connect DualSense for vibration**: Chrome or Edge talks to the controller directly (WebHID, over USB or Bluetooth), asked once and remembered.
+- **PS-WRAP Link: friends set their own mic volume** (0–200%, slider in the ▾ mic menu on the friend page, remembered).
+- **Controller overlay shows friends' presses too.** When friends hold the controller through Link, the on-screen controller overlay lights up their buttons, sticks and triggers together with yours (what the PS5 actually gets), and it also shows when only a friend is playing.
+- **Link card: steady layout.** The card keeps one width and every row keeps its columns, so nothing jumps when someone starts talking, joins or mutes: the name (shortened with … if long), a ★ slot, a connection icon (**P2P** straight to your PC, **STAGE** through the Stage server; also shown in the Link panel), a status slot where the sound wave appears while they talk, and a mic button (red with a slash when muted).
+
+### Fixed
+- **PS-WRAP Link: a friend's controller didn't vibrate (and could be ignored).** When a friend on a computer got the controller before their browser had seen their gamepad, the page switched to keyboard mode, which skipped vibration and took priority over the gamepad. Vibration now always goes to a connected controller, and the page switches back from that automatic keyboard mode as soon as the controller shows up.
+- **PS-WRAP Link: friends connect in about a second again.** On a PC with extra network adapters (Tailscale, Hyper-V, WSL, VPN), a friend could hang on "Connecting" for about 40 seconds or fail. PS-WRAP now offers only the real network connection, and the friend page switches to the relay by itself if the direct connection isn't up within 8 seconds.
+- **PS-WRAP Link: keyboard and mouse presses always reach the game.** A quick tap could be missed, and a press could be lost on a shaky connection. Each press now lasts at least 80 ms, goes out at once and is sent twice.
+
 ## [0.12.2] — 2026-10-14
 Link: friends' voices are smooth and their mics work again, friends can give the controller back and check their devices, and the Link card shows who's talking and who's playing.
 ### Changed

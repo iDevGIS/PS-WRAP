@@ -74,13 +74,16 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 
 - **The controller**: a friend asks, you press **Give controller** on the Link card (Ctrl+Shift+G) and **Take back** when you want it (Ctrl+Shift+U). Friends play with their own controller, keyboard and mouse (Standard, Ghost of Tsushima PC keys, Shooter and Racing layouts), or the on-screen controller on a phone.
 - **Chat and voice**: messages show in the Live Chat overlay with the friend's picture, ❤️ 🌸 🤘 🙏 reactions float over the game, and friends can talk on their mic. Mute anyone from the Link card. Friends set the game and voice volume separately with the 🔊 button. The game's vibration goes to the friend's controller (Chrome, Edge, Safari on Mac; not iPhone), and a friend who refreshes gets straight back in.
-- **Link card**: shows who is talking (a live sound wave), who has the controller (a green row) and pops each friend's reactions from their picture. Drag it by its top row anywhere on the picture, or fold it with **–** so it doesn't cover the game.
-- **For friends**: **Check devices** before joining (or **Devices** in the room) tests their controller with a drift and edge test, mic (with playback), speakers, keyboard layout and camera. They pick their own mic, and a tap on **Playing** gives the controller back.
+- **Friends hear each other** (each friend hears you and the others, never their own voice back), and can set their own mic volume.
+- **Facecam**: friends press **Cam** (or pick a picture or GIF instead) and appear as circles at the bottom left of the picture, with a blue ring while they talk. You can turn a friend's camera off like muting a mic.
+- **Stars**: press ☆ next to a friend to remember them. A starred friend gets the controller without asking you, and if someone already has it, they play together (everyone's buttons count, everyone's controller vibrates). Your controller overlay shows their presses too.
+- **Link card**: shows who is talking (a live sound wave), who has the controller (a green row), how each friend is connected (P2P or Stage) and pops each friend's reactions from their picture. It keeps one width so nothing jumps around. Drag it by its top row anywhere on the picture, or fold it with **–** so it doesn't cover the game.
+- **For friends**: **Check devices** before joining (or **Devices** in the room) tests their controller with a drift and edge test, mic (with playback), speakers, keyboard layout and camera. They pick their own mic and camera, and a tap on **Playing** gives the controller back. If the browser can't vibrate their DualSense, **Connect DualSense** there makes it vibrate (Chrome/Edge).
 - **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
 - **Quality**: friends pick Auto, 1080p High (sharper, about 15 Mbps), 1080p, 720p or 480p. Stage viewers get 1080p.
 - **HDR**: works; friends get an SDR version of the picture (browsers can't show HDR streams).
 - **Team access**: the PS-WRAP team can only watch a room if you press Allow on the request (view only). While they watch, your friends' profile pictures go to their view directly, not through the server.
-- **Beta limits**: friends don't hear each other yet; Stage viewers can't use their mic until they get the controller; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
+- **Beta limits**: Stage viewers can't use their mic until they get the controller; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
 
 <br clear="right">
 

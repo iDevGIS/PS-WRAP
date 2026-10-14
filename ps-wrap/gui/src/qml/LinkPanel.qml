@@ -417,15 +417,49 @@ Popup {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Label {
+                        RowLayout {
                             Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: modelData.staff ? qsTr("PS-WRAP team · view only")
-                                : modelData.controller ? qsTr("%1 · has the controller").arg(modelData.name)
-                                : modelData.wantsController ? qsTr("%1 · wants the controller").arg(modelData.name)
-                                : modelData.name
-                            font.weight: Font.DemiBold
-                            color: modelData.staff ? "#c4b5fd" : modelData.wantsController ? Theme.warning : Theme.text
+                            spacing: 6
+                            Label {
+                                Layout.maximumWidth: 210
+                                elide: Text.ElideRight
+                                text: modelData.staff ? qsTr("PS-WRAP team · view only")
+                                    : modelData.controller ? qsTr("%1 · has the controller").arg(modelData.name)
+                                    : modelData.wantsController ? qsTr("%1 · wants the controller").arg(modelData.name)
+                                    : modelData.name
+                                font.weight: Font.DemiBold
+                                color: modelData.staff ? "#c4b5fd" : modelData.wantsController ? Theme.warning : Theme.text
+                            }
+                            // ต่อแบบไหน: P2P / STAGE
+                            Rectangle {
+                                Layout.preferredHeight: 18
+                                Layout.preferredWidth: badgeRow.implicitWidth + 12
+                                radius: 6
+                                color: modelData.stage ? Qt.rgba(0.49, 0.36, 1, 0.28) : Qt.rgba(0, 0.65, 1, 0.22)
+                                border.width: 1
+                                border.color: modelData.stage ? Qt.rgba(0.77, 0.71, 0.99, 0.55) : Qt.rgba(0.36, 0.78, 1, 0.5)
+                                Row {
+                                    id: badgeRow
+                                    anchors.centerIn: parent
+                                    spacing: 4
+                                    Image {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 11
+                                        height: 11
+                                        sourceSize: Qt.size(22, 22)
+                                        source: modelData.stage ? "qrc:/icons/menu/stage.svg" : "qrc:/icons/menu/p2p.svg"
+                                    }
+                                    Label {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: modelData.stage ? qsTr("STAGE") : qsTr("P2P")
+                                        font.pixelSize: 10
+                                        font.weight: Font.Black
+                                        font.letterSpacing: 0.6
+                                        color: modelData.stage ? "#ddd6fe" : "#bae6fd"
+                                    }
+                                }
+                            }
+                            Item { Layout.fillWidth: true }
                         }
                         Label {
                             text: panel.friendLine(modelData)
@@ -437,13 +471,25 @@ Popup {
                         visible: !modelData.staff
                         text: modelData.controller ? qsTr("Take back") : qsTr("Give controller")
                         primary: !modelData.controller && modelData.wantsController
-                        onClicked: modelData.controller ? panel.link.takeController() : panel.link.giveController(modelData.peer)
+                        onClicked: modelData.controller ? panel.link.takeControllerFrom(modelData.peer) : panel.link.giveController(modelData.peer)
                     }
                     // ไมค์เพื่อน: โผล่เมื่อเพื่อนเปิดไมค์ (หรือถูกปิดเสียงไว้)
                     PanelButton {
                         visible: modelData.mic || modelData.micMuted
                         text: modelData.micMuted ? qsTr("Unmute") : qsTr("Mute")
                         onClicked: panel.link.setMicMuted(modelData.peer, !modelData.micMuted)
+                    }
+                    // กล้องเพื่อน: ปิด/อนุญาต (โผล่เมื่อเปิดอยู่หรือถูกปิดไว้)
+                    PanelButton {
+                        visible: (!!panel.link.cams && panel.link.cams[modelData.peer] !== undefined) || !!modelData.camBlocked
+                        text: modelData.camBlocked ? qsTr("Allow camera") : qsTr("Camera off")
+                        onClicked: panel.link.setCamBlocked(modelData.peer, !modelData.camBlocked)
+                    }
+                    // ดาว = ขอจอยแล้วได้เลย (จำไว้แม้ออกแล้วเข้าใหม่)
+                    PanelButton {
+                        visible: !!modelData.canStar
+                        text: modelData.starred ? qsTr("★ Starred") : qsTr("☆ Star")
+                        onClicked: panel.link.setStarred(modelData.peer, !modelData.starred)
                     }
                     PanelButton {
                         text: qsTr("Remove")

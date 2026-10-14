@@ -34,7 +34,8 @@ Item {
     readonly property real overlayBaseW: Math.max(320, videoW)
     readonly property real overlayScale: Math.max(0.45, Math.min(1.5, overlayBaseW / 1920))
     readonly property bool webcamVisible: Chiaki.window.camOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
-    readonly property bool controllerOverlayVisible: Chiaki.window.padOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing) && Chiaki.controllers.length > 0
+    readonly property bool controllerOverlayVisible: Chiaki.window.padOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
+                                                    && (Chiaki.controllers.length > 0 || (Chiaki.link !== undefined && !!Chiaki.link && !!Chiaki.link.pad && !!Chiaki.link.pad.active))   // เพื่อนถือจอยผ่าน Link ก็แสดง
     // PS-WRAP: mic spectrum overlay (MicSpectrumOverlay.qml) — เงื่อนไขเดียวกับ facecam
     readonly property bool micOverlayVisible: Chiaki.window.micOverlay && Chiaki.session && !sessionLoading && !sessionError && !(menuController.open || menuController.closing)
     // PS-WRAP: นาฬิกา + เวลาเล่น (ClockOverlay.qml) — เงื่อนไขเดียวกับ mic · เวลาเล่นนับจากตอน session connected (sessionStartMs)
@@ -706,7 +707,9 @@ Item {
         if (!Chiaki.window) return;
         // PS-WRAP Link: ป้ายย่อขยายด้วย scale (มุมซ้ายบนคงที่) → กรอบจริง = ขนาด × scale · ปุ่ม "Give controller" คลิกได้
         const linkRect = linkCard.visible ? Qt.rect(linkCard.x, linkCard.y, linkCard.width * linkCard.scale, linkCard.height * linkCard.scale) : Qt.rect(0, 0, 0, 0);
-        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor), rectOf(statusBar), linkRect]);
+        // facecam: ย่อขยายจากมุมซ้ายล่าง → กรอบจริงเลื่อนขึ้นตาม scale
+        const camsRect = facecams.visible ? Qt.rect(facecams.x, facecams.y + facecams.height * (1 - facecams.scale), facecams.width * facecams.scale, facecams.height * facecams.scale) : Qt.rect(0, 0, 0, 0);
+        Chiaki.window.setOverlayHitRects(useSeparateMenuWindow ? [] : [rectOf(overlayFrame), rectOf(camFrame), rectOf(statsFrame), rectOf(micFrame), rectOf(clockFrame), rectOf(chatFrame), rectOf(root.recordingToast), rectOf(dockEditor), rectOf(statusBar), linkRect, camsRect]);
         // PS-WRAP: กรอบ facecam ให้ภาพแนวตั้ง 9:16 (ตำแหน่งในหน้าต่าง — ตัดส่วนเดียวกันจาก overlay)
         const cam = camFrame.visible ? camFrame.mapToItem(null, 0, 0, camFrame.width, camFrame.height) : Qt.rect(0, 0, 0, 0);
         Chiaki.window.setVerticalCamRect(cam.x, cam.y, cam.width, cam.height);
@@ -2447,6 +2450,21 @@ Item {
         x: videoX + videoW - width - 24
         y: videoY + videoH - height - 24
         visible: !!Chiaki.link && Chiaki.link.active && !!Chiaki.session && !sessionLoading && !sessionError
+    }
+
+    // PS-WRAP Link: facecam เพื่อน (วงกลม) มุมซ้ายล่างของภาพ · ✕ ซ่อนได้ → อยู่ใน overlay hit rects
+    FacecamOverlay {
+        id: facecams
+        z: 59
+        scale: Math.max(0.75, Math.min(1.4, videoH / 1080))
+        transformOrigin: Item.BottomLeft
+        x: videoX + 24
+        y: videoY + videoH - height - 24
+        visible: shown.length > 0 && !!Chiaki.link && Chiaki.link.active && !!Chiaki.session && !sessionLoading && !sessionError
+        onVisibleChanged: view.pushOverlayHitRects()
+        onWidthChanged: view.pushOverlayHitRects()
+        onXChanged: view.pushOverlayHitRects()
+        onYChanged: view.pushOverlayHitRects()
     }
 
     LinkOverlay {
