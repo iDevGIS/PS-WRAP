@@ -70,6 +70,8 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 
 **Room type** (Link panel › ROOM TYPE): **Direct P2P** is up to 4 friends connected straight to your PC, with the lowest delay. **Stage Broadcast** sends the game once through the PS-WRAP server to a bigger audience (up to 15 in the beta): they watch at 1080p, chat, react and can ask for the controller, and your upload stays the same however many watch. **Both** gives the first 4 a direct seat and puts everyone after them on the Stage, with the same invite link.
 
+![Link on your screen: two starred friends playing together, the Link card with stars and connection icons, and friends' facecams](screenshots/link-host.jpg)
+
 <img src="screenshots/link-phone.jpg" alt="On-screen controller on a phone" width="260" align="right">
 
 - **The controller**: a friend asks, you press **Give controller** on the Link card (Ctrl+Shift+G) and **Take back** when you want it (Ctrl+Shift+U). Friends play with their own controller, keyboard and mouse (Standard, Ghost of Tsushima PC keys, Shooter and Racing layouts), or the on-screen controller on a phone.
@@ -86,6 +88,8 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 - **Beta limits**: Stage viewers can't use their mic until they get the controller; friends' voices aren't recorded; no touchpad swipes; up to 2 rooms per internet connection. What our server logs is in the [Privacy Policy](PRIVACY.md#ps-wrap-link-beta).
 
 <br clear="right">
+
+![Check devices on the friend page: live controller, drift test, DualSense vibration, trigger pressure](screenshots/link-devices.jpg)
 
 ### Vertical 9:16 and Go Live
 
