@@ -19,6 +19,7 @@
 #endif
 
 #include <onnxruntime_c_api.h>
+#include "pswrapdatadir.h"
 #include <string>
 
 Q_LOGGING_CATEGORY(pswrapFace, "pswrap.face")
@@ -73,8 +74,8 @@ struct PswrapFaceTrackerWorker::Ort
     }
 };
 
-QString PswrapFaceTracker::modelPath() { return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("models/blazeface.onnx")); }
-QString PswrapFaceTracker::meshModelPath() { return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("models/face_mesh.onnx")); }
+QString PswrapFaceTracker::modelPath() { return QDir(pswrapDataDir()).filePath(QStringLiteral("models/blazeface.onnx")); }
+QString PswrapFaceTracker::meshModelPath() { return QDir(pswrapDataDir()).filePath(QStringLiteral("models/face_mesh.onnx")); }
 bool PswrapFaceTracker::available() const { return QFile::exists(PswrapSegmenter::runtimePath()) && QFile::exists(modelPath()); }
 bool PswrapFaceTracker::meshAvailable() const { return available() && QFile::exists(meshModelPath()); }
 

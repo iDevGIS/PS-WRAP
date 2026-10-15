@@ -19,6 +19,7 @@
 #endif
 
 #include <onnxruntime_c_api.h>
+#include "pswrapdatadir.h"
 
 Q_LOGGING_CATEGORY(pswrapSeg, "pswrap.segmenter")
 
@@ -79,7 +80,7 @@ QString PswrapSegmenter::runtimePath()
 
 QString PswrapSegmenter::modelPath()
 {
-    return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("models/selfie_segmentation.onnx"));
+    return QDir(pswrapDataDir()).filePath(QStringLiteral("models/selfie_segmentation.onnx"));
 }
 
 bool PswrapSegmenter::available() const

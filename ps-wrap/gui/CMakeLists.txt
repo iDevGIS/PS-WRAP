@@ -87,6 +87,7 @@ set(SOURCE_FILES
 	src/pswrapgameprofiles.cpp
 	src/qmlmainwindow_pswrapprofiles.cpp
 	include/pswrapsecrets.h
+	include/pswrapdatadir.h
 	src/pswrapsecrets.cpp
 	include/pswraplive.h
 	src/pswraplive.cpp
@@ -289,8 +290,8 @@ if(APPLE)
 	# ไม่ link = "Could not find permission plugin for QCameraPermission" → Qt ถือว่าไม่ได้รับอนุญาต กล้อง/ไมค์เปิดไม่ได้
 	# PS-WRAP-MAC: โมเดล AI facecam (res/models) + ภาพ fx (res/fx-photo) ต้องอยู่ข้าง exe (โค้ดหาใน applicationDirPath เหมือน Windows)
 	add_custom_command(TARGET chiaki POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/res/models $<TARGET_FILE_DIR:chiaki>/models
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/res/fx-photo $<TARGET_FILE_DIR:chiaki>/fx)
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/res/models $<TARGET_BUNDLE_CONTENT_DIR:chiaki>/Resources/models
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/res/fx-photo $<TARGET_BUNDLE_CONTENT_DIR:chiaki>/Resources/fx)   # Contents/Resources (pswrapdatadir.h) — ใน MacOS/ ทำ codesign พัง
 	foreach(_perm Camera Microphone)
 		if(TARGET Qt6::QDarwin${_perm}PermissionPlugin)
 			target_link_libraries(chiaki Qt6::QDarwin${_perm}PermissionPlugin Qt6::QDarwin${_perm}PermissionPlugin_init)

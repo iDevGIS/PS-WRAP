@@ -1,5 +1,6 @@
 // PS-WRAP: DirectShow (Windows) / avfoundation (macOS) camera via libavdevice (ดู pswrapcamera.h)
 #include <pswrapcamera.h>
+#include "pswrapdatadir.h"
 
 #include <QVideoSink>
 #include <QVideoFrameFormat>
@@ -124,7 +125,7 @@ QStringList PswrapCamera::enumerateDirectShowDevices()
     return out;
 }
 
-QString PswrapCamera::appDir() const { return QCoreApplication::applicationDirPath(); }
+QString PswrapCamera::appDir() const { return pswrapDataDir(); }   // fx/*.png (mac: Contents/Resources)
 
 // ---------------------------------------------------------------- PswrapCamera
 PswrapCamera::PswrapCamera(QObject *parent)
