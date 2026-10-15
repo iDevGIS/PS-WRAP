@@ -3,7 +3,9 @@
 // Windows: Windows Credential Manager (CredWriteW/CredReadW/CredDeleteW) แบบ CRED_TYPE_GENERIC
 //          persist = LOCAL_MACHINE (ไม่ roam ไปเครื่องอื่น) · เข้ารหัสด้วย DPAPI ของ user โดย OS
 //          ดู/ลบเองได้ที่ Control Panel › Credential Manager › Windows Credentials › "PS-WRAP/..."
-// อื่นๆ:   stub — isAvailable() = false, ทุกฟังก์ชันคืน Error (ยังไม่ทำ libsecret/Keychain)
+// macOS:   Keychain (Security.framework) generic password service "PS-WRAP" account = target · ThisDeviceOnly (ไม่ sync iCloud)
+//          ดู/ลบเองได้ที่ Keychain Access › login › ค้น "PS-WRAP"
+// อื่นๆ:   stub — isAvailable() = false, ทุกฟังก์ชันคืน Error (ยังไม่ทำ libsecret)
 //
 // target name: "PS-WRAP/<namespace>/<id>" เช่น liveTarget("youtube") = "PS-WRAP/live/youtube"
 // ค่าเก็บเป็น UTF-8 · ยาวสุด 2560 byte (CRED_MAX_CREDENTIAL_BLOB_SIZE)

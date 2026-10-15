@@ -18,12 +18,14 @@ PY=$(command -v python3)
 "$PY" -c 'import google.protobuf' 2>/dev/null || { echo "python3 ($PY) ไม่มี google.protobuf → รัน scripts/setup-mac.sh ก่อน"; exit 1; }
 
 # PS-WRAP Link: libdatachannel source อยู่ในโปรเจกต์ข้างๆ (PS-WRAP-LINK/spike/deps) — มี = เปิด Link · ไม่มี = build แบบไม่มี Link
+# บน mac ไม่มีโปรเจกต์ข้างๆ ก็ใช้ _deps/libdatachannel (setup-mac.sh clone ให้ · gitignored)
 LDC="$(cd ../.. && pwd)/PS-WRAP-LINK/spike/deps/libdatachannel"
+[ -f "$LDC/CMakeLists.txt" ] || LDC="$(cd .. && pwd)/_deps/libdatachannel"
 LINK_FLAGS=()
 if [ -f "$LDC/CMakeLists.txt" ]; then
 	LINK_FLAGS=(-DPSWRAP_LINK=ON "-DPSWRAP_LIBDATACHANNEL_DIR=$LDC")
 else
-	echo "ไม่เจอ libdatachannel ที่ $LDC → build แบบไม่มี Link"
+	echo "ไม่เจอ libdatachannel (PS-WRAP-LINK/spike/deps หรือ _deps) → build แบบไม่มี Link · รัน scripts/setup-mac.sh เพื่อ clone"
 fi
 
 # gotcha: CMAKE_FIND_FRAMEWORK=LAST — ไม่งั้น CMake ไปเจอ zlib/openssl 1.1 header เก่าใน /Library/Frameworks/GStreamer.framework ก่อน

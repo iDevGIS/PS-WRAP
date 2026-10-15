@@ -1,4 +1,4 @@
-// PS-WRAP: ที่เก็บความลับ — Windows Credential Manager (ดู pswrapsecrets.h)
+// PS-WRAP: ที่เก็บความลับ — Windows Credential Manager / macOS Keychain (ดู pswrapsecrets.h)
 #include <pswrapsecrets.h>
 
 #include <QByteArray>
@@ -11,6 +11,10 @@
 #endif
 #include <windows.h>
 #include <wincred.h>
+#elif defined(__APPLE__)
+#include <CoreFoundation/CoreFoundation.h>
+#include <Security/Security.h>
+#include <cstring>
 #endif
 
 namespace PsWrapSecrets
@@ -158,7 +162,142 @@ bool exists(const QString &target)
 	return read(target, nullptr) == Result::Ok;
 }
 
-#else // !_WIN32 — stub: ยังไม่มีที่เก็บที่ปลอดภัย (TODO: libsecret / macOS Keychain)
+#elif defined(__APPLE__) // macOS Keychain (Security.framework) — generic password: service "PS-WRAP", account = target
+
+static constexpr int kMaxBlob = 5 * 512;   // เท่ากับฝั่ง Windows
+
+static void setError(QString *error, const QString &msg)
+{
+	if (error)
+		*error = msg;
+}
+
+static QString osStatusText(const char *what, OSStatus st)
+{
+	QString msg;
+	if (CFStringRef cf = SecCopyErrorMessageString(st, nullptr))
+	{
+		msg = QString::fromCFString(cf);
+		CFRelease(cf);
+	}
+	return QStringLiteral("%1 failed (%2)%3").arg(QLatin1String(what)).arg(int(st))
+		.arg(msg.isEmpty() ? QString() : QStringLiteral(": ") + msg);
+}
+
+static CFMutableDictionaryRef baseQuery(const QString &target)
+{
+	CFMutableDictionaryRef q = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	CFDictionarySetValue(q, kSecClass, kSecClassGenericPassword);
+	CFStringRef service = CFSTR("PS-WRAP");
+	CFDictionarySetValue(q, kSecAttrService, service);
+	CFStringRef account = target.toCFString();
+	CFDictionarySetValue(q, kSecAttrAccount, account);
+	CFRelease(account);
+	return q;
+}
+
+bool isAvailable()
+{
+	return true;
+}
+
+Result write(const QString &target, const QString &secret, QString *error)
+{
+	if (target.isEmpty())
+	{
+		setError(error, QStringLiteral("empty target"));
+		return Result::Error;
+	}
+	if (secret.isEmpty())
+		return remove(target, error);
+
+	QByteArray blob = secret.toUtf8();
+	if (blob.size() > kMaxBlob)
+	{
+		memset(blob.data(), 0, size_t(blob.size()));
+		setError(error, QStringLiteral("secret too long (%1 bytes, max %2)").arg(blob.size()).arg(kMaxBlob));
+		return Result::Error;
+	}
+	CFDataRef data = CFDataCreate(kCFAllocatorDefault, reinterpret_cast<const UInt8 *>(blob.constData()), blob.size());
+	memset(blob.data(), 0, size_t(blob.size()));
+
+	// มีอยู่แล้ว → update · ไม่มี → add (เข้าถึงได้เฉพาะเครื่องนี้ ไม่ sync iCloud)
+	CFMutableDictionaryRef q = baseQuery(target);
+	CFMutableDictionaryRef attrs = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	CFDictionarySetValue(attrs, kSecValueData, data);
+	OSStatus st = SecItemUpdate(q, attrs);
+	if (st == errSecItemNotFound)
+	{
+		CFDictionarySetValue(q, kSecValueData, data);
+		CFDictionarySetValue(q, kSecAttrAccessible, kSecAttrAccessibleWhenUnlockedThisDeviceOnly);
+		CFStringRef label = CFSTR("PS-WRAP");
+		CFDictionarySetValue(q, kSecAttrLabel, label);
+		st = SecItemAdd(q, nullptr);
+	}
+	CFRelease(attrs);
+	CFRelease(q);
+	CFRelease(data);
+	if (st != errSecSuccess)
+	{
+		setError(error, osStatusText(st == errSecItemNotFound ? "SecItemAdd" : "SecItemUpdate", st));
+		return Result::Error;
+	}
+	return Result::Ok;
+}
+
+Result read(const QString &target, QString *secret, QString *error)
+{
+	if (target.isEmpty())
+	{
+		setError(error, QStringLiteral("empty target"));
+		return Result::Error;
+	}
+	CFMutableDictionaryRef q = baseQuery(target);
+	CFDictionarySetValue(q, kSecReturnData, kCFBooleanTrue);
+	CFDictionarySetValue(q, kSecMatchLimit, kSecMatchLimitOne);
+	CFTypeRef result = nullptr;
+	const OSStatus st = SecItemCopyMatching(q, &result);
+	CFRelease(q);
+	if (st == errSecItemNotFound)
+		return Result::NotFound;
+	if (st != errSecSuccess)
+	{
+		setError(error, osStatusText("SecItemCopyMatching", st));
+		return Result::Error;
+	}
+	if (result && CFGetTypeID(result) == CFDataGetTypeID())
+	{
+		CFDataRef data = static_cast<CFDataRef>(result);
+		if (secret)
+			*secret = QString::fromUtf8(reinterpret_cast<const char *>(CFDataGetBytePtr(data)), int(CFDataGetLength(data)));
+	}
+	if (result)
+		CFRelease(result);
+	return Result::Ok;
+}
+
+Result remove(const QString &target, QString *error)
+{
+	if (target.isEmpty())
+	{
+		setError(error, QStringLiteral("empty target"));
+		return Result::Error;
+	}
+	CFMutableDictionaryRef q = baseQuery(target);
+	const OSStatus st = SecItemDelete(q);
+	CFRelease(q);
+	if (st == errSecSuccess || st == errSecItemNotFound)
+		return Result::Ok;
+	setError(error, osStatusText("SecItemDelete", st));
+	return Result::Error;
+}
+
+bool exists(const QString &target)
+{
+	return read(target, nullptr) == Result::Ok;
+}
+
+#else // อื่นๆ — stub: ยังไม่มีที่เก็บที่ปลอดภัย (TODO: libsecret)
 
 static Result unsupported(QString *error)
 {

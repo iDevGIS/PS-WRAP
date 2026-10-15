@@ -21,8 +21,16 @@ python3 -m pip install --quiet 'protobuf>=5,<6' --break-system-packages 2>/dev/n
 	|| python3 -m pip install --quiet 'protobuf>=5,<6'
 python3 -c 'import google.protobuf; print("protobuf", google.protobuf.__version__)'
 
-echo "[3/3] submodules"
+echo "[3/4] submodules"
 git submodule update --init --recursive
+
+echo "[4/4] libdatachannel (PS-WRAP Link) → _deps/libdatachannel"
+# ฝั่ง Windows ใช้ source จากโปรเจกต์ PS-WRAP-LINK ข้างๆ · บน mac clone มาไว้ใน repo (gitignored) ถ้ายังไม่มี
+LDC_VER=v0.24.6
+if [ ! -f _deps/libdatachannel/CMakeLists.txt ]; then
+	mkdir -p _deps
+	git clone -q --recurse-submodules --shallow-submodules --depth 1 --branch "$LDC_VER" https://github.com/paullouisageneau/libdatachannel.git _deps/libdatachannel
+fi
 
 echo
 echo "เสร็จ ถัดไป: scripts/build-mac.sh"

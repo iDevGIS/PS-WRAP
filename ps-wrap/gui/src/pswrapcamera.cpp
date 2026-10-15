@@ -1,4 +1,4 @@
-// PS-WRAP: DirectShow camera via libavdevice (ดู pswrapcamera.h)
+// PS-WRAP: DirectShow (Windows) / avfoundation (macOS) camera via libavdevice (ดู pswrapcamera.h)
 #include <pswrapcamera.h>
 
 #include <QVideoSink>
@@ -28,6 +28,11 @@ extern "C" {
 #include <windows.h>
 #include <dshow.h>
 #include <oleauto.h>
+#elif defined(Q_OS_MACOS)
+// PS-WRAP-MAC: avfoundation ของ libavdevice — รายชื่อกล้องเอาจาก Qt (ชื่อเดียวกับ AVCaptureDevice.localizedName ที่ avfoundation ใช้จับคู่)
+#include <QMediaDevices>
+#include <QCameraDevice>
+#include <QPermissions>
 #endif
 
 Q_LOGGING_CATEGORY(pswrapCam, "pswrap.camera")
@@ -109,6 +114,12 @@ QStringList PswrapCamera::enumerateDirectShowDevices()
     }
     if (need_uninit)
         CoUninitialize();
+#elif defined(Q_OS_MACOS)
+    for (const QCameraDevice &d : QMediaDevices::videoInputs()) {
+        const QString name = d.description();
+        if (!name.isEmpty() && !out.contains(name))
+            out.append(name);
+    }
 #endif
     return out;
 }
@@ -165,6 +176,24 @@ void PswrapCamera::setActive(bool v)
         return;
     is_active = v;
     emit activeChanged();
+#ifdef Q_OS_MACOS
+    // PS-WRAP-MAC: macOS ต้องขอสิทธิ์กล้องก่อน (TCC) — ยังไม่เคยถาม → ถาม แล้วค่อยเปิดเมื่อผู้ใช้ตอบ · ปฏิเสธไว้ = เปิดไม่ได้ (ไปเปิดใน System Settings › Privacy › Camera)
+    if (v && QCoreApplication::instance()) {
+        QCameraPermission perm;
+        const auto status = QCoreApplication::instance()->checkPermission(perm);
+        if (status == Qt::PermissionStatus::Undetermined) {
+            qCInfo(pswrapCam) << "requesting camera permission";
+            QCoreApplication::instance()->requestPermission(perm, this, [this](const QPermission &p) {
+                qCInfo(pswrapCam) << "camera permission:" << (p.status() == Qt::PermissionStatus::Granted ? "granted" : "denied");
+                if (is_active)
+                    restart();
+            });
+            return;
+        }
+        if (status == Qt::PermissionStatus::Denied)
+            qCWarning(pswrapCam) << "camera permission denied — enable it in System Settings > Privacy & Security > Camera";
+    }
+#endif
     restart();
 }
 
@@ -349,9 +378,14 @@ bool PswrapCameraWorker::stopAllAndWait(int timeout_ms)
 
 int PswrapCameraWorker::openInput(AVFormatContext **ctx, bool with_hints, QString *detail)
 {
-    const AVInputFormat *in_fmt = av_find_input_format("dshow");
+#ifdef Q_OS_MACOS
+    const char *const in_name = "avfoundation";   // PS-WRAP-MAC
+#else
+    const char *const in_name = "dshow";
+#endif
+    const AVInputFormat *in_fmt = av_find_input_format(in_name);
     if (!in_fmt) {
-        *detail = QStringLiteral("dshow input not available in this ffmpeg build");
+        *detail = QStringLiteral("%1 input not available in this ffmpeg build").arg(QLatin1String(in_name));
         return AVERROR_DEMUXER_NOT_FOUND;
     }
     AVFormatContext *fmt_ctx = avformat_alloc_context();
@@ -372,7 +406,13 @@ int PswrapCameraWorker::openInput(AVFormatContext **ctx, bool with_hints, QStrin
         av_dict_set(&opts, "framerate", "30", 0);
     }
 
+#ifdef Q_OS_MACOS
+    // avfoundation: "<video>:<audio>" จับคู่ชื่อแบบ prefix · nv12 = ฟอร์แมตที่กล้อง Apple ให้ตรงๆ
+    av_dict_set(&opts, "pixel_format", "nv12", 0);
+    const QByteArray url = (device + QStringLiteral(":none")).toUtf8();
+#else
     const QByteArray url = (QStringLiteral("video=") + device).toUtf8();
+#endif
     const int ret = avformat_open_input(&fmt_ctx, url.constData(), in_fmt, &opts);   // ล้มเหลว = free ctx + ตั้ง nullptr ให้เอง
     av_dict_free(&opts);
     if (ret < 0) {

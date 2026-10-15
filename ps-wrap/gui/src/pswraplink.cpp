@@ -290,7 +290,8 @@ private:
 	{
 		if (enc)
 			avcodec_free_context(&enc);
-		const char *const names[] = {"h264_nvenc", "h264_amf", "libx264"};
+		// PS-WRAP-MAC: h264_videotoolbox (Apple hardware) มาก่อน · libx264 เป็น fallback ทุกแพลตฟอร์ม
+		const char *const names[] = {"h264_nvenc", "h264_amf", "h264_videotoolbox", "libx264"};
 		for (const char *n : names) {
 			const AVCodec *codec = avcodec_find_encoder_by_name(n);
 			if (!codec)
@@ -322,6 +323,12 @@ private:
 				av_opt_set(c->priv_data, "usage", "ultralowlatency", 0);
 				av_opt_set(c->priv_data, "rc", "cbr", 0);
 				av_opt_set(c->priv_data, "profile", "constrained_baseline", 0);
+			} else if (!strcmp(n, "h264_videotoolbox")) {
+				av_opt_set(c->priv_data, "realtime", "1", 0);        // ไม่รอคิวเฟรม
+				av_opt_set(c->priv_data, "prio_speed", "1", 0);      // ความเร็วก่อนคุณภาพ
+				av_opt_set(c->priv_data, "allow_sw", "1", 0);        // เครื่องไม่มี HW encoder ก็ยังได้
+				av_opt_set(c->priv_data, "profile", "baseline", 0);
+				av_opt_set(c->priv_data, "constant_bit_rate", "1", 0);   // CBR (macOS 13+) · ไม่รองรับ = ffmpeg เตือนแล้วใช้ ABR
 			} else {
 				av_opt_set(c->priv_data, "preset", "ultrafast", 0);
 				av_opt_set(c->priv_data, "tune", "zerolatency", 0);
