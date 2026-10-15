@@ -282,16 +282,19 @@ endif()
 set_target_properties(chiaki PROPERTIES
 		MACOSX_BUNDLE TRUE
 		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in"
-		MACOSX_BUNDLE_BUNDLE_NAME chiaki-ng
-		MACOSX_BUNDLE_BUNDLE_VERSION ${CHIAKI_VERSION}
-		MACOSX_BUNDLE_COPYRIGHT "thestr4ng3r (AGPLv3)"
-		MACOSX_BUNDLE_GUI_IDENTIFIER "org.streetpea.chiaking"
+		MACOSX_BUNDLE_BUNDLE_NAME PS-WRAP-MAC
+		MACOSX_BUNDLE_BUNDLE_VERSION ${PSWRAP_VERSION}
+		MACOSX_BUNDLE_COPYRIGHT "iDevGIS / chiaki-ng contributors (AGPLv3)"
+		MACOSX_BUNDLE_GUI_IDENTIFIER "com.idevgis.pswrap"
 		MACOSX_BUNDLE_ICON_FILE chiaking.icns
 		RESOURCE "${RESOURCE_FILES}")
 
 if(WIN32)
 	# PS-WRAP: ไฟล์ exe ชื่อ PS-WRAP.exe (target ยังชื่อ chiaki ลด diff กับ upstream)
 	set_target_properties(chiaki PROPERTIES OUTPUT_NAME "PS-WRAP")
+elseif(APPLE)
+	# PS-WRAP-MAC: bundle ชื่อ PS-WRAP-MAC.app (ชื่อบน menu bar มาจาก CFBundleName ด้านบน)
+	set_target_properties(chiaki PROPERTIES OUTPUT_NAME "PS-WRAP-MAC")
 endif()
 
 install(TARGETS chiaki

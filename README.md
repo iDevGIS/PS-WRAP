@@ -270,7 +270,7 @@ AI facecam features need `onnxruntime.dll` (ONNX Runtime 1.30 win-x64) next to `
 git clone --recurse-submodules https://github.com/iDevGIS/PS-WRAP.git
 cd PS-WRAP
 scripts/setup-mac.sh    # Homebrew dependencies + python protobuf (once)
-scripts/build-mac.sh    # → ps-wrap/build/gui/chiaki.app
+scripts/build-mac.sh    # → ps-wrap/build/gui/PS-WRAP-MAC.app
 scripts/run-mac.sh      # run the build
 ```
 

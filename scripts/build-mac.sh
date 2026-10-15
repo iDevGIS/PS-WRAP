@@ -1,5 +1,5 @@
 #!/bin/bash
-# configure + build บน macOS → ps-wrap/build/gui/chiaki.app — คู่กับ build.ps1 ฝั่ง Windows
+# configure + build บน macOS → ps-wrap/build/gui/PS-WRAP-MAC.app — คู่กับ build.ps1 ฝั่ง Windows
 # ใช้: scripts/build-mac.sh [--clean] [--debug]
 set -e
 cd "$(dirname "$0")/../ps-wrap"
@@ -42,4 +42,4 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE="$TYPE" \
 	-DQT_NO_PRIVATE_MODULE_WARNING=ON \
 	"${LINK_FLAGS[@]}"
 cmake --build build $CLEAN --target chiaki
-echo "build ผ่าน ใช้เวลา $(( $(date +%s) - START ))s → ps-wrap/build/gui/chiaki.app"
+echo "build ผ่าน ใช้เวลา $(( $(date +%s) - START ))s → ps-wrap/build/gui/PS-WRAP-MAC.app"

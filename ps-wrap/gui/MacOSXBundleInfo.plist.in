@@ -31,8 +31,10 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>For mic support, chiaki-ng requires access to your microphone.</string>
+	<string>PS-WRAP-MAC needs the microphone for voice chat and mic streaming.</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.games</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PS-WRAP-MAC needs the camera for the facecam overlay.</string>
 </dict>
 </plist>
