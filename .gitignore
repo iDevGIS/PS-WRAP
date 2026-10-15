@@ -55,3 +55,8 @@ Thumbs.db
 /PS-WRAP-AGENT
 /PS-WRAP-LINK
 /PS-WRAP-WWW
+
+# ไฟล์ลับในเครื่อง (key ต่างๆ) — ห้าม commit
+.secret
+.secret/
+.secret.*
