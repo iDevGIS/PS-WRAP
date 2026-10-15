@@ -139,6 +139,13 @@ int real_main(int argc, char *argv[])
 	QGuiApplication::setApplicationDisplayName("PS-WRAP");
 #if defined(Q_OS_MACOS)
 	qputenv("QT_MTL_NO_TRANSACTION", "1");
+	// PS-WRAP-MAC: .app ที่ deploy แล้วมี MoltenVK ของตัวเอง (Contents/Resources/vulkan/icd.d) → บังคับ loader ใช้ตัวนั้นตัวเดียว
+	// ไม่งั้นเครื่องที่มี brew molten-vk จะโหลด ICD ซ้ำ 2 ตัว (objc "Class MVKBlockObserver is implemented in both…")
+	if (!qEnvironmentVariableIsSet("VK_DRIVER_FILES") && !qEnvironmentVariableIsSet("VK_ICD_FILENAMES") && QCoreApplication::instance()) {
+		const QString icd = QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/vulkan/icd.d/MoltenVK_icd.json");
+		if (QFileInfo::exists(icd))
+			qputenv("VK_DRIVER_FILES", QFileInfo(icd).absoluteFilePath().toUtf8());
+	}
 	// PS-WRAP-MAC: QVulkanInstance โหลด library ชื่อ "vulkan" ผ่าน dlopen ซึ่งหาไม่เจอถ้าไม่มี symlink ใน .app → ชี้ libvulkan ของ Homebrew/บันเดิลให้เอง
 	if (!qEnvironmentVariableIsSet("QT_VULKAN_LIB")) {
 		QStringList candidates;

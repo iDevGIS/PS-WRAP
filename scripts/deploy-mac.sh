@@ -27,13 +27,16 @@ echo "[1/5] libs นอก Qt: onnxruntime · vulkan loader · MoltenVK ICD"
 cp -L "$BREW/opt/onnxruntime/lib/libonnxruntime.dylib" "$FW/libonnxruntime.dylib"
 # vulkan loader — main.cpp ตั้ง QT_VULKAN_LIB=Contents/Frameworks/libvulkan.1.dylib · libplacebo ก็ลิงก์ libvulkan (macdeployqt จะ copy อีกชุดถ้าหาเจอ)
 cp -L "$BREW/opt/vulkan-loader/lib/libvulkan.1.dylib" "$FW/libvulkan.1.dylib"
-# MoltenVK: loader หา ICD ใน <bundle>/Contents/Resources/vulkan/icd.d
-cp -L "$BREW/opt/molten-vk/lib/libMoltenVK.dylib" "$APP/Contents/Resources/vulkan/icd.d/libMoltenVK.dylib"
+# SDL3: brew sdl2 = sdl2-compat ซึ่ง dlopen "@loader_path/libSDL3.dylib" ตอน init — ไม่มี = NSAlert ค้างก่อน main() (เจอ 2026-10-15)
+cp -L "$BREW/opt/sdl3/lib/libSDL3.0.dylib" "$FW/libSDL3.dylib"
+# MoltenVK: loader หา ICD json ใน <bundle>/Contents/Resources/vulkan/icd.d · ตัว dylib วางใน Frameworks (codesign --deep เซ็นให้ — ถ้าวางใน Resources
+# แล้วแก้ install name จะโดน SIGKILL "Code Signature Invalid" ตอน loader dlopen · เจอ 2026-10-15) · library_path เทียบกับโฟลเดอร์ json
+cp -L "$BREW/opt/molten-vk/lib/libMoltenVK.dylib" "$FW/libMoltenVK.dylib"
 cat > "$APP/Contents/Resources/vulkan/icd.d/MoltenVK_icd.json" <<'JSON'
 {
     "file_format_version": "1.0.0",
     "ICD": {
-        "library_path": "./libMoltenVK.dylib",
+        "library_path": "../../../Frameworks/libMoltenVK.dylib",
         "api_version": "1.2.0",
         "is_portability_driver": true
     }
@@ -46,7 +49,7 @@ echo "[2/5] macdeployqt (Qt frameworks/plugins/QML + dylib จาก Homebrew �
 cp ps-wrap/scripts/qtwebengine_import.qml ps-wrap/gui/src/qml/
 trap 'rm -f "$ROOT/ps-wrap/gui/src/qml/qtwebengine_import.qml"' EXIT
 "$BREW/opt/qt@6/bin/macdeployqt" "$APP" -qmldir="$ROOT/ps-wrap/gui/src/qml" -libpath="$BREW/lib" \
-	-executable="$FW/libonnxruntime.dylib" -executable="$FW/libvulkan.1.dylib" -executable="$APP/Contents/Resources/vulkan/icd.d/libMoltenVK.dylib" \
+	-executable="$FW/libonnxruntime.dylib" -executable="$FW/libvulkan.1.dylib" -executable="$FW/libSDL3.dylib" -executable="$FW/libMoltenVK.dylib" \
 	> "$OUT/macdeployqt.log" 2>&1 || { echo "macdeployqt ล้มเหลว ดู $OUT/macdeployqt.log"; exit 1; }
 rm -f ps-wrap/gui/src/qml/qtwebengine_import.qml
 # WebEngine helper ต้องเห็น Frameworks ของแอป (upstream)
