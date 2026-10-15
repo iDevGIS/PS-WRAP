@@ -199,8 +199,6 @@ void PsWrapUpdater::onCheckFinished(QNetworkReply *reply, bool manual)
 	page_url_ = best.value(QStringLiteral("html_url")).toString(QString::fromLatin1(kReleasesPage));
 	const QString body = best.value(QStringLiteral("body")).toString();
 	notes_ = trimNotes(body);
-	const QRegularExpressionMatch sha = QRegularExpression(QStringLiteral("SHA-256:\\s*`?([0-9A-Fa-f]{64})")).match(body);
-	asset_sha256_ = sha.hasMatch() ? sha.captured(1).toLower() : QString();
 	asset_url_.clear();
 	asset_name_.clear();
 	asset_size_ = 0;
@@ -219,6 +217,14 @@ void PsWrapUpdater::onCheckFinished(QNetworkReply *reply, bool manual)
 			break;
 		}
 	}
+	// SHA-256 ของ asset นี้: release มีหลายแพลตฟอร์ม (win64 + macos) → เอาตัวที่ตามหลังชื่อ asset ใน notes · ไม่เจอ = ตัวแรกใน notes (แบบเดิม)
+	const QString sha_pat = QStringLiteral("SHA-256:\\s*`?([0-9A-Fa-f]{64})");
+	QRegularExpressionMatch sha;
+	if (!asset_name_.isEmpty())
+		sha = QRegularExpression(QRegularExpression::escape(asset_name_) + QStringLiteral("[\\s\\S]{0,600}?") + sha_pat).match(body);
+	if (!sha.hasMatch())
+		sha = QRegularExpression(sha_pat).match(body);
+	asset_sha256_ = sha.hasMatch() ? sha.captured(1).toLower() : QString();
 	setState(updateAvailable() ? QStringLiteral("available") : QStringLiteral("uptodate"));
 }
 
