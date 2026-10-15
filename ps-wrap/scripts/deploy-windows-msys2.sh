@@ -77,6 +77,7 @@ enqueue_dependency() {
     fi
 }
 
+drain_queue() {
 while [[ ${#queue[@]} -gt 0 ]]; do
     current="${queue[0]}"
     queue=("${queue[@]:1}")
@@ -90,6 +91,8 @@ while [[ ${#queue[@]} -gt 0 ]]; do
         enqueue_dependency "$dependency"
     done < <(extract_dependencies "$current")
 done
+}
+drain_queue
 
 # Ensure SDL3 is bundled even if ldd/Qt doesn't list it.
 shopt -s nullglob
@@ -110,6 +113,13 @@ exe_dir="$(dirname "$exe_path")"
 [ -d "$exe_dir/fx" ] && mkdir -p "$output_dir/fx" && cp -a "$exe_dir/fx/." "$output_dir/fx/"
 
 windeployqt6.exe --no-translations --qmldir="$qml_dir" "$output_dir/$(basename "$exe_path")"
+
+# PS-WRAP: DLL ที่ plugin/QML module จาก windeployqt ต้องใช้ (เช่น imageformats/qjpeg.dll → libjpeg-8.dll) — เดิมไม่สแกน
+# → Windows หยิบตัวอื่นใน PATH แทน (เจอ 2026-10-15: libjpeg ของ GStreamer → "JPEG parameter struct mismatch" แอปตายตอนโหลด JPEG)
+while IFS= read -r -d '' plugin_dll; do
+    queue+=("$plugin_dll")
+done < <(find "$output_dir" -mindepth 2 -iname '*.dll' -print0)
+drain_queue
 
 # Remove system-provided DLLs that Windows already supplies and
 # should not be bundled with the MSYS2 build (e.g. D3D compiler). Use

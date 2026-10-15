@@ -26,6 +26,7 @@
 #include <QIcon>
 #include <QMenu>
 #include <QProcess>
+#include <QQuickRenderControl>
 #include <QStandardPaths>
 #include <QThread>
 #include <QUrl>
@@ -878,13 +879,27 @@ void QmlMainWindow::pswrapRecordCapture(const pl_frame_mix *mix, const pl_frame 
 	Q_ASSERT(QThread::currentThread() == render_thread);
 	if (hint)
 		PsWrapRecCapture::noteSource(hint);
+	// หน้าต่างย่ออยู่ (swapchain ถูกทำลาย) → ใช้ขนาดจอของเฟรมล่าสุดที่ขึ้นจอ · ขึ้นจออยู่ → จำไว้ให้ตอนย่อ
+	const bool on_screen = !swapchain_size.isEmpty();
+	if (on_screen) {
+		pswrap_hidden_target = screen_target;
+		pswrap_hidden_target.num_planes = 0;   // plane ชี้ไป image ของ swapchain — หมดอายุตอนย่อ
+		pswrap_hidden_target.overlays = nullptr;
+		pswrap_hidden_target.num_overlays = 0;
+		pswrap_hidden_size = swapchain_size;
+		if (pswrap_hidden_active) {
+			pswrap_hidden_active = false;
+			qCInfo(chiakiGui) << "PSWRAP capture: window visible again";
+		}
+	}
+	const QSize screen = on_screen ? swapchain_size : pswrap_hidden_size;
 	// PS-WRAP: pipeline แนวตั้ง 9:16 — วาดแยกด้วยเลย์เอาต์ของหน้าต่าง preview
 	if (pswrap_vrec && pswrap_vrec->isCapturing()) {
 		if (!pswrap_vrec_capture)
 			if (pl_gpu gpu = placeboGpu())
 				pswrap_vrec_capture = new PsWrapRecCapture(gpu, placebo_log);
 		if (pswrap_vrec_capture) {
-			const int sw = swapchain_size.width(), sh = swapchain_size.height();
+			const int sw = screen.width(), sh = screen.height();
 			const PsWrapVerticalLayout vl = pswrapVerticalLayoutNow(sw, sh);
 			pswrap_vrec_capture->capture(pswrap_vrec, mix, single, params, screen_target, overlay, sw, sh, nullptr, &vl);
 		}
@@ -906,8 +921,102 @@ void QmlMainWindow::pswrapRecordCapture(const pl_frame_mix *mix, const pl_frame 
 			return;
 		pswrap_rec_capture = new PsWrapRecCapture(gpu, placebo_log);
 	}
+	// ปิด "ส่ง overlay ของฉัน" → กรอบ overlay ของเรา (QML วัดเป็นพิกัด view) แปลงเป็นพิกเซลจอ ให้ตัวจับภาพเว้นไว้
+	std::vector<QRectF> hide;
+	if (!settings->GetShareOverlays()) {
+		QMutexLocker locker(&pswrap_hide_mutex);
+		if (pswrap_hide_view.width() > 0 && pswrap_hide_view.height() > 0) {
+			const qreal sx = screen.width() / pswrap_hide_view.width(), sy = screen.height() / pswrap_hide_view.height();
+			for (const QRectF &r : pswrap_hide_rects)
+				hide.emplace_back(r.x() * sx, r.y() * sy, r.width() * sx, r.height() * sy);
+		}
+	}
+	pswrap_rec_capture->setHideRects(std::move(hide));
 	pswrap_rec_capture->capture(rec, mix, single, params, screen_target, overlay,
-	                            swapchain_size.width(), swapchain_size.height(), pswrapCaptureUpscaler());
+	                            screen.width(), screen.height(), pswrapCaptureUpscaler());
+}
+
+bool QmlMainWindow::shareOverlays() const { return settings->GetShareOverlays(); }
+
+void QmlMainWindow::setShareOverlays(bool v)
+{
+	if (v == settings->GetShareOverlays())
+		return;
+	settings->SetShareOverlays(v);
+	emit shareOverlaysChanged();
+}
+
+void QmlMainWindow::setCaptureHideRects(const QVariantList &rects, qreal view_w, qreal view_h)
+{
+	QList<QRectF> list;
+	for (const QVariant &v : rects) {
+		const QRectF r = v.toRectF();
+		if (r.width() > 0 && r.height() > 0)
+			list.append(r);
+	}
+	QMutexLocker locker(&pswrap_hide_mutex);
+	pswrap_hide_rects = list;
+	pswrap_hide_view = QSizeF(view_w, view_h);
+}
+
+bool QmlMainWindow::pswrapHiddenCaptureWanted() const
+{
+	// OpenGL: destroySwapchain ลบ quick_fbo (overlay) ไปด้วย → ไม่รองรับ · ยังไม่เคยขึ้นจอ = ไม่รู้กรอบวิดีโอ
+	if (render_backend != RenderBackend::Vulkan || pswrap_hidden_size.isEmpty())
+		return false;
+	PsWrapRecorder *rec = PsWrapRecorder::instance();
+	return (rec && rec->isCapturing()) || (pswrap_vrec && pswrap_vrec->isCapturing());   // Link / อัด / replay / Go Live
+}
+
+// หน้าต่างย่อ: ไม่มี swapchain ให้วาดขึ้นจอ → วาดเฟรมเดียวกัน + overlay QML ลงตัวจับภาพอย่างเดียว
+// เรียกจาก render() หลังดึงเฟรมจากคิวแล้ว (ส่วนนั้นไม่ขึ้นกับ swapchain) · quick_tex ของ Vulkan อยู่รอดหลัง destroySwapchain
+void QmlMainWindow::pswrapRenderHidden(const pl_render_params &params, const pl_frame *single)
+{
+	Q_ASSERT(QThread::currentThread() == render_thread);
+	const pl_frame_mix *mix = single ? nullptr : &frame_mix;
+	if (single ? single->num_planes <= 0 : frame_mix.num_frames <= 0)
+		return;
+	const pl_frame *hint = single;
+	for (int i = 0; !single && i < frame_mix.num_frames; i++) {
+		if (!frame_mix.frames[i] || frame_mix.frames[i]->num_planes <= 0)
+			return;
+		if (!hint || frame_mix.timestamps[i] <= 0.0f)
+			hint = frame_mix.frames[i];
+	}
+	if (!pswrap_hidden_active) {
+		pswrap_hidden_active = true;
+		qCInfo(chiakiGui) << "PSWRAP capture: window hidden, still feeding Link/recording" << pswrap_hidden_size;
+	}
+
+	// overlay QML (แชท/นาฬิกา/ป้าย Link ฯลฯ) — เพื่อนยังเห็นของที่ขยับต่อ
+	if (quick_need_render.loadRelaxed()) {
+		quick_need_render.storeRelaxed(0);
+		if (!quick_frame)
+			beginFrame();
+		if (quick_frame)
+			quick_render->render();
+	}
+	endFrame();   // ห้ามส่ง quick_tex ที่ยัง held ให้ libplacebo (ดูหมายเหตุใน render())
+
+	const float w = pswrap_hidden_size.width(), h = pswrap_hidden_size.height();
+	pl_overlay_part part = {};
+	part.src = {0, 0, w, h};
+	part.dst = {0, 0, w, h};
+	pl_color_repr repr = pl_color_repr_rgb;
+	repr.alpha = PL_ALPHA_PREMULTIPLIED;
+	pl_overlay ov = {};
+	ov.tex = quick_tex;
+	ov.repr = repr;
+	ov.color = pl_color_space_srgb;
+	ov.parts = &part;
+	ov.num_parts = 1;
+	pl_frame target = pswrap_hidden_target;
+	const bool overlay_ok = quick_tex && quick_tex->params.w == int(w) && quick_tex->params.h == int(h);
+	if (overlay_ok) {
+		target.overlays = &ov;
+		target.num_overlays = 1;
+	}
+	pswrapRecordCapture(mix, single, params, target, overlay_ok ? &ov : nullptr, hint);
 }
 
 // upscaler ตามปุ่ม QUALITY สำหรับไฟล์ (คิดแยกจากจอ: ไฟล์ 4K จากสตรีม 1080p ขยาย 2 เท่าแม้หน้าต่างเล็ก)

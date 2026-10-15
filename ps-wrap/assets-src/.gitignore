@@ -1,0 +1,9 @@
+# ต้นฉบับโมเดลจาก Sketchfab (47 MB) ไม่ลง repo — ดาวน์โหลดเองตาม build_glb.py
+dualsense/*.zip
+dualsense/gltf/
+dualsense/gltf_rt/
+dualsense/pivots.json
+# ไฟล์ระหว่างทาง (สร้างใหม่ได้: build_glb.py → balsam → make_pad3d.py) — ของที่แอปใช้อยู่ gui/res/pad3d/
+dualsense/dualsense.glb
+dualsense/balsam_out/
+dualsense/test/

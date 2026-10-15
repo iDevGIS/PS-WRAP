@@ -131,7 +131,10 @@ Dialog {
                         qsTr("Reaction images: %1 (CC-BY 4.0, © Twitter, Inc and other contributors)")
                             .arg(about.link("https://github.com/jdecked/twemoji", "Twemoji")),
                         qsTr("Controller art: %1 by Kenney (CC0) · Samurai armor photo: Wikimedia Commons (CC0)")
-                            .arg(about.link("https://kenney.nl/assets/input-prompts", "Input Prompts"))
+                            .arg(about.link("https://kenney.nl/assets/input-prompts", "Input Prompts")),
+                        qsTr("3D controller: based on %1 by %2 (CC-BY 4.0), split into parts and retextured by PS-WRAP · Qt Quick 3D (GPL-3.0 / commercial)")
+                            .arg(about.link("https://sketchfab.com/3d-models/playstation-5-dualsense-878c1f882808477ab81c2fe86d5a3936", "Playstation 5 Dualsense"))
+                            .arg(about.link("https://sketchfab.com/AHarmlessPotato", "AHarmlessPotato"))
                     ].join("<br>")
                 }
 

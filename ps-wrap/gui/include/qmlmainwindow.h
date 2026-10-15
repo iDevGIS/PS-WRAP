@@ -81,11 +81,13 @@ class QmlMainWindow : public QWindow
     Q_PROPERTY(bool statsOverlay READ statsOverlay WRITE setStatsOverlay NOTIFY statsOverlayChanged)
     // PS-WRAP: อัดวิดีโอ + overlay spectrum ไมค์ (ดู pswraprecorder.h / pswrapmicmeter.h)
     Q_PROPERTY(bool micOverlay READ micOverlay WRITE setMicOverlay NOTIFY micOverlayChanged)
+    Q_PROPERTY(bool shareOverlays READ shareOverlays WRITE setShareOverlays NOTIFY shareOverlaysChanged)   // PS-WRAP: overlay ของเราติดไปในภาพส่งออก (qmlmainwindow_pswraprec.cpp)
     Q_PROPERTY(bool clockOverlay READ clockOverlay WRITE setClockOverlay NOTIFY clockOverlayChanged)   // PS-WRAP: นาฬิกา + เวลาเล่น (qmlmainwindow_pswrapclock.cpp)
     Q_PROPERTY(bool chatOverlay READ chatOverlay WRITE setChatOverlay NOTIFY chatOverlayChanged)       // PS-WRAP: แชทไลฟ์บนจอ (qmlmainwindow_pswrapchat.cpp)
     Q_PROPERTY(bool pointerAtBottom READ pointerAtBottom NOTIFY pointerAtBottomChanged)                // PS-WRAP: เมาส์อยู่แถบล่างของหน้าต่างระหว่างสตรีม → แถบสถานะโผล่ (StreamStatusBar.qml)
     // PS-WRAP: ภาพสวยขึ้นตอนสตรีม (qmlmainwindow_pswrapvisual.cpp)
     Q_PROPERTY(bool ambientLight READ ambientLight WRITE setAmbientLight NOTIFY ambientLightChanged)   // ขอบว่าง = แสงเบลอจากขอบเกม
+    Q_PROPERTY(bool pad3d READ pad3d WRITE setPad3d NOTIFY pad3dChanged)                               // จอยใน overlay แบบ 3D เอียงตามไจโร (ControllerOverlay3D.qml)
     Q_PROPERTY(bool lightbarHalo READ lightbarHalo WRITE setLightbarHalo NOTIFY lightbarHaloChanged)   // แสงเรืองขอบจอตามสีไฟจอย
     Q_PROPERTY(bool frameGen READ frameGen WRITE setFrameGen NOTIFY frameGenChanged)                   // เฟรมกลาง 60 → 120
     Q_PROPERTY(bool frameGenSupported READ frameGenSupported NOTIFY frameGenChanged)                    // Direct Mapping + Vulkan
@@ -208,6 +210,7 @@ public:
     Q_INVOKABLE void restoreFromTray();   // PS-WRAP
     // PS-WRAP: พื้นที่ overlay ที่คลิกได้ระหว่างสตรีม (logical px ของหน้าต่าง) — เมาส์ในพื้นที่นี้ส่งให้ QML แทนเกม
     Q_INVOKABLE void setOverlayHitRects(const QVariantList &rects);
+    Q_INVOKABLE void setCaptureHideRects(const QVariantList &rects, qreal view_w, qreal view_h);   // PS-WRAP: กรอบ overlay ของเรา (พิกัด QML) ที่ไม่ส่งออกตอนปิด shareOverlays
     // PS-WRAP: overlay toggles — เจ้าของค่าอยู่ C++ ให้ tray menu / QML ใช้ร่วมกันและ sync สด
     bool padOverlay() const;
     void setPadOverlay(bool v);
@@ -221,10 +224,14 @@ public:
     int camBackground() const;
     void setCamBackground(int mode);
     void setMicOverlay(bool v);
+    bool shareOverlays() const;         // PS-WRAP: qmlmainwindow_pswraprec.cpp
+    void setShareOverlays(bool v);
     bool clockOverlay() const;          // PS-WRAP: qmlmainwindow_pswrapclock.cpp
     void setClockOverlay(bool v);
     bool ambientLight() const;          // PS-WRAP: qmlmainwindow_pswrapvisual.cpp
     void setAmbientLight(bool v);
+    bool pad3d() const;                 // PS-WRAP: qmlmainwindow_pswrapvisual.cpp
+    void setPad3d(bool v);
     bool lightbarHalo() const;
     void setLightbarHalo(bool v);
     bool frameGen() const;
@@ -343,10 +350,12 @@ signals:
     void camOverlayChanged();
     void statsOverlayChanged();
     void micOverlayChanged();          // PS-WRAP
+    void shareOverlaysChanged();       // PS-WRAP
     void clockOverlayChanged();        // PS-WRAP
     void chatOverlayChanged();         // PS-WRAP
     void pointerAtBottomChanged();     // PS-WRAP
     void ambientLightChanged();        // PS-WRAP
+    void pad3dChanged();               // PS-WRAP
     void lightbarHaloChanged();        // PS-WRAP
     void frameGenChanged();            // PS-WRAP
     void frameGenActiveChanged();      // PS-WRAP
@@ -601,6 +610,17 @@ private:
     void pswrapRecordCapture(const struct pl_frame_mix *mix, const struct pl_frame *single, const struct pl_render_params &params,
                              const struct pl_frame &screen_target, const struct pl_overlay *overlay, const struct pl_frame *hint);
     const struct pl_hook *pswrapCaptureUpscaler() const;   // PS-WRAP: upscaler ของไฟล์ตามปุ่ม QUALITY (qmlmainwindow_pswraprec.cpp)
+    // PS-WRAP: ย่อหน้าต่างระหว่าง Link/อัด/Go Live — swapchain ถูกทำลาย (Expose=false) แต่ยังวาดลง capture ต่อ
+    // (เดิม render() ออกก่อนถึงจุดจับภาพ → เพื่อนเห็นภาพค้าง) · Vulkan เท่านั้น · render thread เท่านั้น
+    bool pswrapHiddenCaptureWanted() const;
+    void pswrapRenderHidden(const struct pl_render_params &params, const struct pl_frame *single);
+    struct pl_frame pswrap_hidden_target = {};   // กรอบวิดีโอบนจอจากเฟรมล่าสุดที่ขึ้นจอ (ไม่มี plane — ใช้แค่ crop/สี)
+    QSize pswrap_hidden_size;                     // ขนาด swapchain ของเฟรมนั้น
+    bool pswrap_hidden_active = false;           // log ครั้งเดียวตอนเริ่ม/จบ
+    // PS-WRAP: กรอบ overlay ที่ไม่ส่งออก (GUI thread เขียน, render thread อ่าน) — พิกัด QML + ขนาด view ตอนวัด
+    QMutex pswrap_hide_mutex;
+    QList<QRectF> pswrap_hide_rects;
+    QSizeF pswrap_hide_view;
     // PS-WRAP: ภาพหน้าจอ (qmlmainwindow_pswrapshot.cpp) — request id จาก GUI thread, render thread หยิบไปถ่ายเฟรมถัดไป
     QAtomicInteger<int> pswrap_shot_request = 0;
     class PsWrapShotCapture *pswrap_shot_capture = nullptr;   // render thread เท่านั้น (ลบตอน destructor หลัง render thread จบ)

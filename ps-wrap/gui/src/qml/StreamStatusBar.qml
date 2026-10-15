@@ -158,6 +158,19 @@ Item {
                 onClicked: if (gl && (live || (Chiaki.session && Chiaki.session.connected))) gl.toggle()
             }
 
+            // ส่ง overlay ของเรา (จอย กล้อง แชท นาฬิกา สถิติ ไมค์) ไปในภาพของเพื่อน/คลิป/Go Live ไหม · ป้ายกับกล้องของ Link ส่งเสมอ
+            Chip {
+                readonly property bool share: Chiaki.window.shareOverlays
+                iconSource: "qrc:/icons/menu/layers.svg"
+                active: share
+                showDot: true
+                dotColor: Theme.accent
+                text: share ? qsTr("Overlays shared") : qsTr("Overlays only me")
+                tip: share ? qsTr("Friends, clips and Go Live see your overlays. Click to keep them on your screen only (Link labels and cams still show)")
+                           : qsTr("Your overlays stay on your screen only. Click to share them with friends, clips and Go Live")
+                onClicked: Chiaki.window.shareOverlays = !Chiaki.window.shareOverlays
+            }
+
             Chip {
                 iconSource: "qrc:/icons/menu/stats.svg"
                 active: true

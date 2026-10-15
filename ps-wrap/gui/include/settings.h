@@ -263,6 +263,12 @@ class Settings : public QObject
 		void SetMicOverlay(bool v) { settings.setValue("pswrap/micOverlay", v); }
 		bool GetClockOverlay() const { return settings.value("pswrap/clockOverlay", false).toBool(); }   // PS-WRAP: นาฬิกา + เวลาเล่น
 		void SetClockOverlay(bool v) { settings.setValue("pswrap/clockOverlay", v); }
+		bool GetShareOverlays() const { return settings.value("pswrap/shareOverlays", true).toBool(); }   // PS-WRAP: overlay ของเราติดไปในภาพที่ส่งออก (Link/อัด/Go Live)
+		void SetShareOverlays(bool v) { settings.setValue("pswrap/shareOverlays", v); }
+		bool GetStayAwake() const { return settings.value("pswrap/stayAwake", false).toBool(); }   // PS-WRAP: ขยับสติ๊กเบาๆ เมื่อไม่มีใครกดนาน กัน PS เข้าโหมดพัก
+		void SetStayAwake(bool v) { settings.setValue("pswrap/stayAwake", v); }
+		bool GetPad3D() const { return settings.value("pswrap/pad3d", false).toBool(); }   // PS-WRAP: overlay จอยแบบ 3D (เอียงตามไจโร)
+		void SetPad3D(bool v) { settings.setValue("pswrap/pad3d", v); }
 		// PS-WRAP: ภาพสวยขึ้นตอนสตรีม (qmlmainwindow_pswrapvisual.cpp) — ค่าเริ่มต้นปิดทั้งหมด
 		bool GetAmbientLight() const { return settings.value("pswrap/ambientLight", false).toBool(); }   // ขอบว่างรอบภาพ = แสงเบลอจากขอบเกม
 		void SetAmbientLight(bool v) { settings.setValue("pswrap/ambientLight", v); }

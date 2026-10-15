@@ -6223,7 +6223,7 @@ void QmlMainWindow::createSwapchain()
             if (surface_renderable && failures >= 60 && failure_duration_us >= 3000000) {
                 handleVulkanRendererFallback(
                     tr("Vulkan renderer stalled"),
-                    tr("The Vulkan surface could not recover. Chiaki-ng will relaunch with OpenGL for this run only."),
+                    tr("The Vulkan surface could not recover. PS-WRAP will relaunch with OpenGL for this run only."),
                     tr("Vulkan surface creation failed repeatedly while the window was visible. OpenGL is being used for this launch only."));
             } else {
                 swapchain_recreate_pending.storeRelease(1);
@@ -6568,7 +6568,7 @@ void QmlMainWindow::beginFrame()
         quick_vk_image,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         quick_vk_format,
-        swapchain_size));
+        QSize(quick_tex->params.w, quick_tex->params.h)));   // PS-WRAP: ขนาดจริงของ image — swapchain_size ว่างตอนย่อหน้าต่าง (Link ยังวาด overlay)
     if (startup_video_visible_pending.loadAcquire() != 0)
         scheduleUpdate(false, UpdateRequestReason::PendingFrame);
     quick_frame = true;
@@ -6620,7 +6620,7 @@ void QmlMainWindow::handleVulkanDeviceLost(const QString &reason)
 {
     handleVulkanRendererFallback(
         tr("Vulkan device lost"),
-        tr("The Vulkan renderer stopped responding. Chiaki-ng will relaunch with OpenGL for this run only.\n\nReason: %1").arg(reason),
+        tr("The Vulkan renderer stopped responding. PS-WRAP will relaunch with OpenGL for this run only.\n\nReason: %1").arg(reason),
         tr("Vulkan device was lost. OpenGL is being used for this launch only. Reason: %1").arg(reason));
 }
 
@@ -6873,7 +6873,7 @@ void QmlMainWindow::render()
     if (placebo_reset_pending.fetchAndStoreRelaxed(0) != 0)
         resetPlaceboQueue();
 
-    if (!placebo_swapchain)
+    if (!placebo_swapchain && !pswrapHiddenCaptureWanted())   // PS-WRAP: ย่อหน้าต่างระหว่าง Link/อัด → ไปต่อ (ดู pswrapRenderHidden)
     {
         bool scheduled_pending = finalize_render();
         if (!scheduled_pending && (queueHasWork() || placebo_reset_pending.loadAcquire() != 0))
@@ -7139,6 +7139,12 @@ void QmlMainWindow::render()
         }
     }
 
+    if (!placebo_swapchain) {   // PS-WRAP: หน้าต่างย่อ — วาดลงตัวจับภาพอย่างเดียว (qmlmainwindow_pswraprec.cpp)
+        pswrapRenderHidden(params, bypass_frame_queue ? &direct_render_frame : nullptr);
+        throttleFramePresentation(stream_interval_s > 0.0 ? stream_interval_s : refresh_interval_s);   // ไม่มี vsync คุมจังหวะ
+        finalize_render();
+        return;
+    }
     const qint64 start_frame_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
     const int queue_depth_before_start = snapshotQueueDepth();
     const bool start_frame_backlogged = pending_frame_waiting;
@@ -7195,7 +7201,7 @@ void QmlMainWindow::render()
             if (surface_renderable && failures >= 60 && failure_duration_us >= 3000000) {
                 handleVulkanRendererFallback(
                     tr("Vulkan renderer stalled"),
-                    tr("The Vulkan swapchain could not recover. Chiaki-ng will relaunch with OpenGL for this run only."),
+                    tr("The Vulkan swapchain could not recover. PS-WRAP will relaunch with OpenGL for this run only."),
                     tr("Vulkan swapchain failed repeatedly while the window was visible. OpenGL is being used for this launch only."));
             } else {
                 swapchain_recreate_pending.storeRelease(1);

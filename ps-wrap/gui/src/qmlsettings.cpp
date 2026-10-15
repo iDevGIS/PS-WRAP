@@ -820,6 +820,20 @@ void QmlSettings::setMouseTouchEnabled(bool enabled)
     emit mouseTouchEnabledChanged();
 }
 
+// PS-WRAP: Stay Awake — StreamSession อ่านค่านี้เองทุกรอบที่เช็ค (เปิด/ปิดกลางสตรีมได้ทันที)
+bool QmlSettings::stayAwake() const
+{
+    return settings->GetStayAwake();
+}
+
+void QmlSettings::setStayAwake(bool v)
+{
+    if (v == settings->GetStayAwake())
+        return;
+    settings->SetStayAwake(v);
+    emit stayAwakeChanged();
+}
+
 bool QmlSettings::keyboardEnabled() const
 {
     return settings->GetKeyboardEnabled();

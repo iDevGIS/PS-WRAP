@@ -87,3 +87,18 @@ void StreamSession::PsWrapSetLinkState(const ChiakiControllerState &state)
 	link_state = state;
 	SendFeedbackState();
 }
+
+// lib รวมไจโรแบบ "ตัวแรกที่มีค่า" (chiaki_controller_state_or) และ OR จอยในเครื่องก่อน link_state
+// → DualSense ในเครื่องที่วางนิ่งบนโต๊ะ (accel ไม่ใช่ค่าว่างเป๊ะ) ชนะตลอด ไจโรของเพื่อนไม่ถึงเครื่อง
+// link_state มีค่าไจโร/accel ที่ไม่ใช่ค่าว่าง = เพื่อนที่ถือจอยกำลังเอียงอยู่ (หน้าเว็บส่ง "g"/"ac") → ใช้ของเพื่อนทั้งชุด
+void StreamSession::PsWrapApplyLinkMotion(ChiakiControllerState *state)
+{
+	const ChiakiControllerState &l = link_state;
+	const bool motion = l.gyro_x != 0.0f || l.gyro_y != 0.0f || l.gyro_z != 0.0f
+		|| l.accel_x != 0.0f || l.accel_y != 1.0f || l.accel_z != 0.0f;
+	if(!motion)
+		return;
+	state->gyro_x = l.gyro_x; state->gyro_y = l.gyro_y; state->gyro_z = l.gyro_z;
+	state->accel_x = l.accel_x; state->accel_y = l.accel_y; state->accel_z = l.accel_z;
+	state->orient_x = l.orient_x; state->orient_y = l.orient_y; state->orient_z = l.orient_z; state->orient_w = l.orient_w;
+}

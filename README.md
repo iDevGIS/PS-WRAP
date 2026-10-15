@@ -42,9 +42,13 @@ The game with every overlay turned on. Each one can be dragged and resized (clic
 - **Network stats**: bitrate, ping at connect, packet loss and dropped/lost frames.
 - **Controller overlay** (bottom right): buttons light up and sticks move as you play.
 
+![3D controller overlay: lying flat, held with buttons pressed, steering](screenshots/controller-3d.jpg)
+
+**3D Pad** (stream menu › OVERLAY) turns the controller overlay into a 3D DualSense that tilts the way you hold your controller (gyro): flat on the desk you see it from above, held you see its face, and it leans when you steer. Pressed buttons light up pink, L2/R2 glow as you pull them, sticks lean and the light bar takes the game's colour. Off by default; PCs that can't show 3D keep the flat picture.
+
 ![Status bar while playing](screenshots/stream-statusbar.jpg)
 
-**Status bar**: move the mouse to the bottom of the window and a bar appears. From left to right: ☰ the stream menu, mute the mic, speaker and volume, facecam, controller overlay, record, screenshot, **Go Live**, and network (Mbps; click for stream stats). Click 📌 to keep the bar on screen. Clicks outside the bar still go to the game.
+**Status bar**: move the mouse to the bottom of the window and a bar appears. From left to right: ☰ the stream menu, mute the mic, speaker and volume, facecam, controller overlay, record, screenshot, **Go Live**, **Overlays shared / only me**, and network (Mbps; click for stream stats). With **only me**, your overlays stay on your screen and don't go into what friends see in Link, your recordings or Go Live (Link labels, friends' cameras and hearts still do). Click 📌 to keep the bar on screen. Clicks outside the bar still go to the game.
 
 ![Stream menu](screenshots/stream-menu.jpg)
 
@@ -53,7 +57,7 @@ The stream menu (Ctrl+O, L1+R1+L3+R3, ☰ on the status bar, or the tray):
 - **Top row**: **End Stream**, **Record**, mic on/off, microphone and speaker devices, volume, live stream stats, and **✕** to close the menu.
 - **PICTURE**: Zoom, Stretch, Glow, **Size ▾** (exact 16:9 window sizes) and Display settings.
 - **QUALITY**: Default, HQ, HQ + Spatial, HQ + Advanced, Custom and **Frame Gen** (60 → 120 fps).
-- **OVERLAY**: Pad, Cam, Spectrum, Clock, Chat, Stats, Light, Stack and **Move** (pick which overlay to move or resize).
+- **OVERLAY**: Pad, **3D Pad**, Cam, Spectrum, Clock, Chat, Stats, Light, Stack and **Move** (pick which overlay to move or resize). While arranging the Stack, **⇱** takes one overlay out to its own spot and **⇲** puts it back (□ then △ on a controller).
 - **CAPTURE**: Instant Replay (on/off, length, Save), Screenshot, **Go Live** and **9:16**.
 
 The cards wrap onto a new line on narrow windows instead of being cut off. With a controller, the D-pad moves to the nearest button on screen, ✕ presses and ◯ closes.
@@ -81,6 +85,7 @@ The cards wrap onto a new line on narrow windows instead of being cut off. With 
 - **Stars**: press ☆ next to a friend to remember them. A starred friend gets the controller without asking you, and if someone already has it, they play together (everyone's buttons count, everyone's controller vibrates). Your controller overlay shows their presses too.
 - **Link card**: shows who is talking (a live sound wave), who has the controller (a green row), how each friend is connected (P2P or Stage) and pops each friend's reactions from their picture. It keeps one width so nothing jumps around. Drag it by its top row anywhere on the picture, or fold it with **–** so it doesn't cover the game.
 - **For friends**: **Check devices** before joining (or **Devices** in the room) tests their controller with a drift and edge test, mic (with playback), speakers, keyboard layout and camera. They pick their own mic and camera, and a tap on **Playing** gives the controller back. If the browser can't vibrate their DualSense, **Connect DualSense** there makes it vibrate (Chrome/Edge).
+- **Motion controls (beta)**: for games that use the controller's gyro, a friend holding the controller can tilt too: **Tilt** in the bar at the bottom of the friend page on a phone (iPhone asks once), or a DualSense connected in **Check devices** (Chrome/Edge). While they tilt, the PS5 gets their tilt instead of yours, and the 3D controller overlay leans with them.
 - **Privacy while live**: the QR code in the Link panel stays hidden until you press *Show*, and **New link** cancels the old one.
 - **Quality**: friends pick Auto, 1080p High (sharper, about 15 Mbps), 1080p, 720p or 480p. Stage viewers get 1080p.
 - **HDR**: works; friends get an SDR version of the picture (browsers can't show HDR streams).
@@ -186,7 +191,7 @@ The report never contains your PSN sign-in, stream keys, console registration or
   - Responsive at any window size.
   - Every screen works with a controller (Steam Deck / TV friendly).
 - **PS-WRAP Link (beta)**: friends watch in a web browser, chat, react, talk and play when you hand over the controller ([more](#ps-wrap-link-beta)).
-- **Overlays while streaming**: controller, network stats, facecam, mic visualizer, clock and **live chat (YouTube + Twitch)**. Place each one freely, or turn on **Stack** to line them all up in one column at the same width and move, resize and reorder the whole column at once.
+- **Overlays while streaming**: controller (flat or a **3D DualSense that tilts with your controller**), network stats, facecam, mic visualizer, clock and **live chat (YouTube + Twitch)**. Place each one freely, or turn on **Stack** to line them all up in one column at the same width and move, resize and reorder the whole column at once (take single overlays out of it with ⇱). Keep them to yourself with **Overlays only me** so friends, recordings and Go Live get the clean game.
 - **Picture**:
   - **Frame Gen**: an in-between frame for every stream frame, 60 → 120 fps on fast displays (motion estimated on the GPU).
   - **Glow**: black bars around the picture become a soft glow from the game (great on ultrawide screens).
@@ -221,6 +226,7 @@ The report never contains your PSN sign-in, stream keys, console registration or
 - **Status bar while playing**: move the mouse to the bottom of the window for the mic, speaker, facecam, record, screenshot, Go Live and network chips; pin it to keep it on screen. On a PS4 played on your home network it also shows the name of the running game (also under the clock overlay); a PS5 doesn't report it.
 - **New stream menu**: compact cards (Picture, Quality, Overlay, Capture) that wrap instead of overflowing, a ✕ close button, and controller navigation that follows the layout.
 - **Speaker**: pick the audio output device and volume from the home screen chip, the stream menu or the tray, and switch it mid-stream. The volume goes up to **200%** for quiet games (above 100% PS-WRAP boosts the sound itself, with a limiter so it doesn't crackle; recordings and Link keep the normal level). (The PS5 sends stereo audio over Remote Play; for virtual surround, turn on Windows Sonic or Dolby Atmos for Headphones in Windows.)
+- **Stay Awake**: Settings › General › While Streaming keeps the console out of rest mode during a stream (moves the left stick a tiny bit after 10 minutes with nobody pressing anything).
 - **Game presets**: resolution, bitrate, overlays and more per game, applied automatically.
 - **Controller vibration and light**: **Rumble Boost** makes the controller vibrate harder, up to 300%, including games that send plain rumble (Settings › Controllers › Vibration, or the controller panel). The controller panel tests vibration (△, L1 / R1 to adjust) and the light bar in six colors (□); closing it stops the vibration and restores the light.
 - **Discord status**: your Discord profile shows *Playing PS-WRAP* with the game on the console, Remote Play / Live / Recording and the play time (talks to the Discord app directly, no extra DLLs).

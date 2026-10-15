@@ -235,6 +235,16 @@ class StreamSession : public QObject
 		ChiakiControllerState keyboard_state;
 		ChiakiControllerState touch_state;
 		ChiakiControllerState link_state; // PS-WRAP Link: จอยเพื่อน
+		// PS-WRAP: Stay Awake (streamsession_pswrapawake.cpp) — ไม่มีใครกดนาน → ดันสติ๊กเบาๆ แวบเดียว กัน PS เข้าโหมดพัก
+		ChiakiControllerState awake_state;
+		ChiakiControllerState pswrap_last_input;
+		qint64 pswrap_last_input_ms = 0;
+		int pswrap_awake_dir = 1;
+		Settings *pswrap_settings = nullptr;
+		QTimer *pswrap_awake_timer = nullptr;
+		void PsWrapStayAwakeInit(Settings *settings);
+		void PsWrapNoteInput(const ChiakiControllerState &state);
+		void PsWrapStayAwakeTick();
 		QMap<int, uint8_t> touch_tracker;
 		int8_t mouse_touch_id;
 		ChiakiControllerState dpad_touch_state;
@@ -396,6 +406,8 @@ class StreamSession : public QObject
 		void HandleKeyboardEvent(QKeyEvent *event);
 		// PS-WRAP Link: จอยของเพื่อน (GUI thread) — OR รวมกับจอยอื่นแล้วส่งทันที · ปล่อยด้วย state idle (streamsession_pswraplink.cpp)
 		void PsWrapSetLinkState(const ChiakiControllerState &state);
+		// PS-WRAP Link: เพื่อนที่ถือจอยกำลังเอียง (ส่งไจโรมา) → ใช้ไจโร/accel/ทิศทางของเพื่อนแทนจอยในเครื่อง (streamsession_pswraplink.cpp)
+		void PsWrapApplyLinkMotion(ChiakiControllerState *state);
 		// PS-WRAP Link: เสียงเพิ่ม (ไมค์เพื่อน) ผสมเข้าเสียงเกมก่อนปรับ volume — ใช้ลำโพง/volume/echo cancel ชุดเดียวกับเกม
 		// ไม่เข้าไฟล์อัด (tap อยู่ก่อน) · fn เรียกจาก thread เสียงของ lib · nullptr = ปิด
 		using PsWrapAudioMixFn = void (*)(void *ctx, int16_t *pcm, size_t frames, unsigned channels, unsigned rate);

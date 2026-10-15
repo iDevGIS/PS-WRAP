@@ -520,6 +520,7 @@ StreamSession::StreamSession(const StreamSessionConnectInfo &connect_info, QObje
 	chiaki_controller_state_set_idle(&keyboard_state);
 	chiaki_controller_state_set_idle(&touch_state);
 	chiaki_controller_state_set_idle(&link_state); // PS-WRAP Link
+	PsWrapStayAwakeInit(connect_info.settings); // PS-WRAP: Stay Awake
 	touch_tracker=QMap<int, uint8_t>();
 	mouse_touch_id=-1;
 	dpad_touch_id =-1;
@@ -1272,6 +1273,9 @@ void StreamSession::DpadSendFeedbackState()
 	chiaki_controller_state_or(&state, &state, &keyboard_state);
 	chiaki_controller_state_or(&state, &state, &touch_state);
 	chiaki_controller_state_or(&state, &state, &link_state); // PS-WRAP Link
+	PsWrapApplyLinkMotion(&state); // PS-WRAP Link: เพื่อนเอียงมือถือ = ไจโรของเพื่อน
+	PsWrapNoteInput(state); // PS-WRAP: Stay Awake — นับเฉพาะ input จริง (ก่อนรวม awake_state)
+	chiaki_controller_state_or(&state, &state, &awake_state);
 
 	ApplyInputBlock(&state);
 	if((dpad_touch_shortcut1 || dpad_touch_shortcut2 || dpad_touch_shortcut3 || dpad_touch_shortcut4) && (!dpad_touch_shortcut1 || (state.buttons & dpad_touch_shortcut1)) && (!dpad_touch_shortcut2 || (state.buttons & dpad_touch_shortcut2)) && (!dpad_touch_shortcut3 || (state.buttons & dpad_touch_shortcut3)) && (!dpad_touch_shortcut4 || (state.buttons & dpad_touch_shortcut4)))
@@ -1319,6 +1323,9 @@ void StreamSession::SendFeedbackState()
 	chiaki_controller_state_or(&state, &state, &keyboard_state);
 	chiaki_controller_state_or(&state, &state, &touch_state);
 	chiaki_controller_state_or(&state, &state, &link_state); // PS-WRAP Link
+	PsWrapApplyLinkMotion(&state); // PS-WRAP Link: เพื่อนเอียงมือถือ = ไจโรของเพื่อน
+	PsWrapNoteInput(state); // PS-WRAP: Stay Awake — นับเฉพาะ input จริง (ก่อนรวม awake_state)
+	chiaki_controller_state_or(&state, &state, &awake_state);
 
 	ApplyInputBlock(&state);
 	if((dpad_touch_shortcut1 || dpad_touch_shortcut2 || dpad_touch_shortcut3 || dpad_touch_shortcut4) && (!dpad_touch_shortcut1 || (state.buttons & dpad_touch_shortcut1)) && (!dpad_touch_shortcut2 || (state.buttons & dpad_touch_shortcut2)) && (!dpad_touch_shortcut3 || (state.buttons & dpad_touch_shortcut3)) && (!dpad_touch_shortcut4 || (state.buttons & dpad_touch_shortcut4)))

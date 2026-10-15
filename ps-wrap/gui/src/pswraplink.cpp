@@ -11,6 +11,7 @@
 #include <qrcodegen.hpp>
 
 #include <chiaki/controller.h>
+#include <chiaki/orientation.h>
 #include <chiaki/time.h>
 #include <rtc/rtc.hpp>
 
@@ -951,7 +952,25 @@ ChiakiControllerState padToState(const QJsonObject &o)
 	st.left_y = axis(1);
 	st.right_x = axis(2);
 	st.right_y = axis(3);
+	// เอียงมือถือ (หน้าเว็บ: ปุ่ม "เอียง") — ไจโร rad/s + แรงโน้มถ่วง g ในแกนแบบ SDL (X ขวา · Y ออกจากหน้าจอ · Z หาผู้เล่น)
+	// ทิศทาง (orient) คำนวณต่อใน onGui ด้วย tracker รายคน · ไม่ส่งมา = ค่า idle (ไม่มีไจโร)
+	const QJsonArray g = o.value(QStringLiteral("g")).toArray();
+	const QJsonArray ac = o.value(QStringLiteral("ac")).toArray();
+	if (g.size() == 3 && ac.size() == 3) {
+		auto f = [](const QJsonValue &v, double lim) { return static_cast<float>(std::clamp(v.toDouble(), -lim, lim)); };
+		st.gyro_x = f(g.at(0), 35.0);
+		st.gyro_y = f(g.at(1), 35.0);
+		st.gyro_z = f(g.at(2), 35.0);
+		st.accel_x = f(ac.at(0), 8.0);
+		st.accel_y = f(ac.at(1), 8.0);
+		st.accel_z = f(ac.at(2), 8.0);
+	}
 	return st;
+}
+
+bool padHasMotion(const QJsonObject &o)
+{
+	return o.value(QStringLiteral("g")).toArray().size() == 3 && o.value(QStringLiteral("ac")).toArray().size() == 3;
 }
 
 // รูปโปรไฟล์จากเพื่อน: รับแค่ data URI ของรูปที่ถอดได้จริง ≤ 64 KB → ตัดกลางสี่เหลี่ยม → PNG 64×64 ที่เรา encode เอง
@@ -1124,6 +1143,8 @@ struct PsWrapLink::Impl
 	std::set<QString> co;   // ถือร่วม (เพื่อนติดดาว) — ใต้ m · ปุ่มของทุกคนรวมกันก่อนส่ง PS5
 	std::map<QString, ChiakiControllerState> pad_states;   // GUI thread: สถานะล่าสุดของแต่ละคนที่ถือ
 	std::map<QString, int64_t> pad_at;                     // GUI thread: เวลาที่ได้ล่าสุด (us)
+	std::map<QString, ChiakiOrientationTracker> pad_motion;   // GUI thread: ทิศทางมือถือของแต่ละคน (Madgwick ตัวเดียวกับ DualSense)
+	std::map<QString, double> pad_motion_t;               // GUI thread: เวลา (ms ของเครื่องเพื่อน) ของไจโรล่าสุดที่ใช้
 	QVariantMap pad_view;                                  // GUI thread: ปุ่มเพื่อนรวมแล้ว ให้ overlay จอย
 	std::atomic<uint64_t> gen{0};          // เปลี่ยนทุกครั้งที่ปิด/ต่อใหม่ — callback รุ่นเก่าทิ้งตัวเอง
 	std::atomic<int64_t> last_pad_us{0};
@@ -2084,13 +2105,35 @@ void PsWrapLink::setupPeerConnection(const std::shared_ptr<Peer> &p, double pace
 			}
 			if (!holder || !o.contains(QStringLiteral("b")))
 				return;   // ไม่ได้ถือจอย = ดูอย่างเดียว
-			const ChiakiControllerState st = padToState(o);
+			ChiakiControllerState st = padToState(o);
+			const bool motion = padHasMotion(o);
+			const double sent_ms = o.value(QStringLiteral("t")).toDouble();   // performance.now() ของเครื่องเพื่อน
 			dd->last_pad_us = monoUs();
-			onGui([peer, st](PsWrapLink *l) {
+			onGui([peer, st, motion, sent_ms](PsWrapLink *l) mutable {
 				{
 					std::lock_guard<std::mutex> lock(l->d->m);
 					if (l->d->controller != peer && !l->d->co.count(peer))
 						return;   // ถูกดึงคืนระหว่างทาง
+				}
+				if (motion) {
+					// เวลาของเครื่องเพื่อน (ไม่ใช่เวลาที่มาถึง — เน็ตกระตุกแล้วช่วงเวลาเพี้ยน) · ช่อง input ไม่เรียงลำดับ
+					// → ข้อความเก่ากว่าอันล่าสุดข้ามไป (เวลาย้อน = tracker คิดเป็นช่วงยาวมาก ทิศทางพัง)
+					// เริ่มใหม่ถ้าเว้นไปนาน (เพิ่งเปิดเอียง/หลุดไป/เครื่องเพื่อนรีเฟรชหน้า)
+					auto it = l->d->pad_motion.find(peer);
+					const double last = it == l->d->pad_motion.end() ? -1.0 : l->d->pad_motion_t[peer];
+					if (it == l->d->pad_motion.end() || sent_ms - last > 500.0 || sent_ms < last - 2000.0) {
+						chiaki_orientation_tracker_init(&l->d->pad_motion[peer]);
+						it = l->d->pad_motion.find(peer);
+						l->d->pad_motion_t[peer] = sent_ms - 1.0;
+					}
+					if (sent_ms > l->d->pad_motion_t[peer]) {
+						l->d->pad_motion_t[peer] = sent_ms;
+						ChiakiAccelNewZero zero;
+						chiaki_accel_new_zero_set_inactive(&zero, true);
+						chiaki_orientation_tracker_update(&it->second, st.gyro_x, st.gyro_y, st.gyro_z, st.accel_x, st.accel_y, st.accel_z,
+						                                  &zero, true, static_cast<uint32_t>(static_cast<int64_t>(sent_ms * 1000.0)));
+					}
+					chiaki_orientation_tracker_apply_to_controller_state(&it->second, &st);
 				}
 				l->d->pad_states[peer] = st;
 				l->d->pad_at[peer] = monoUs();
@@ -2587,6 +2630,16 @@ void PsWrapLink::pushMergedPad()
 	v.insert(QStringLiteral("ry"), merged.right_y / 32767.0);
 	v.insert(QStringLiteral("l2"), merged.l2_state / 255.0);
 	v.insert(QStringLiteral("r2"), merged.r2_state / 255.0);
+	// เพื่อนเอียงมือถืออยู่ → จอย 3D ใน overlay เอียงตาม (ControllerOverlay.qml)
+	const bool motion = merged.gyro_x != 0.0f || merged.gyro_y != 0.0f || merged.gyro_z != 0.0f
+		|| merged.accel_x != 0.0f || merged.accel_y != 1.0f || merged.accel_z != 0.0f;
+	v.insert(QStringLiteral("motion"), motion);
+	if (motion) {
+		v.insert(QStringLiteral("ow"), merged.orient_w);
+		v.insert(QStringLiteral("ox"), merged.orient_x);
+		v.insert(QStringLiteral("oy"), merged.orient_y);
+		v.insert(QStringLiteral("oz"), merged.orient_z);
+	}
 	if (v != d->pad_view) {
 		d->pad_view = v;
 		emit padChanged();

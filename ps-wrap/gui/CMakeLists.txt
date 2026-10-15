@@ -42,6 +42,7 @@ set(SOURCE_FILES
 	include/jsonrequester.h
 	src/jsonrequester.cpp
 	src/qml/qml.qrc
+	res/pad3d/pad3d.qrc
 	include/qmlmainwindow.h
 	src/qmlmainwindow.cpp
 	include/qmlbackend.h
@@ -105,6 +106,7 @@ set(SOURCE_FILES
 	src/pswrapnetcheck.cpp
 	src/qmlbackend_pswraptools.cpp
 	src/streamsession_pswraplink.cpp
+	src/streamsession_pswrapawake.cpp
 	src/qmlmainwindow_pswraplink.cpp
 	)
 set(RESOURCE_FILES "")

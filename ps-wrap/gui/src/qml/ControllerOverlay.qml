@@ -56,6 +56,37 @@ Item {
         { n: 17, mask: 1 << 14 }   // Touchpad
     ]
 
+    // PS-WRAP: จอย 3D (ControllerOverlay3D.qml) เมื่อเปิด Chiaki.window.pad3d — โหลดไม่ได้ = ใช้ภาพ 2D ด้านล่างต่อ
+    readonly property bool want3d: !!Chiaki.window && !!Chiaki.window.pad3d
+    readonly property bool show3d: want3d && pad3dLoader.status === Loader.Ready
+    Loader {
+        id: pad3dLoader
+        anchors.fill: parent
+        active: overlay.want3d
+        asynchronous: true
+        source: "ControllerOverlay3D.qml"
+        onStatusChanged: if (status === Loader.Error) console.warn("PSWRAP pad3d: 3D controller failed to load, using 2D")
+        onLoaded: {
+            item.buttons = Qt.binding(() => overlay.buttons);
+            item.lx = Qt.binding(() => overlay.lx);
+            item.ly = Qt.binding(() => overlay.ly);
+            item.rx = Qt.binding(() => overlay.rx);
+            item.ry = Qt.binding(() => overlay.ry);
+            item.l2 = Qt.binding(() => overlay.l2v);
+            item.r2 = Qt.binding(() => overlay.r2v);
+            item.lightColor = Qt.binding(() => overlay.lightbarOn ? overlay.lightbarColor : "transparent");
+            // เพื่อนใน Link ถือจอยและเอียงมือถืออยู่ = เอียงตามเพื่อน (เหมือนที่ส่งเข้า PS5) · ไม่งั้นตามจอยในเครื่อง
+            item.orientation = Qt.binding(() => overlay.linkActive && overlay.linkPad.motion
+                ? Qt.quaternion(overlay.linkPad.ow, overlay.linkPad.ox, overlay.linkPad.oy, overlay.linkPad.oz)
+                : overlay.controller ? overlay.controller.orientation : Qt.quaternion(1, 0, 0, 0));
+        }
+    }
+
+    // ภาพ 2D เดิม (ซ่อนเมื่อ 3D ขึ้นแล้ว)
+    Item {
+    anchors.fill: parent
+    visible: !overlay.show3d
+
     Image {
         id: base
         anchors.fill: parent
@@ -165,5 +196,6 @@ Item {
             x: overlay.rx * overlay.maxOffset * overlay.unit
             y: overlay.ry * overlay.maxOffset * overlay.unit
         }
+    }
     }
 }

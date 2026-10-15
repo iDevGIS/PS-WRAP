@@ -2,6 +2,8 @@
 
 #include "controllermanager.h"
 
+#include <QQuaternion>
+
 class QTimer;
 
 class QmlController : public QObject
@@ -26,6 +28,8 @@ class QmlController : public QObject
     Q_PROPERTY(qreal rightY READ rightY NOTIFY inputChanged)
     Q_PROPERTY(qreal l2 READ l2 NOTIFY inputChanged)
     Q_PROPERTY(qreal r2 READ r2 NOTIFY inputChanged)
+    // PS-WRAP: ทิศทางจอยจากไจโร+accel (quaternion จาก orientation tracker) — จอย 3D ใน overlay เอียงตาม
+    Q_PROPERTY(QQuaternion orientation READ orientation NOTIFY inputChanged)
 
 public:
     uint buttons() const { return controller ? controller->GetState().buttons : 0u; }
@@ -35,6 +39,12 @@ public:
     qreal rightY() const { return controller ? controller->GetState().right_y / 32767.0 : 0.0; }
     qreal l2() const { return controller ? controller->GetState().l2_state / 255.0 : 0.0; }
     qreal r2() const { return controller ? controller->GetState().r2_state / 255.0 : 0.0; }
+    QQuaternion orientation() const
+    {
+        if (!controller) return QQuaternion();
+        const auto st = controller->GetState();
+        return QQuaternion(st.orient_w, st.orient_x, st.orient_y, st.orient_z);
+    }
 
 signals:
     void inputChanged();

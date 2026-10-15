@@ -8,6 +8,7 @@
     <file>StreamMenuContent.qml</file>
     <file>DisconnectDialogContent.qml</file>
     <file>ControllerOverlay.qml</file>
+    <file>ControllerOverlay3D.qml</file>
     <file>WebcamOverlay.qml</file>
     <file>StatsOverlay.qml</file>
     <file>MicSpectrumOverlay.qml</file>

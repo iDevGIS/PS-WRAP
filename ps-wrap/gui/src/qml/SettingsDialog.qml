@@ -448,6 +448,20 @@ DialogView {
                     C.Hint { text: qsTr("(On)") }
                 }
 
+                // PS-WRAP: Stay Awake (streamsession_pswrapawake.cpp)
+                C.SettingsSection {
+                    title: qsTr("While Streaming")
+                    icon: "qrc:/icons/menu/gamepad.svg"
+
+                    C.RowLabel { text: qsTr("Stay Awake") }
+                    C.CheckBox {
+                        checked: Chiaki.settings.stayAwake
+                        onToggled: Chiaki.settings.stayAwake = !Chiaki.settings.stayAwake
+                        text: qsTr("Keep the console from going to rest mode: when nobody has pressed anything for 10 minutes, move the left stick a tiny bit")
+                    }
+                    C.Hint { text: qsTr("(Off)") }
+                }
+
                 C.SettingsSection {
                     title: qsTr("When A Stream Ends")
                     description: qsTr("What to do with the console when you disconnect or the stream is suspended")

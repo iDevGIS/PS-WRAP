@@ -604,6 +604,13 @@ FocusScope {
                     on: content.overlayEnabled
                     onClicked: content.overlayToggled()
                 }
+                // จอย 3D เอียงตามไจโร (ControllerOverlay3D.qml)
+                Tile {
+                    glyph: "3D"
+                    text: qsTr("3D Pad")
+                    on: !!Chiaki.window.pad3d
+                    onClicked: Chiaki.window.pad3d = !Chiaki.window.pad3d
+                }
                 Tile {
                     iconSource: "qrc:/icons/menu/cam.svg"
                     text: qsTr("Cam")

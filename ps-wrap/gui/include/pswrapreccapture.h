@@ -14,11 +14,13 @@
 #include <libplacebo/renderer.h>
 
 #include <QImage>
+#include <QRectF>
 #include <QtGlobal>
 
 #include <atomic>
 #include <deque>
 #include <functional>
+#include <vector>
 
 class PsWrapRecCapture
 {
@@ -37,6 +39,10 @@ public:
 
 	// ไม่มีเฟรมไหนค้างอยู่ใน encoder → ลบได้
 	bool canDestroy() const;
+
+	// render thread: กรอบบนจอ (พิกเซลจอ) ที่ไม่เอา overlay ไปใส่ไฟล์ — ปิด "ส่ง overlay ของฉัน" (เว้นป้าย/กล้อง Link)
+	// ใช้กับภาพแนวนอนเท่านั้น (แนวตั้ง 9:16 มีเลย์เอาต์ของตัวเอง)
+	void setHideRects(std::vector<QRectF> rects) { hide = std::move(rects); }
 
 	// render thread: บันทึกสีของ source ล่าสุด (ใช้ตัดสิน SDR/HDR + metadata ตอนเริ่มอัด)
 	static void noteSource(const struct pl_frame *frame);
@@ -65,6 +71,7 @@ private:
 	size_t pitch_y = 0, pitch_uv = 0, off_uv = 0, buf_size = 0;
 	bool broken = false;
 	quint64 no_slot_drops = 0;
+	std::vector<QRectF> hide;   // setHideRects
 
 	bool ensureResources(int w, int h, bool is_hdr);
 	void releaseResources();

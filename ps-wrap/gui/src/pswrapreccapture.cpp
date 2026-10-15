@@ -39,6 +39,46 @@ size_t alignUp(size_t v, size_t a)
 	return a > 1 ? (v + a - 1) / a * a : v;
 }
 
+// พื้นที่ r ลบกรอบใน cut → สี่เหลี่ยมที่ไม่ทับกัน (หั่นเป็นแถบตามขอบบน/ล่างของทุกกรอบ แล้วเก็บช่วง x ที่เหลือในแต่ละแถบ)
+std::vector<QRectF> subtractRects(const QRectF &r, const std::vector<QRectF> &cut_in)
+{
+	std::vector<QRectF> cut;
+	for (const QRectF &c : cut_in) {
+		const QRectF i = c.intersected(r);
+		if (i.width() >= 1.0 && i.height() >= 1.0)
+			cut.push_back(i);
+	}
+	if (cut.empty())
+		return {r};
+	std::vector<qreal> ys{r.top(), r.bottom()};
+	for (const QRectF &c : cut) {
+		ys.push_back(c.top());
+		ys.push_back(c.bottom());
+	}
+	std::sort(ys.begin(), ys.end());
+	ys.erase(std::unique(ys.begin(), ys.end()), ys.end());
+	std::vector<QRectF> out;
+	for (size_t i = 0; i + 1 < ys.size(); i++) {
+		const qreal y0 = ys[i], y1 = ys[i + 1], ym = (y0 + y1) / 2;
+		if (y1 - y0 < 1.0)
+			continue;
+		std::vector<std::pair<qreal, qreal>> xs;
+		for (const QRectF &c : cut)
+			if (c.top() <= ym && c.bottom() >= ym)
+				xs.emplace_back(c.left(), c.right());
+		std::sort(xs.begin(), xs.end());
+		qreal x = r.left();
+		for (const auto &[a, b] : xs) {
+			if (a > x + 0.5)
+				out.emplace_back(QPointF(x, y0), QPointF(a, y1));
+			x = std::max(x, b);
+		}
+		if (r.right() > x + 0.5)
+			out.emplace_back(QPointF(x, y0), QPointF(r.right(), y1));
+	}
+	return out;
+}
+
 } // namespace
 
 PsWrapRecCapture::PsWrapRecCapture(pl_gpu gpu, pl_log log)
@@ -328,23 +368,31 @@ void PsWrapRecCapture::capture(PsWrapRecorder *rec, const pl_frame_mix *mix, con
 		t.crop.y1 = oy + (vy1 - ry0) * s;
 
 		pl_overlay ov = {};
-		pl_overlay_part part = {};
+		std::vector<pl_overlay_part> parts;   // ต้องอยู่ถึง pl_render_image ด้านล่าง
 		if (overlay && overlay->tex && overlay->num_parts > 0) {
 			ov = *overlay;
-			part = overlay->parts[0];
+			pl_overlay_part base = overlay->parts[0];
 			if (flipped)
-				std::swap(part.src.y0, part.src.y1);
+				std::swap(base.src.y0, base.src.y1);
 			// quick_tex ครอบทั้งจอ → ตัดส่วนเดียวกับกรอบวิดีโอ (src มีเครื่องหมายได้ตอนกลับหัว — สูตรเดียวกัน)
-			const pl_rect2df full = part.src;
-			part.src.x0 = full.x0 + (full.x1 - full.x0) * (rx0 / screen_w);
-			part.src.x1 = full.x0 + (full.x1 - full.x0) * (rx1 / screen_w);
-			part.src.y0 = full.y0 + (full.y1 - full.y0) * (ry0 / screen_h);
-			part.src.y1 = full.y0 + (full.y1 - full.y0) * (ry1 / screen_h);
-			part.dst = {ox, oy, ox + (rx1 - rx0) * s, oy + (ry1 - ry0) * s};
-			ov.parts = &part;
-			ov.num_parts = 1;
-			t.overlays = &ov;
-			t.num_overlays = 1;
+			// setHideRects: เว้นกรอบ overlay ของเจ้าของ → หลายชิ้นรอบกรอบนั้น (ป้าย/กล้อง Link ที่อยู่นอกกรอบยังติดไป)
+			const pl_rect2df full = base.src;
+			for (const QRectF &q : subtractRects(QRectF(QPointF(rx0, ry0), QPointF(rx1, ry1)), hide)) {
+				pl_overlay_part part = base;
+				part.src.x0 = full.x0 + (full.x1 - full.x0) * float(q.left() / screen_w);
+				part.src.x1 = full.x0 + (full.x1 - full.x0) * float(q.right() / screen_w);
+				part.src.y0 = full.y0 + (full.y1 - full.y0) * float(q.top() / screen_h);
+				part.src.y1 = full.y0 + (full.y1 - full.y0) * float(q.bottom() / screen_h);
+				part.dst = {ox + (float(q.left()) - rx0) * s, oy + (float(q.top()) - ry0) * s,
+				            ox + (float(q.right()) - rx0) * s, oy + (float(q.bottom()) - ry0) * s};
+				parts.push_back(part);
+			}
+			if (!parts.empty()) {
+				ov.parts = parts.data();
+				ov.num_parts = int(parts.size());
+				t.overlays = &ov;
+				t.num_overlays = 1;
+			}
 		}
 
 		pl_render_params p = params;

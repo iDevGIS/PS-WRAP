@@ -3,7 +3,8 @@
 #   พิกัดเป็น logical px นับจากมุมซ้ายบนของหน้าต่าง (รวม title bar) เหมือนที่เห็นใน screenshot · key: ctrl+o, right, left, up, down, return, esc, pageup, pagedown, menu
 param(
     [Parameter(Mandatory)][string]$Out,
-    [Parameter(Mandatory)][string[]]$Actions
+    [Parameter(Mandatory)][string[]]$Actions,
+    [string]$Title = ""          # ขับตัวที่ title ตรงนี้แทนตัวใน build (เช่น "PS-WRAP:pswrap-snap" = ตัว dist ที่เปิดด้วยโปรไฟล์ทดสอบ)
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -30,7 +31,8 @@ public static class WDrive {
 [WDrive]::SetProcessDPIAware() | Out-Null
 $scale = [System.Drawing.Graphics]::FromHwnd([IntPtr]::Zero).DpiX / 96.0
 
-$p = Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" } | Select-Object -First 1
+$p = if ($Title) { Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq $Title } | Select-Object -First 1 }
+     else { Get-Process PS-WRAP,chiaki -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*\ps-wrap\build\*" } | Select-Object -First 1 }
 if (-not $p) { Write-Error "ไม่พบ PS-WRAP.exe จาก build dir ที่รันอยู่" }
 # gotcha: ตอนสตรีม upstream สร้าง StatsOverlayWidget เป็น top-level window ชื่อ 'PS-WRAP' เหมือนกัน (ToolTip, ไม่รับ input)
 # และ $p.MainWindowHandle อาจชี้ไปตัวนั้น → เลือกหน้าต่างที่ "ใหญ่ที่สุด" ของ process แทน

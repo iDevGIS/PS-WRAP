@@ -1,0 +1,36 @@
+<RCC>
+  <qresource prefix="/pad3d">
+    <file>Pad3DModel.qml</file>
+    <file>meshes/body_mesh.mesh</file>
+    <file>meshes/btn_circle_mesh.mesh</file>
+    <file>meshes/btn_create_mesh.mesh</file>
+    <file>meshes/btn_cross_mesh.mesh</file>
+    <file>meshes/btn_mute_mesh.mesh</file>
+    <file>meshes/btn_options_mesh.mesh</file>
+    <file>meshes/btn_ps_mesh.mesh</file>
+    <file>meshes/btn_square_mesh.mesh</file>
+    <file>meshes/btn_triangle_mesh.mesh</file>
+    <file>meshes/dpad_down_mesh.mesh</file>
+    <file>meshes/dpad_left_mesh.mesh</file>
+    <file>meshes/dpad_right_mesh.mesh</file>
+    <file>meshes/dpad_up_mesh.mesh</file>
+    <file>meshes/l1_mesh.mesh</file>
+    <file>meshes/l2_mesh.mesh</file>
+    <file>meshes/lightbar_mesh.mesh</file>
+    <file>meshes/r1_mesh.mesh</file>
+    <file>meshes/r2_mesh.mesh</file>
+    <file>meshes/stick_L_mesh.mesh</file>
+    <file>meshes/stick_R_mesh.mesh</file>
+    <file>meshes/touchpad_mesh.mesh</file>
+    <file>maps/textureData.jpg</file>
+    <file>maps/textureData12.jpg</file>
+    <file>maps/textureData14.jpg</file>
+    <file>maps/textureData16.jpg</file>
+    <file>maps/textureData19.jpg</file>
+    <file>maps/textureData21.jpg</file>
+    <file>maps/textureData23.jpg</file>
+    <file>maps/textureData5.jpg</file>
+    <file>maps/textureData7.jpg</file>
+    <file>maps/textureData9.jpg</file>
+  </qresource>
+</RCC>

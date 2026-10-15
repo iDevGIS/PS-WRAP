@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/). PS-WRAP has 
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-10-15
+A 3D controller that tilts with yours, friends in Link can tilt too, keep your overlays to yourself, and the console stays awake. Minimizing no longer freezes Link.
+
+### Added
+- **PS-WRAP Link: screen shake (beta).** A friend who holds the controller but has nothing that can vibrate sees the picture shake gently, with glowing edges, when the game vibrates. On by default; turn it off or pick light / normal / strong in **Check devices** on the friend page. Friends whose controller does vibrate can switch on **Shake the screen even when the controller vibrates** to feel both. Works with every PS-WRAP version that sends vibration (0.11.7 and later).
+- **3D controller overlay.** Stream menu › OVERLAY › **3D Pad** swaps the flat controller picture for a 3D DualSense. It tilts the way you hold your controller (gyro): lay it flat and you see it from above, hold it and you see its face, steer and it leans with you (turning left or right eases back to the middle by itself, since the controller has no compass). Pressed buttons light up pink, L2/R2 glow as you pull them, sticks lean and the light bar takes the game's colour. Off by default; if a PC can't show 3D, the flat picture stays. Model: "Playstation 5 Dualsense" by AHarmlessPotato (CC-BY 4.0), split into moving parts by PS-WRAP; credits in About.
+- **PS-WRAP Link: motion controls (beta).** Friends holding the controller can tilt too, for games that use the controller's gyro: on a phone, tap **Tilt** in the bar at the bottom of the friend page (iPhone asks once); on a computer with a DualSense, connect it in **Check devices** (Chrome or Edge). While a friend tilts, the PS5 gets their tilt instead of your controller's, and the 3D controller overlay leans with them. The friend page sends tilt only while they hold the controller.
+- **Stay Awake.** Settings › General › While Streaming › **Stay Awake** keeps the console out of rest mode during a stream: when nobody (you, the keyboard or a friend in Link) has pressed anything for 10 minutes, PS-WRAP moves the left stick a tiny bit for a moment. Off by default.
+- **Keep your overlays to yourself.** A new chip in the bottom bar during a stream: **Overlays shared** (as before) or **Overlays only me**. With *only me*, your controller, facecam, chat, clock, stats and mic overlays stay on your screen and don't go into what friends see in Link, your recordings or Go Live. Link labels, friends' cameras and hearts still go out. The 9:16 vertical picture keeps its own layout.
+- **Take single overlays out of the Stack.** While arranging the Stack, **⇱** next to an overlay takes it out to its own free spot (other overlays close up); **⇲** on it puts it back. On a controller: □ picks an overlay, △ takes it out, and △ while editing that overlay puts it back. Remembered.
+
+### Changed
+- **Renderer messages say PS-WRAP.** The notice when Vulkan falls back to OpenGL and the PSN console linking text named chiaki-ng; they now say PS-WRAP.
+
+### Fixed
+- **Minimizing PS-WRAP no longer freezes Link, recordings or Go Live.** Friends kept seeing the last picture while the window was minimized (recordings and Go Live froze too). The game and your overlays keep going now (Vulkan renderer).
+- **Crash when a picture loads on some PCs.** PS-WRAP could freeze and close when it loaded a JPEG picture (for example turning on the 3D controller) on a PC that has another program's JPEG library on its PATH, such as GStreamer. PS-WRAP now ships its own copy.
+
 ## [0.13.0] — 2026-10-14
 Link gets social: friends hear each other, share their camera (or a GIF), starred friends play together, and friends' controllers vibrate in more setups.
 

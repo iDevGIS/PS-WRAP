@@ -32,6 +32,16 @@ void QmlMainWindow::setAmbientLight(bool v)
 	scheduleUpdate(true, UpdateRequestReason::RenderRequested);
 }
 
+bool QmlMainWindow::pad3d() const { return settings->GetPad3D(); }
+
+void QmlMainWindow::setPad3d(bool v)
+{
+	if (v == settings->GetPad3D())
+		return;
+	settings->SetPad3D(v);
+	emit pad3dChanged();
+}
+
 bool QmlMainWindow::lightbarHalo() const { return settings->GetLightbarHalo(); }
 
 void QmlMainWindow::setLightbarHalo(bool v)
