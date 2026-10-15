@@ -11,6 +11,19 @@
 
 // ugly workaround because Windows does weird things and ENOTIME
 int real_main(int argc, char *argv[]);
+#if defined(Q_OS_MACOS)
+#include <mach-o/dyld.h>
+#include <QFileInfo>
+// PS-WRAP-MAC: โฟลเดอร์ของ executable ก่อนมี QCoreApplication (Contents/MacOS ใน .app)
+static QString pswrapMacExeDir()
+{
+	char buf[4096];
+	uint32_t n = sizeof(buf);
+	if (_NSGetExecutablePath(buf, &n) != 0)
+		return QString();
+	return QFileInfo(QString::fromUtf8(buf)).canonicalPath();
+}
+#endif
 int main(int argc, char *argv[]) { return real_main(argc, argv); }
 
 #include <streamsession.h>
@@ -141,16 +154,18 @@ int real_main(int argc, char *argv[])
 	qputenv("QT_MTL_NO_TRANSACTION", "1");
 	// PS-WRAP-MAC: .app ที่ deploy แล้วมี MoltenVK ของตัวเอง (Contents/Resources/vulkan/icd.d) → บังคับ loader ใช้ตัวนั้นตัวเดียว
 	// ไม่งั้นเครื่องที่มี brew molten-vk จะโหลด ICD ซ้ำ 2 ตัว (objc "Class MVKBlockObserver is implemented in both…")
-	if (!qEnvironmentVariableIsSet("VK_DRIVER_FILES") && !qEnvironmentVariableIsSet("VK_ICD_FILENAMES") && QCoreApplication::instance()) {
-		const QString icd = QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/vulkan/icd.d/MoltenVK_icd.json");
+	// gotcha: ตรงนี้ยังไม่มี QApplication (สร้างทีหลัง) → applicationDirPath ใช้ไม่ได้ ต้องถาม dyld เอง (_NSGetExecutablePath)
+	const QString mac_exe_dir = pswrapMacExeDir();
+	if (!qEnvironmentVariableIsSet("VK_DRIVER_FILES") && !qEnvironmentVariableIsSet("VK_ICD_FILENAMES") && !mac_exe_dir.isEmpty()) {
+		const QString icd = mac_exe_dir + QStringLiteral("/../Resources/vulkan/icd.d/MoltenVK_icd.json");
 		if (QFileInfo::exists(icd))
-			qputenv("VK_DRIVER_FILES", QFileInfo(icd).absoluteFilePath().toUtf8());
+			qputenv("VK_DRIVER_FILES", QFileInfo(icd).canonicalFilePath().toUtf8());
 	}
 	// PS-WRAP-MAC: QVulkanInstance โหลด library ชื่อ "vulkan" ผ่าน dlopen ซึ่งหาไม่เจอถ้าไม่มี symlink ใน .app → ชี้ libvulkan ของ Homebrew/บันเดิลให้เอง
 	if (!qEnvironmentVariableIsSet("QT_VULKAN_LIB")) {
 		QStringList candidates;
-		if (QCoreApplication::instance())
-			candidates << QCoreApplication::applicationDirPath() + QStringLiteral("/../Frameworks/libvulkan.1.dylib");
+		if (!mac_exe_dir.isEmpty())
+			candidates << mac_exe_dir + QStringLiteral("/../Frameworks/libvulkan.1.dylib");
 		candidates << QStringLiteral("/opt/homebrew/lib/libvulkan.1.dylib") << QStringLiteral("/usr/local/lib/libvulkan.1.dylib");
 		for (const QString &c : candidates) {
 			if (QFileInfo::exists(c)) {

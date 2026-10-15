@@ -59,6 +59,7 @@ fi
 ln -sfn libvulkan.1.dylib "$FW/vulkan"
 
 echo "[3/5] แก้ dylib/framework ที่ยังชี้ /opt/homebrew (macdeployqt ข้ามของ QtWebEngineProcess helper)"
+chmod -R u+w "$APP"   # ของที่ macdeployqt copy มาใหม่ก็ read-only (จาก Cellar) → install_name_tool เขียนไม่ได้ (เจอ 2026-10-15: libplacebo ยังอ้าง libvulkan ของ brew)
 # brew build Qt ด้วย install name แบบ absolute · helper อ้าง /opt/homebrew/opt/qtbase/lib/QtCore.framework/... → ชี้ไป Frameworks ของแอป
 # (helper มี Contents/Frameworks → ../../../../../../../Frameworks symlink ตาม upstream · ดังนั้น @executable_path/../Frameworks ใช้ได้ทั้ง exe หลักและ helper)
 find "$APP" -type f \( -perm -u+x -o -name '*.dylib' \) -print0 | while IFS= read -r -d '' bin; do
@@ -75,15 +76,15 @@ find "$APP" -type f \( -perm -u+x -o -name '*.dylib' \) -print0 | while IFS= rea
 		fi
 		target="$FW/$base"; [ -e "$target" ] || target="$FW/$fwname.framework"
 		if [ -e "$target" ] || [ -e "$FW/$(basename "$new")" ]; then
-			install_name_tool -change "$dep" "$new" "$bin" 2>/dev/null || true
+			install_name_tool -change "$dep" "$new" "$bin" || echo "  install_name_tool ล้มเหลว: $bin ($dep)"
 		else
 			echo "  ไม่มีใน Frameworks: $dep ← $bin"
 		fi
 	done
 done
-LEFT=$(find "$APP" -type f \( -perm -u+x -o -name '*.dylib' \) -exec otool -L {} + 2>/dev/null | awk '/^[^\t]/ {f=$1} /^\t\/(opt\/homebrew|usr\/local)/ {print f": "$1}' | sort -u || true)
+LEFT=$(find "$APP" -type f \( -perm -u+x -o -name '*.dylib' \) -print0 | xargs -0 -n1 sh -c 'otool -L "$0" 2>/dev/null | awk -v f="$0" "NR>1 && /^[[:space:]]+\\/(opt\\/homebrew|usr\\/local)/ {print f\": \"\$1}"' | sort -u || true)
 if [ -n "$LEFT" ]; then
-	echo "ยังเหลืออ้าง Homebrew (เครื่องอื่นจะเปิดไม่ได้):"; echo "$LEFT"
+	echo "ยังเหลืออ้าง Homebrew (เครื่องอื่นจะเปิดไม่ได้):"; echo "$LEFT"; exit 1
 fi
 
 echo "[4/5] codesign (ad-hoc) + ตัด quarantine"
