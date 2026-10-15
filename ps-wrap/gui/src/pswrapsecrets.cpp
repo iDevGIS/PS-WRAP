@@ -184,6 +184,38 @@ static QString osStatusText(const char *what, OSStatus st)
 		.arg(msg.isEmpty() ? QString() : QStringLiteral(": ") + msg);
 }
 
+// ACL แบบ "ทุกแอปของ user นี้อ่านได้ ไม่ถาม" — ค่า default ของ Keychain ผูก item กับ binary ที่เขียน ซึ่งกับ ad-hoc sign (dev build / deploy โดยไม่มี
+// Developer ID) จะเปลี่ยนทุก build → macOS เด้งถาม "wants to use your confidential information" และแอปค้างรอที่ SecItemCopyMatching ทุกครั้ง
+// ระดับความปลอดภัยเท่า Windows Credential Manager (โปรเซสของ user เดียวกันอ่านได้) · ยังอยู่ใน login keychain (ล็อกตาม session)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+static SecAccessRef createOpenAccess()
+{
+	SecAccessRef access = nullptr;
+	if (SecAccessCreate(CFSTR("PS-WRAP"), nullptr, &access) != errSecSuccess || !access)
+		return nullptr;
+	CFArrayRef acls = SecAccessCopyMatchingACLList(access, kSecACLAuthorizationDecrypt);
+	if (acls)
+	{
+		for (CFIndex i = 0; i < CFArrayGetCount(acls); ++i)
+		{
+			SecACLRef acl = static_cast<SecACLRef>(const_cast<void *>(CFArrayGetValueAtIndex(acls, i)));
+			CFArrayRef apps = nullptr;
+			CFStringRef desc = nullptr;
+			SecKeychainPromptSelector sel = 0;
+			if (SecACLCopyContents(acl, &apps, &desc, &sel) == errSecSuccess)
+			{
+				SecACLSetContents(acl, nullptr /* NULL = ทุกแอป */, desc ? desc : CFSTR("PS-WRAP"), 0 /* ไม่ถาม */);
+				if (apps) CFRelease(apps);
+				if (desc) CFRelease(desc);
+			}
+		}
+		CFRelease(acls);
+	}
+	return access;
+}
+#pragma clang diagnostic pop
+
 static CFMutableDictionaryRef baseQuery(const QString &target)
 {
 	CFMutableDictionaryRef q = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
@@ -221,25 +253,25 @@ Result write(const QString &target, const QString &secret, QString *error)
 	CFDataRef data = CFDataCreate(kCFAllocatorDefault, reinterpret_cast<const UInt8 *>(blob.constData()), blob.size());
 	memset(blob.data(), 0, size_t(blob.size()));
 
-	// มีอยู่แล้ว → update · ไม่มี → add (เข้าถึงได้เฉพาะเครื่องนี้ ไม่ sync iCloud)
+	// ลบของเก่าแล้วสร้างใหม่เสมอ (ไม่ update) เพื่อให้ ACL แบบเปิด (createOpenAccess) มีผลกับ item ที่เคยสร้างด้วย ACL default ด้วย
+	CFMutableDictionaryRef del = baseQuery(target);
+	SecItemDelete(del);
+	CFRelease(del);
 	CFMutableDictionaryRef q = baseQuery(target);
-	CFMutableDictionaryRef attrs = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-	CFDictionarySetValue(attrs, kSecValueData, data);
-	OSStatus st = SecItemUpdate(q, attrs);
-	if (st == errSecItemNotFound)
-	{
-		CFDictionarySetValue(q, kSecValueData, data);
-		CFDictionarySetValue(q, kSecAttrAccessible, kSecAttrAccessibleWhenUnlockedThisDeviceOnly);
-		CFStringRef label = CFSTR("PS-WRAP");
-		CFDictionarySetValue(q, kSecAttrLabel, label);
-		st = SecItemAdd(q, nullptr);
-	}
-	CFRelease(attrs);
+	CFDictionarySetValue(q, kSecValueData, data);
+	CFStringRef label = CFSTR("PS-WRAP");
+	CFDictionarySetValue(q, kSecAttrLabel, label);
+	SecAccessRef access = createOpenAccess();
+	if (access)
+		CFDictionarySetValue(q, kSecAttrAccess, access);
+	const OSStatus st = SecItemAdd(q, nullptr);
+	if (access)
+		CFRelease(access);
 	CFRelease(q);
 	CFRelease(data);
 	if (st != errSecSuccess)
 	{
-		setError(error, osStatusText(st == errSecItemNotFound ? "SecItemAdd" : "SecItemUpdate", st));
+		setError(error, osStatusText("SecItemAdd", st));
 		return Result::Error;
 	}
 	return Result::Ok;
