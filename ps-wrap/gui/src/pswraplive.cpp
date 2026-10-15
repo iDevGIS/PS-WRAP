@@ -851,7 +851,7 @@ private:
 
 	bool openVideo(QString *error)
 	{
-		const char *const names[] = {"h264_nvenc", "h264_amf", "libx264"};
+		const char *const names[] = {"h264_nvenc", "h264_amf", "h264_videotoolbox", "libx264"};   // PS-WRAP-MAC: videotoolbox
 		const int64_t bitrate = int64_t(spec.video_kbps) * 1000;
 		QStringList tried;
 		for (const char *n : names) {
@@ -869,7 +869,7 @@ private:
 			c->framerate = AVRational{out_fps, 1};
 			c->gop_size = out_fps * 2;        // keyframe ทุก 2 วิ คงที่ (ทุก ingest ต้องการ)
 			c->keyint_min = c->gop_size;
-			c->max_b_frames = name == "h264_amf" ? 0 : 2;
+			c->max_b_frames = (name == "h264_amf" || name == "h264_videotoolbox") ? 0 : 2;
 			c->bit_rate = bitrate;
 			c->rc_max_rate = bitrate;
 			c->rc_min_rate = bitrate;
@@ -893,6 +893,11 @@ private:
 				av_opt_set(c->priv_data, "rc", "cbr", 0);
 				av_opt_set(c->priv_data, "quality", "balanced", 0);
 				av_opt_set(c->priv_data, "profile", "high", 0);
+			} else if (name == "h264_videotoolbox") {
+				av_opt_set(c->priv_data, "realtime", "1", 0);
+				av_opt_set(c->priv_data, "allow_sw", "1", 0);
+				av_opt_set(c->priv_data, "profile", "high", 0);
+				av_opt_set(c->priv_data, "constant_bit_rate", "1", 0);   // CBR สำหรับ ingest (macOS 13+)
 			} else {
 				av_opt_set(c->priv_data, "preset", "veryfast", 0);
 				av_opt_set(c->priv_data, "profile", "high", 0);

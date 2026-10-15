@@ -136,6 +136,8 @@ if(APPLE)
 		src/macWakeSleep.cpp
 		include/macMetalLayer.h
 		src/macMetalLayer.mm
+		include/macNetInfo.h
+		src/macNetInfo.mm
 	)
 elseif(WIN32)
 	list(APPEND SOURCE_FILES
@@ -282,9 +284,13 @@ if(NOT CHIAKI_ENABLE_FFMPEG_DECODER)
 	message(FATAL_ERROR "Chiaki GUI requires CHIAKI_ENABLE_FFMPEG_DECODER=ON")
 endif()
 if(APPLE)
-	target_link_libraries(chiaki "-framework AVFoundation" "-framework IOKit" "-framework QuartzCore" "-framework Security" "-framework CoreFoundation")   # PS-WRAP-MAC: CAMetalLayer (macMetalLayer.mm) · Keychain (pswrapsecrets.cpp)
+	target_link_libraries(chiaki "-framework AVFoundation" "-framework IOKit" "-framework QuartzCore" "-framework Security" "-framework CoreFoundation" "-framework CoreWLAN")   # PS-WRAP-MAC: CAMetalLayer (macMetalLayer.mm) · Keychain (pswrapsecrets.cpp) · Wi-Fi info (macNetInfo.mm)
 	# PS-WRAP-MAC: Qt permission plugin ของ macOS เป็น static — qt_add_executable จะ link ให้เองจาก Info.plist แต่ upstream ใช้ add_executable
 	# ไม่ link = "Could not find permission plugin for QCameraPermission" → Qt ถือว่าไม่ได้รับอนุญาต กล้อง/ไมค์เปิดไม่ได้
+	# PS-WRAP-MAC: โมเดล AI facecam (res/models) + ภาพ fx (res/fx-photo) ต้องอยู่ข้าง exe (โค้ดหาใน applicationDirPath เหมือน Windows)
+	add_custom_command(TARGET chiaki POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/res/models $<TARGET_FILE_DIR:chiaki>/models
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/res/fx-photo $<TARGET_FILE_DIR:chiaki>/fx)
 	foreach(_perm Camera Microphone)
 		if(TARGET Qt6::QDarwin${_perm}PermissionPlugin)
 			target_link_libraries(chiaki Qt6::QDarwin${_perm}PermissionPlugin Qt6::QDarwin${_perm}PermissionPlugin_init)

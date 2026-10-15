@@ -3,6 +3,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QFile>
 #include <QElapsedTimer>
 #include <QLoggingCategory>
@@ -13,6 +14,8 @@
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 #include <onnxruntime_c_api.h>
@@ -26,6 +29,8 @@ struct PswrapSegmenterWorker::Ort
 {
 #ifdef Q_OS_WIN
     HMODULE lib = nullptr;
+#else
+    void *lib = nullptr;   // PS-WRAP-MAC: dlopen
 #endif
     const OrtApi *api = nullptr;
     OrtEnv *env = nullptr;
@@ -45,13 +50,31 @@ struct PswrapSegmenterWorker::Ort
         }
 #ifdef Q_OS_WIN
         if (lib) FreeLibrary(lib);
+#else
+        if (lib) dlclose(lib);
 #endif
     }
 };
 
 QString PswrapSegmenter::runtimePath()
 {
+#ifdef Q_OS_MACOS
+    // PS-WRAP-MAC: libonnxruntime.dylib — ใน .app (Frameworks / ข้าง exe) หรือ Homebrew (brew install onnxruntime) · ไม่มี = ปิดฟีเจอร์เงียบๆ
+    const QString app = QCoreApplication::applicationDirPath();
+    const QStringList candidates = {
+        QDir(app).filePath(QStringLiteral("../Frameworks/libonnxruntime.dylib")),
+        QDir(app).filePath(QStringLiteral("libonnxruntime.dylib")),
+        QStringLiteral("/opt/homebrew/opt/onnxruntime/lib/libonnxruntime.dylib"),
+        QStringLiteral("/usr/local/opt/onnxruntime/lib/libonnxruntime.dylib"),
+        QStringLiteral("/usr/local/lib/libonnxruntime.dylib"),
+    };
+    for (const QString &c : candidates)
+        if (QFile::exists(c))
+            return QFileInfo(c).absoluteFilePath();
+    return candidates.first();
+#else
     return QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("onnxruntime.dll"));
+#endif
 }
 
 QString PswrapSegmenter::modelPath()
@@ -217,8 +240,16 @@ bool PswrapSegmenterWorker::loadRuntime(QString &err)
     ort->api = base ? base->GetApi(ORT_API_VERSION) : nullptr;
     if (!ort->api) { err = QStringLiteral("onnxruntime.dll too old (need API %1)").arg(ORT_API_VERSION); return false; }
 #else
-    err = QStringLiteral("segmenter supported on Windows only");
-    return false;
+    // PS-WRAP-MAC: dlopen (RTLD_LOCAL — ไม่ปน symbol กับ ffmpeg/Qt)
+    const QString path = PswrapSegmenter::runtimePath();
+    ort->lib = dlopen(path.toUtf8().constData(), RTLD_NOW | RTLD_LOCAL);
+    if (!ort->lib) { err = QStringLiteral("cannot load %1: %2").arg(path, QString::fromUtf8(dlerror())); return false; }
+    using GetBaseFn = const OrtApiBase *(ORT_API_CALL *)(void);
+    auto get_base = reinterpret_cast<GetBaseFn>(dlsym(ort->lib, "OrtGetApiBase"));
+    if (!get_base) { err = QStringLiteral("OrtGetApiBase not found"); return false; }
+    const OrtApiBase *base = get_base();
+    ort->api = base ? base->GetApi(ORT_API_VERSION) : nullptr;
+    if (!ort->api) { err = QStringLiteral("libonnxruntime too old (need API %1)").arg(ORT_API_VERSION); return false; }
 #endif
     const OrtApi *api = ort->api;
     auto check = [api, &err](OrtStatus *st) {
@@ -234,6 +265,8 @@ bool PswrapSegmenterWorker::loadRuntime(QString &err)
     const QString model = PswrapSegmenter::modelPath();
 #ifdef Q_OS_WIN
     if (!check(api->CreateSession(ort->env, reinterpret_cast<const wchar_t *>(model.utf16()), ort->opts, &ort->session))) return false;
+#else
+    if (!check(api->CreateSession(ort->env, model.toUtf8().constData(), ort->opts, &ort->session))) return false;
 #endif
     if (!check(api->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &ort->mem))) return false;
     input_buf.assign(static_cast<size_t>(3 * kModelSize * kModelSize), 0.0f);

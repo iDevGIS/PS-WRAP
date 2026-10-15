@@ -749,10 +749,11 @@ struct PsWrapRecorder::Impl
 	bool openVideo(QString *error)
 	{
 		const AVPixelFormat pix = cfg.hdr ? AV_PIX_FMT_P010LE : AV_PIX_FMT_NV12;
-		const char *const sdr_encoders[] = {"h264_nvenc", "h264_amf", "libx264"};
-		const char *const hdr_encoders[] = {"hevc_nvenc", "hevc_amf"};
+		// PS-WRAP-MAC: *_videotoolbox (Apple hardware) ต่อจาก NVENC/AMF · libx264 fallback
+		const char *const sdr_encoders[] = {"h264_nvenc", "h264_amf", "h264_videotoolbox", "libx264"};
+		const char *const hdr_encoders[] = {"hevc_nvenc", "hevc_amf", "hevc_videotoolbox"};
 		const char *const *names = cfg.hdr ? hdr_encoders : sdr_encoders;
-		const int count = cfg.hdr ? 2 : 3;
+		const int count = cfg.hdr ? 3 : 4;
 
 		// ~20 Mbps ที่ 1080p60 สเกลตามพิกเซล×fps (HDR 10-bit +25%)
 		double bitrate = 20e6 * (double(cfg.width) * cfg.height * cfg.fps) / (1920.0 * 1080.0 * 60.0);
@@ -809,6 +810,10 @@ struct PsWrapRecorder::Impl
 				av_opt_set(c->priv_data, "forced_idr", "1", 0); // มีเฉพาะ FFmpeg ใหม่ — ไม่มีก็ไม่เป็นไร (รอ keyframe ตาม GOP)
 				if (cfg.hdr)
 					av_opt_set(c->priv_data, "profile", "main10", 0);
+			} else if (name.endsWith("_videotoolbox")) {
+				av_opt_set(c->priv_data, "realtime", "1", 0);
+				av_opt_set(c->priv_data, "allow_sw", "1", 0);
+				av_opt_set(c->priv_data, "profile", cfg.hdr ? "main10" : "high", 0);
 			} else if (name == "libx264") {
 				av_opt_set(c->priv_data, "preset", "veryfast", 0);
 				av_opt_set(c->priv_data, "forced-idr", "1", 0);

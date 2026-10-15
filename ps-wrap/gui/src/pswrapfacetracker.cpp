@@ -14,9 +14,12 @@
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 #include <onnxruntime_c_api.h>
+#include <string>
 
 Q_LOGGING_CATEGORY(pswrapFace, "pswrap.face")
 
@@ -40,6 +43,8 @@ struct PswrapFaceTrackerWorker::Ort
 {
 #ifdef Q_OS_WIN
     HMODULE lib = nullptr;
+#else
+    void *lib = nullptr;   // PS-WRAP-MAC: dlopen
 #endif
     const OrtApi *api = nullptr;
     OrtEnv *env = nullptr;
@@ -62,6 +67,8 @@ struct PswrapFaceTrackerWorker::Ort
         }
 #ifdef Q_OS_WIN
         if (lib) FreeLibrary(lib);
+#else
+        if (lib) dlclose(lib);
 #endif
     }
 };
@@ -155,7 +162,15 @@ bool PswrapFaceTrackerWorker::loadRuntime(QString &err)
     ort->api = base ? base->GetApi(ORT_API_VERSION) : nullptr;
     if (!ort->api) { err = QStringLiteral("onnxruntime.dll too old"); return false; }
 #else
-    err = QStringLiteral("face tracker supported on Windows only"); return false;
+    const QString path = PswrapSegmenter::runtimePath();   // PS-WRAP-MAC: dlopen
+    ort->lib = dlopen(path.toUtf8().constData(), RTLD_NOW | RTLD_LOCAL);
+    if (!ort->lib) { err = QStringLiteral("cannot load %1: %2").arg(path, QString::fromUtf8(dlerror())); return false; }
+    using GetBaseFn = const OrtApiBase *(ORT_API_CALL *)(void);
+    auto get_base = reinterpret_cast<GetBaseFn>(dlsym(ort->lib, "OrtGetApiBase"));
+    if (!get_base) { err = QStringLiteral("OrtGetApiBase not found"); return false; }
+    const OrtApiBase *base = get_base();
+    ort->api = base ? base->GetApi(ORT_API_VERSION) : nullptr;
+    if (!ort->api) { err = QStringLiteral("libonnxruntime too old"); return false; }
 #endif
     const OrtApi *api = ort->api;
     auto check = [api, &err](OrtStatus *st) { if (!st) return true; err = QString::fromUtf8(api->GetErrorMessage(st)); api->ReleaseStatus(st); return false; };
@@ -163,16 +178,21 @@ bool PswrapFaceTrackerWorker::loadRuntime(QString &err)
     if (!check(api->CreateSessionOptions(&ort->opts))) return false;
     api->SetIntraOpNumThreads(ort->opts, 2);
     api->SetSessionGraphOptimizationLevel(ort->opts, ORT_ENABLE_ALL);
-#ifdef Q_OS_WIN
     const QString blaze = PswrapFaceTracker::modelPath();
-    if (!check(api->CreateSession(ort->env, reinterpret_cast<const wchar_t *>(blaze.utf16()), ort->opts, &ort->blaze))) return false;
     const QString mesh = PswrapFaceTracker::meshModelPath();
+#ifdef Q_OS_WIN
+    const std::wstring blaze_p = blaze.toStdWString(), mesh_p = mesh.toStdWString();
+    const ORTCHAR_T *blaze_c = blaze_p.c_str(), *mesh_c = mesh_p.c_str();
+#else
+    const QByteArray blaze_b = blaze.toUtf8(), mesh_b = mesh.toUtf8();   // PS-WRAP-MAC: ORTCHAR_T = char
+    const ORTCHAR_T *blaze_c = blaze_b.constData(), *mesh_c = mesh_b.constData();
+#endif
+    if (!check(api->CreateSession(ort->env, blaze_c, ort->opts, &ort->blaze))) return false;
     if (QFile::exists(mesh)) {
-        OrtStatus *st = api->CreateSession(ort->env, reinterpret_cast<const wchar_t *>(mesh.utf16()), ort->opts, &ort->mesh);
+        OrtStatus *st = api->CreateSession(ort->env, mesh_c, ort->opts, &ort->mesh);
         if (st) { qCWarning(pswrapFace) << "face mesh unavailable:" << api->GetErrorMessage(st); api->ReleaseStatus(st); ort->mesh = nullptr; }
     }
     mesh_ok = ort->mesh != nullptr;
-#endif
     if (!check(api->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &ort->mem))) return false;
     blaze_buf.assign(static_cast<size_t>(3 * kBlaze * kBlaze), 0.0f);
     mesh_buf.assign(static_cast<size_t>(kMesh * kMesh * 3), 0.0f);

@@ -21,6 +21,8 @@
 #include <icmpapi.h>
 #include <netioapi.h>
 #include <wlanapi.h>
+#elif defined(Q_OS_MACOS)
+#include "macNetInfo.h"   // PS-WRAP-MAC
 #endif
 
 namespace {
@@ -191,6 +193,21 @@ void PsWrapNetCheck::startPings()
 			}
 			IcmpCloseHandle(icmp);
 		}
+#elif defined(Q_OS_MACOS)
+		for (int i = 0; i < kPings && !*flag; ++i) {
+			double ms = 0;
+			const bool ok = pswrapMacPing(ip, quint16(i + 1), 1000, &ms);
+			sent++;
+			if (ok)
+				rtts << ms;
+			QMetaObject::invokeMethod(self, [self, gen, sent]() {
+				if (self && self->generation_ == gen) {
+					self->done_ = sent;
+					emit self->progressChanged();
+				}
+			}, Qt::QueuedConnection);
+			QThread::msleep(50);
+		}
 #else
 		Q_UNUSED(ip)
 #endif
@@ -283,6 +300,8 @@ QVariantMap PsWrapNetCheck::linkInfo() const
 	} else {
 		m[QStringLiteral("linkType")] = QStringLiteral("other");
 	}
+#elif defined(Q_OS_MACOS)
+	m = pswrapMacLinkInfo(ipv4_);
 #endif
 	return m;
 }

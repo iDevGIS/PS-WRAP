@@ -127,6 +127,20 @@ bool PsWrapUpdater::canInstall() const
 	probe.close();
 	probe.remove();
 	return true;
+#elif defined(Q_OS_MACOS)
+	// PS-WRAP-MAC: ติดตั้งได้เมื่อรันจาก .app ที่ deploy แล้ว (มี Contents/Resources/qt.conf จาก macdeployqt) และโฟลเดอร์ที่วาง .app เขียนได้
+	const QDir macos(QCoreApplication::applicationDirPath());
+	if (!macos.absolutePath().endsWith(QStringLiteral("/Contents/MacOS")))
+		return false;
+	const QString bundle = QFileInfo(macos.absolutePath() + QStringLiteral("/../..")).canonicalFilePath();
+	if (!QFileInfo::exists(bundle + QStringLiteral("/Contents/Resources/qt.conf")))
+		return false;
+	QFile probe(QFileInfo(bundle).dir().filePath(QStringLiteral(".pswrap-write-test")));
+	if (!probe.open(QIODevice::WriteOnly))
+		return false;
+	probe.close();
+	probe.remove();
+	return true;
 #else
 	return false;
 #endif
@@ -193,7 +207,12 @@ void PsWrapUpdater::onCheckFinished(QNetworkReply *reply, bool manual)
 	for (const QJsonValue &a : best.value(QStringLiteral("assets")).toArray()) {
 		const QJsonObject o = a.toObject();
 		const QString name = o.value(QStringLiteral("name")).toString();
-		if (name.endsWith(QStringLiteral("-win64.zip"))) {
+#ifdef Q_OS_MACOS
+		const bool match = name.endsWith(QStringLiteral("-macos-arm64.zip")) || name.endsWith(QStringLiteral("-macos.zip"));   // PS-WRAP-MAC
+#else
+		const bool match = name.endsWith(QStringLiteral("-win64.zip"));
+#endif
+		if (match) {
 			asset_name_ = name;
 			asset_url_ = o.value(QStringLiteral("browser_download_url")).toString();
 			asset_size_ = o.value(QStringLiteral("size")).toVariant().toLongLong();
@@ -288,8 +307,33 @@ void PsWrapUpdater::extract()
 		setState(QStringLiteral("ready"));
 	});
 	tar->start(QDir::toNativeSeparators(tarExe), {QStringLiteral("-xf"), QDir::toNativeSeparators(zip), QStringLiteral("-C"), QDir::toNativeSeparators(out)});
+#elif defined(Q_OS_MACOS)
+	// PS-WRAP-MAC: bsdtar ของ macOS แตก zip ได้ → หา PS-WRAP-MAC.app ใน zip
+	const QString zip = QDir(work_dir_).filePath(asset_name_);
+	const QString out = QDir(work_dir_).filePath(QStringLiteral("new"));
+	QDir().mkpath(out);
+	auto *tar = new QProcess(this);
+	connect(tar, &QProcess::finished, this, [this, tar, out](int code, QProcess::ExitStatus st) {
+		tar->deleteLater();
+		if (st != QProcess::NormalExit || code != 0) {
+			setState(QStringLiteral("error"), tr("Could not unpack the update (tar exit %1)").arg(code));
+			return;
+		}
+		extracted_dir_.clear();
+		QDirIterator it(out, {QStringLiteral("PS-WRAP-MAC.app")}, QDir::Dirs | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+		if (it.hasNext())
+			extracted_dir_ = it.next();
+		if (extracted_dir_.isEmpty()) {
+			setState(QStringLiteral("error"), tr("The update package has no PS-WRAP-MAC.app"));
+			return;
+		}
+		progress_ = 1;
+		emit progressChanged();
+		setState(QStringLiteral("ready"));
+	});
+	tar->start(QStringLiteral("/usr/bin/tar"), {QStringLiteral("-xf"), zip, QStringLiteral("-C"), out});
 #else
-	setState(QStringLiteral("error"), tr("Automatic install is only available on Windows"));
+	setState(QStringLiteral("error"), tr("Automatic install is only available on Windows and macOS"));
 #endif
 }
 
@@ -323,6 +367,30 @@ void PsWrapUpdater::install()
 	p.setArguments({QStringLiteral("/c"), QDir::toNativeSeparators(bat)});
 	p.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) { args->flags |= CREATE_NO_WINDOW; });
 	if (!p.startDetached()) {
+		setState(QStringLiteral("error"), tr("Can't start the installer"));
+		return;
+	}
+	QCoreApplication::quit();
+#elif defined(Q_OS_MACOS)
+	if (state_ != QLatin1String("ready") || extracted_dir_.isEmpty())
+		return;
+	const QString dst = QFileInfo(QCoreApplication::applicationDirPath() + QStringLiteral("/../..")).canonicalFilePath();   // PS-WRAP-MAC.app ปัจจุบัน
+	const QString pid = QString::number(QCoreApplication::applicationPid());
+	// รอแอปนี้ปิด → แทนที่ .app ทั้งก้อน (settings อยู่ใน ~/Library ไม่โดน) → เปิดตัวใหม่
+	const QString script = QStringLiteral(
+		"#!/bin/sh\n"
+		"while kill -0 %1 2>/dev/null; do sleep 1; done\n"
+		"rm -rf \"%3\" && cp -R \"%2\" \"%3\" && xattr -dr com.apple.quarantine \"%3\" 2>/dev/null\n"
+		"open \"%3\"\n").arg(pid, extracted_dir_, dst);
+	const QString sh = QDir(work_dir_).filePath(QStringLiteral("install.sh"));
+	QFile f(sh);
+	if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+		setState(QStringLiteral("error"), tr("Can't write the install script"));
+		return;
+	}
+	f.write(script.toUtf8());
+	f.close();
+	if (!QProcess::startDetached(QStringLiteral("/bin/sh"), {sh})) {
 		setState(QStringLiteral("error"), tr("Can't start the installer"));
 		return;
 	}

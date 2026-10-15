@@ -627,6 +627,9 @@ void QmlMainWindow::revealRecording(const QString &path)
 	proc.setNativeArguments(QStringLiteral("/select,\"%1\"").arg(QDir::toNativeSeparators(p)));
 	if (proc.startDetached())
 		return;
+#elif defined(Q_OS_MACOS)
+	if (QProcess::startDetached(QStringLiteral("/usr/bin/open"), {QStringLiteral("-R"), p}))   // PS-WRAP-MAC: Finder เลือกไฟล์
+		return;
 #endif
 	QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(p).absolutePath()));
 }
