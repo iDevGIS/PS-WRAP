@@ -6326,10 +6326,6 @@ void QmlMainWindow::resizeSwapchain()
         drainDeferredSwaps();
 
     QSize new_swapchain_size = window_size;
-#if defined(Q_OS_MACOS)
-    if (render_backend == RenderBackend::Vulkan)
-        pswrapMetalLayerSync(reinterpret_cast<void*>(winId()));   // PS-WRAP-MAC: CAMetalLayer ที่เราซ้อนไว้ตาม view + scale
-#endif
     {
         QMutexLocker locker(&placebo_swapchain_mutex);
         pl_swapchain_resize(placebo_swapchain, &new_swapchain_size.rwidth(), &new_swapchain_size.rheight());
@@ -6429,6 +6425,10 @@ void QmlMainWindow::updateSwapchain()
 
     quick_item->setSize(size());
     quick_window->resize(size());
+#if defined(Q_OS_MACOS)
+    if (render_backend == RenderBackend::Vulkan)
+        pswrapMetalLayerSync(reinterpret_cast<void*>(winId()));   // PS-WRAP-MAC: CAMetalLayer ที่ซ้อนไว้ตาม view + scale (GUI thread ก่อน resize swapchain)
+#endif
 
     if (quick_render->thread() == QThread::currentThread())
         resizeSwapchain();
