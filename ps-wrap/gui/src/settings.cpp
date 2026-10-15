@@ -705,27 +705,15 @@ static const QMap<RenderBackend, QString> render_backend_values = {
 	{ RenderBackend::OpenGL, "opengl" },
 };
 
-#if defined(Q_OS_MACOS) && QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-// Default to OpenGL on macOS with Qt >= 6.10 due to MoltenVK bug
-static const RenderBackend render_backend_default = RenderBackend::OpenGL;
-#else
+// PS-WRAP-MAC: upstream บังคับ OpenGL บน macOS + Qt >= 6.10 เพราะ MoltenVK crash (QContainerLayer) — เราแก้ที่ต้นเหตุแล้ว
+// (macMetalLayer.mm ส่ง CAMetalLayer จริงให้ MoltenVK) จึงใช้ Vulkan เป็นค่าเริ่มต้นทุกแพลตฟอร์ม → overlay ตอนสตรีมใช้ได้เหมือน Windows
+// ถ้า Vulkan ล้มเหลว qmlmainwindow ยัง fallback ไป OpenGL เองเหมือนเดิม · ผู้ใช้สลับได้ที่ Settings › Renderer
 static const RenderBackend render_backend_default = RenderBackend::Vulkan;
-#endif
 
 RenderBackend Settings::GetRenderBackend() const
 {
 	auto v = settings.value("settings/render_backend", render_backend_values[render_backend_default]).toString();
-	auto backend = render_backend_values.key(v, render_backend_default);
-
-#if defined(Q_OS_MACOS) && QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-	// Force OpenGL on macOS with Qt >= 6.10 because MoltenVK backend crashes when it creates a QContainerLayer.
-	if (backend == RenderBackend::Vulkan) {
-		qWarning() << "Forcing OpenGL backend on macOS (Vulkan unavailable because of Qt 6.10 MoltenVK bug)";
-		return RenderBackend::OpenGL;
-	}
-#endif
-
-	return backend;
+	return render_backend_values.key(v, render_backend_default);
 }
 
 void Settings::SetRenderBackend(RenderBackend backend)

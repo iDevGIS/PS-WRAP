@@ -134,6 +134,8 @@ if(APPLE)
 		src/macMicPermission.m
 		include/macWakeSleep.h
 		src/macWakeSleep.cpp
+		include/macMetalLayer.h
+		src/macMetalLayer.mm
 	)
 elseif(WIN32)
 	list(APPEND SOURCE_FILES
@@ -275,7 +277,7 @@ if(NOT CHIAKI_ENABLE_FFMPEG_DECODER)
 	message(FATAL_ERROR "Chiaki GUI requires CHIAKI_ENABLE_FFMPEG_DECODER=ON")
 endif()
 if(APPLE)
-	target_link_libraries(chiaki "-framework AVFoundation" "-framework IOKit")
+	target_link_libraries(chiaki "-framework AVFoundation" "-framework IOKit" "-framework QuartzCore")   # PS-WRAP-MAC: CAMetalLayer (macMetalLayer.mm)
 endif()
 
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fanalyzer")

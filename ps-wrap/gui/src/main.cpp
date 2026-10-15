@@ -139,6 +139,19 @@ int real_main(int argc, char *argv[])
 	QGuiApplication::setApplicationDisplayName("PS-WRAP");
 #if defined(Q_OS_MACOS)
 	qputenv("QT_MTL_NO_TRANSACTION", "1");
+	// PS-WRAP-MAC: QVulkanInstance โหลด library ชื่อ "vulkan" ผ่าน dlopen ซึ่งหาไม่เจอถ้าไม่มี symlink ใน .app → ชี้ libvulkan ของ Homebrew/บันเดิลให้เอง
+	if (!qEnvironmentVariableIsSet("QT_VULKAN_LIB")) {
+		QStringList candidates;
+		if (QCoreApplication::instance())
+			candidates << QCoreApplication::applicationDirPath() + QStringLiteral("/../Frameworks/libvulkan.1.dylib");
+		candidates << QStringLiteral("/opt/homebrew/lib/libvulkan.1.dylib") << QStringLiteral("/usr/local/lib/libvulkan.1.dylib");
+		for (const QString &c : candidates) {
+			if (QFileInfo::exists(c)) {
+				qputenv("QT_VULKAN_LIB", QFileInfo(c).absoluteFilePath().toUtf8());
+				break;
+			}
+		}
+	}
 #endif
 #if defined(Q_OS_LINUX)
 	if(qEnvironmentVariableIsSet("FLATPAK_ID"))

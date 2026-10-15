@@ -71,6 +71,7 @@ extern "C" {
 #include <atomic>
 #if defined(Q_OS_MACOS)
 #include <objc/message.h>
+#include "macMetalLayer.h"
 #endif
 
 Q_LOGGING_CATEGORY(chiakiGui, "chiaki.gui", QtInfoMsg);
@@ -6184,7 +6185,8 @@ void QmlMainWindow::createSwapchain()
 #elif defined(Q_OS_MACOS)
     VkMetalSurfaceCreateInfoEXT surfaceInfo = {};
     surfaceInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-    surfaceInfo.pLayer = static_cast<const CAMetalLayer*>(reinterpret_cast<void*(*)(id, SEL)>(objc_msgSend)(reinterpret_cast<id>(winId()), sel_registerName("layer")));
+    // PS-WRAP-MAC: Qt >= 6.10 ให้ view.layer เป็น QContainerLayer → ต้องส่ง CAMetalLayer จริงให้ MoltenVK (macMetalLayer.mm)
+    surfaceInfo.pLayer = static_cast<const CAMetalLayer*>(pswrapMetalLayerForView(reinterpret_cast<void*>(winId())));
     err = vk_funcs.vkCreateMetalSurfaceEXT(placebo_vk_inst->instance, &surfaceInfo, nullptr, &surface);
 #elif defined(Q_OS_WIN)
     VkWin32SurfaceCreateInfoKHR surfaceInfo = {};
@@ -6324,6 +6326,10 @@ void QmlMainWindow::resizeSwapchain()
         drainDeferredSwaps();
 
     QSize new_swapchain_size = window_size;
+#if defined(Q_OS_MACOS)
+    if (render_backend == RenderBackend::Vulkan)
+        pswrapMetalLayerSync(reinterpret_cast<void*>(winId()));   // PS-WRAP-MAC: CAMetalLayer ที่เราซ้อนไว้ตาม view + scale
+#endif
     {
         QMutexLocker locker(&placebo_swapchain_mutex);
         pl_swapchain_resize(placebo_swapchain, &new_swapchain_size.rwidth(), &new_swapchain_size.rheight());
