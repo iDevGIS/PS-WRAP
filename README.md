@@ -274,7 +274,7 @@ scripts/build-mac.sh    # → ps-wrap/build/gui/PS-WRAP-MAC.app
 scripts/run-mac.sh      # run the build
 ```
 
-Needs Xcode (or Command Line Tools) and Homebrew. Tested on Apple Silicon (macOS 26, Xcode 26). The macOS build has the streaming core, the UI and the controller support; Windows-only parts (WebView2 PSN sign-in, Credential Manager, DirectShow camera, the Diagnostics tool, the updater) are stubbed out and sign-in falls back to the paste-the-URL flow.
+Needs Xcode (or Command Line Tools) and Homebrew. Tested on Apple Silicon (macOS 26, Xcode 26). The macOS build has the streaming core, the UI and the controller support; Stream keys and the Link host key go to the macOS Keychain, the facecam uses AVFoundation and Link encodes with VideoToolbox. Windows-only parts (WebView2 PSN sign-in, AI facecam effects, the Diagnostics tool, the updater) are stubbed out and sign-in falls back to the paste-the-URL flow.
 
 ## Credits
 

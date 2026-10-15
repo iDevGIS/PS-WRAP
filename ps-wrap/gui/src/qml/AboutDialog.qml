@@ -108,7 +108,7 @@ Dialog {
                 Section {
                     visible: about.isMac
                     title: qsTr("macOS build")
-                    text: qsTr("PS-WRAP-MAC is the macOS build of PS-WRAP, built from the same source with Homebrew Qt, FFmpeg and libplacebo. Not yet available on macOS: the in-app PlayStation Network sign-in window (paste the link instead), the AI facecam, Windows Credential Manager storage for stream keys, the Diagnostics tool and automatic updates.")
+                    text: qsTr("PS-WRAP-MAC is the macOS build of PS-WRAP, built from the same source with Homebrew Qt, FFmpeg and libplacebo. Stream keys and the Link host key are kept in the macOS Keychain. Not yet available on macOS: the in-app PlayStation Network sign-in window (paste the link instead), the AI facecam effects, the Diagnostics tool and automatic updates.")
                 }
 
                 Section {

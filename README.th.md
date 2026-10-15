@@ -241,7 +241,7 @@ scripts/build-mac.sh    # → ps-wrap/build/gui/PS-WRAP-MAC.app
 scripts/run-mac.sh      # รัน build
 ```
 
-ต้องมี Xcode (หรือ Command Line Tools) และ Homebrew ทดสอบบน Apple Silicon (macOS 26, Xcode 26) build บน mac มีแกนสตรีม, UI และจอยครบ ส่วนที่มีเฉพาะ Windows (ล็อกอิน PSN ผ่าน WebView2, Credential Manager, กล้อง DirectShow, เครื่องมือวินิจฉัย, ตัวอัปเดต) ถูก stub ไว้ และการล็อกอินจะกลับไปใช้วิธี copy URL มาวางแทน
+ต้องมี Xcode (หรือ Command Line Tools) และ Homebrew ทดสอบบน Apple Silicon (macOS 26, Xcode 26) build บน mac มีแกนสตรีม, UI และจอยครบ stream key และ host key ของ Link เก็บใน macOS Keychain · กล้องใช้ AVFoundation · Link เข้ารหัสด้วย VideoToolbox ส่วนที่มีเฉพาะ Windows (ล็อกอิน PSN ผ่าน WebView2, เอฟเฟกต์ AI ของ facecam, เครื่องมือวินิจฉัย, ตัวอัปเดต) ถูก stub ไว้ และการล็อกอินจะกลับไปใช้วิธี copy URL มาวางแทน
 
 ## Credits
 
