@@ -231,6 +231,18 @@ cd PS-WRAP
 ใช้ PowerShell 7 (`pwsh`) — สคริปต์มีภาษาไทย Windows PowerShell 5 อ่านเพี้ยน
 Facecam แบบ AI ต้องมี `onnxruntime.dll` (ONNX Runtime 1.30 win-x64) วางข้าง `PS-WRAP.exe`
 
+## Build (macOS, Homebrew)
+
+```bash
+git clone --recurse-submodules https://github.com/iDevGIS/PS-WRAP.git
+cd PS-WRAP
+scripts/setup-mac.sh    # ติดตั้ง deps ผ่าน Homebrew + python protobuf (ครั้งเดียว)
+scripts/build-mac.sh    # → ps-wrap/build/gui/chiaki.app
+scripts/run-mac.sh      # รัน build
+```
+
+ต้องมี Xcode (หรือ Command Line Tools) และ Homebrew ทดสอบบน Apple Silicon (macOS 26, Xcode 26) build บน mac มีแกนสตรีม, UI และจอยครบ ส่วนที่มีเฉพาะ Windows (ล็อกอิน PSN ผ่าน WebView2, Credential Manager, กล้อง DirectShow, เครื่องมือวินิจฉัย, ตัวอัปเดต) ถูก stub ไว้ และการล็อกอินจะกลับไปใช้วิธี copy URL มาวางแทน
+
 ## Credits
 
 PS-WRAP เกิดขึ้นไม่ได้ถ้าไม่มีโปรเจกต์เหล่านี้ — เครดิตชุดเดียวกันอยู่ในแอปที่ชิป ⓘ **About** หน้าแรก (และ Settings › System)

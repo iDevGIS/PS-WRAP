@@ -264,6 +264,18 @@ cd PS-WRAP
 Use PowerShell 7 (`pwsh`). The scripts contain Thai text that Windows PowerShell 5 reads incorrectly.
 AI facecam features need `onnxruntime.dll` (ONNX Runtime 1.30 win-x64) next to `PS-WRAP.exe`.
 
+## Build (macOS, Homebrew)
+
+```bash
+git clone --recurse-submodules https://github.com/iDevGIS/PS-WRAP.git
+cd PS-WRAP
+scripts/setup-mac.sh    # Homebrew dependencies + python protobuf (once)
+scripts/build-mac.sh    # → ps-wrap/build/gui/chiaki.app
+scripts/run-mac.sh      # run the build
+```
+
+Needs Xcode (or Command Line Tools) and Homebrew. Tested on Apple Silicon (macOS 26, Xcode 26). The macOS build has the streaming core, the UI and the controller support; Windows-only parts (WebView2 PSN sign-in, Credential Manager, DirectShow camera, the Diagnostics tool, the updater) are stubbed out and sign-in falls back to the paste-the-URL flow.
+
 ## Credits
 
 PS-WRAP would not exist without these projects. The same credits are shown in the app under the ⓘ **About** chip on the home screen (also in Settings › System).

@@ -166,6 +166,8 @@ find_package(FFMPEG COMPONENTS avdevice swscale)
 if(WIN32 AND TARGET FFMPEG::avdevice AND TARGET FFMPEG::swscale)
 	target_link_libraries(chiaki FFMPEG::avdevice FFMPEG::swscale ole32 oleaut32 strmiids uuid)
 	target_compile_definitions(chiaki PRIVATE PSWRAP_DSHOW_CAMERA=1)
+elseif(TARGET FFMPEG::avdevice)
+	target_link_libraries(chiaki FFMPEG::avdevice)   # PS-WRAP mac/linux: pswrapcamera.cpp เรียก avdevice_register_all ทุกแพลตฟอร์ม
 endif()   # PS-WRAP: Network สำหรับ single instance (QLocalServer)
 if(WIN32)
 	target_link_libraries(chiaki advapi32)   # PS-WRAP: Credential Manager (CredWriteW/CredReadW) ของ pswrapsecrets
