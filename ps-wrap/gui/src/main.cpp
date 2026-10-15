@@ -11,19 +11,6 @@
 
 // ugly workaround because Windows does weird things and ENOTIME
 int real_main(int argc, char *argv[]);
-#if defined(Q_OS_MACOS)
-#include <mach-o/dyld.h>
-#include <QFileInfo>
-// PS-WRAP-MAC: โฟลเดอร์ของ executable ก่อนมี QCoreApplication (Contents/MacOS ใน .app)
-static QString pswrapMacExeDir()
-{
-	char buf[4096];
-	uint32_t n = sizeof(buf);
-	if (_NSGetExecutablePath(buf, &n) != 0)
-		return QString();
-	return QFileInfo(QString::fromUtf8(buf)).canonicalPath();
-}
-#endif
 int main(int argc, char *argv[]) { return real_main(argc, argv); }
 
 #include <streamsession.h>
@@ -127,6 +114,20 @@ static void pswrapMigrateLegacyChiakiSettings()
 	target.sync();
 	fprintf(stderr, "PS-WRAP: migrated settings from Chiaki (%d keys, %d profiles)\n", static_cast<int>(legacy.allKeys().size()), profiles);
 }
+
+#if defined(Q_OS_MACOS)
+#include <mach-o/dyld.h>
+#include <QFileInfo>
+// PS-WRAP-MAC: โฟลเดอร์ของ executable ก่อนมี QCoreApplication (Contents/MacOS ใน .app)
+static QString pswrapMacExeDir()
+{
+	char buf[4096];
+	uint32_t n = sizeof(buf);
+	if (_NSGetExecutablePath(buf, &n) != 0)
+		return QString();
+	return QFileInfo(QString::fromUtf8(buf)).canonicalPath();
+}
+#endif
 
 int real_main(int argc, char *argv[])
 {
