@@ -113,7 +113,7 @@ set(SOURCE_FILES
 set(RESOURCE_FILES "")
 
 if(APPLE)
-	list(APPEND RESOURCE_FILES "chiaking.icns")
+	list(APPEND RESOURCE_FILES "pswrap.icns")   # PS-WRAP-MAC: ไอคอนของเรา (scripts/gen-icon.py)
 elseif(WIN32)
 	configure_file(
 		${CMAKE_CURRENT_SOURCE_DIR}/chiaking.rc.in
@@ -308,7 +308,7 @@ set_target_properties(chiaki PROPERTIES
 		MACOSX_BUNDLE_BUNDLE_VERSION ${PSWRAP_VERSION}
 		MACOSX_BUNDLE_COPYRIGHT "iDevGIS / chiaki-ng contributors (AGPLv3)"
 		MACOSX_BUNDLE_GUI_IDENTIFIER "com.idevgis.pswrap"
-		MACOSX_BUNDLE_ICON_FILE chiaking.icns
+		MACOSX_BUNDLE_ICON_FILE pswrap.icns
 		RESOURCE "${RESOURCE_FILES}")
 
 if(WIN32)

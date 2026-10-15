@@ -1,5 +1,5 @@
-"""สร้าง pswrap.ico / pswrap.png (ดีไซน์เดียวกับ gui/res/pswrap.svg) ด้วย Pillow
-ใช้: uv run --with pillow python scripts/gen-icon.py
+"""สร้าง pswrap.ico / pswrap.png (+ pswrap.icns บน macOS) ดีไซน์เดียวกับ gui/res/pswrap.svg ด้วย Pillow
+ใช้: uv run --with pillow python scripts/gen-icon.py   (mac: python3 -m pip install pillow แล้วรันตรงๆ)
 """
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-ROOT = Path(__file__).resolve().parent.parent / "chiaki-ng" / "gui"
+ROOT = Path(__file__).resolve().parent.parent / "ps-wrap" / "gui"
 BG, BORDER, ACCENT, TEXT = "#0b0f14", "#2a3441", "#00a7ff", "#e8edf2"
 
 
@@ -46,6 +46,17 @@ def main() -> None:
     imgs[256].save(ROOT / "pswrap.ico", format="ICO", sizes=[(sz, sz) for sz in sizes],
                    append_images=[imgs[sz] for sz in sizes if sz != 256])
     print("wrote", ROOT / "pswrap.ico", "and pswrap.png")
+    # PS-WRAP-MAC: .icns สำหรับ bundle (iconutil มากับ macOS) — ชุดขนาดตามที่ Apple กำหนด
+    import platform, shutil, subprocess, tempfile
+    if platform.system() == "Darwin" and shutil.which("iconutil"):
+        with tempfile.TemporaryDirectory() as td:
+            iconset = Path(td) / "pswrap.iconset"
+            iconset.mkdir()
+            for base in (16, 32, 128, 256, 512):
+                render(base).save(iconset / f"icon_{base}x{base}.png")
+                render(base * 2).save(iconset / f"icon_{base}x{base}@2x.png")
+            subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(ROOT / "pswrap.icns")], check=True)
+        print("wrote", ROOT / "pswrap.icns")
 
 
 if __name__ == "__main__":
