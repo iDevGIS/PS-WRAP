@@ -33,6 +33,8 @@ Dialog {
     Overlay.modal: Rectangle { color: Theme.overlay }
 
     readonly property bool hasNotices: !!Chiaki.window && Chiaki.window.appFileExists("THIRD-PARTY-NOTICES.txt")
+    // PS-WRAP-MAC: build บน macOS แสดงชื่อ/รายการ library ของตัวเอง (ไม่มี ONNX Runtime / WebView2 / RNNoise · มี MoltenVK)
+    readonly property bool isMac: Qt.platform.os === "osx"
 
     function link(url, label) { return "<a href=\"" + url + "\" style=\"color:" + Theme.accent + "; text-decoration:none\">" + (label || url) + "</a>"; }
     function scrollBy(dy) { flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY + dy)); }
@@ -52,14 +54,14 @@ Dialog {
             ColumnLayout {
                 spacing: 2
                 Label {
-                    text: "PS-WRAP"
+                    text: about.isMac ? "PS-WRAP-MAC" : "PS-WRAP"
                     font.pixelSize: Theme.fontDisplay
                     font.weight: Font.Bold
                     color: Theme.text
                 }
                 Label {
                     textFormat: Text.StyledText
-                    text: qsTr("Version %1 · by %2").arg(Qt.application.version).arg(about.link("https://github.com/iDevGIS", "BudToZai"))
+                    text: (about.isMac ? qsTr("Version %1 · macOS build · by %2") : qsTr("Version %1 · by %2")).arg(Qt.application.version).arg(about.link("https://github.com/iDevGIS", "BudToZai"))
                     font.pixelSize: Theme.fontLabel
                     color: Theme.textMuted
                     onLinkActivated: (url) => Qt.openUrlExternally(url)
@@ -102,6 +104,13 @@ Dialog {
                           .arg(about.link("https://discord.gg/6VTSxu8JRf", "Discord"))
                 }
 
+                // PS-WRAP-MAC: บอกว่าเป็น build macOS และอะไรยังไม่มี (ส่วนที่เป็น Windows API ถูก stub ไว้)
+                Section {
+                    visible: about.isMac
+                    title: qsTr("macOS build")
+                    text: qsTr("PS-WRAP-MAC is the macOS build of PS-WRAP, built from the same source with Homebrew Qt, FFmpeg and libplacebo. Not yet available on macOS: the in-app PlayStation Network sign-in window (paste the link instead), the AI facecam, Windows Credential Manager storage for stream keys, the Diagnostics tool and automatic updates.")
+                }
+
                 Section {
                     title: qsTr("Built on chiaki-ng")
                     text: qsTr("PS-WRAP is a fork of %1 by Street Pea and contributors (commit a9a2805, 1.10.0 development). The streaming core comes from chiaki-ng; PS-WRAP adds a new interface, overlays, recording and live streaming on top.")
@@ -119,11 +128,14 @@ Dialog {
                             .arg(about.link("https://code.videolan.org/videolan/libplacebo", "libplacebo"))
                             .arg(about.link("https://ffmpeg.org", "FFmpeg"))
                             .arg(about.link("https://libsdl.org", "SDL")),
-                        qsTr("%1 (MIT) with MediaPipe Selfie Segmentation, BlazeFace and Face Landmarker models by Google (Apache-2.0)")
+                        about.isMac ? qsTr("%1 (Apache-2.0) for Vulkan on Metal")
+                            .arg(about.link("https://github.com/KhronosGroup/MoltenVK", "MoltenVK")) : "",
+                        about.isMac ? "" : qsTr("%1 (MIT) with MediaPipe Selfie Segmentation, BlazeFace and Face Landmarker models by Google (Apache-2.0)")
                             .arg(about.link("https://onnxruntime.ai", "ONNX Runtime")),
-                        qsTr("%1 (BSD) and SpeexDSP (BSD) for microphone noise reduction and echo cancellation")
+                        about.isMac ? qsTr("SpeexDSP (BSD) for microphone noise reduction and echo cancellation")
+                                    : qsTr("%1 (BSD) and SpeexDSP (BSD) for microphone noise reduction and echo cancellation")
                             .arg(about.link("https://github.com/xiph/rnnoise", "RNNoise")),
-                        qsTr("%1 loader (BSD-3-Clause) for the PlayStation Network sign-in window")
+                        about.isMac ? "" : qsTr("%1 loader (BSD-3-Clause) for the PlayStation Network sign-in window")
                             .arg(about.link("https://learn.microsoft.com/microsoft-edge/webview2/", "Microsoft Edge WebView2")),
                         qsTr("PS-WRAP Link: %1 (MPL-2.0) with libjuice (MPL-2.0), usrsctp and libsrtp (BSD-3), Qt WebSockets (LGPL-3.0), %2 by Project Nayuki (MIT)")
                             .arg(about.link("https://github.com/paullouisageneau/libdatachannel", "libdatachannel"))
@@ -135,7 +147,7 @@ Dialog {
                         qsTr("3D controller: based on %1 by %2 (CC-BY 4.0), split into parts and retextured by PS-WRAP · Qt Quick 3D (GPL-3.0 / commercial)")
                             .arg(about.link("https://sketchfab.com/3d-models/playstation-5-dualsense-878c1f882808477ab81c2fe86d5a3936", "Playstation 5 Dualsense"))
                             .arg(about.link("https://sketchfab.com/AHarmlessPotato", "AHarmlessPotato"))
-                    ].join("<br>")
+                    ].filter(Boolean).join("<br>")
                 }
 
                 Section {
@@ -143,7 +155,8 @@ Dialog {
                     text: qsTr("PS-WRAP is free software under the GNU Affero General Public License version 3 (with the OpenSSL exception), the same license as chiaki-ng. It comes with no warranty. If you share PS-WRAP, you must also share its source code.")
                           + "<br><br>"
                           + qsTr("Source code: %1").arg(about.link("https://github.com/iDevGIS/PS-WRAP"))
-                          + (about.hasNotices ? "<br>" + qsTr("Full license texts for every bundled library are in THIRD-PARTY-NOTICES.txt and the licenses folder next to PS-WRAP.exe.") : "")
+                          + (about.hasNotices ? "<br>" + (about.isMac ? qsTr("Full license texts for every bundled library are in THIRD-PARTY-NOTICES.txt and the licenses folder inside PS-WRAP-MAC.app.")
+                                                       : qsTr("Full license texts for every bundled library are in THIRD-PARTY-NOTICES.txt and the licenses folder next to PS-WRAP.exe.")) : "")
                 }
 
                 Label {
